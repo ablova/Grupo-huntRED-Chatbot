@@ -1,0 +1,640 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/analytics.css' %}">
+<style>
+    .omnichannel-notifications {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 20px;
+    }
+    
+    .omnichannel-header {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 25px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        backdrop-filter: blur(10px);
+    }
+    
+    .header-title {
+        font-size: 32px;
+        font-weight: bold;
+        color: #2c3e50;
+        margin-bottom: 10px;
+    }
+    
+    .header-subtitle {
+        color: #7f8c8d;
+        font-size: 18px;
+    }
+    
+    .omnichannel-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 25px;
+        margin-bottom: 25px;
+    }
+    
+    .omnichannel-card {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        backdrop-filter: blur(10px);
+        transition: transform 0.3s ease;
+    }
+    
+    .omnichannel-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #ecf0f1;
+    }
+    
+    .card-title {
+        font-size: 20px;
+        font-weight: bold;
+        color: #2c3e50;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .card-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 18px;
+    }
+    
+    .metric-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 15px 0;
+        border-bottom: 1px solid #ecf0f1;
+    }
+    
+    .metric-item:last-child {
+        border-bottom: none;
+    }
+    
+    .metric-label {
+        color: #7f8c8d;
+        font-size: 14px;
+    }
+    
+    .metric-value {
+        font-size: 18px;
+        font-weight: bold;
+        color: #2c3e50;
+    }
+    
+    .metric-value.high { color: #27ae60; }
+    .metric-value.medium { color: #f39c12; }
+    .metric-value.low { color: #e74c3c; }
+    
+    .channel-status {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px;
+        border-radius: 8px;
+        margin-bottom: 10px;
+    }
+    
+    .channel-status.active {
+        background: rgba(39, 174, 96, 0.1);
+        border-left: 4px solid #27ae60;
+    }
+    
+    .channel-status.inactive {
+        background: rgba(231, 76, 60, 0.1);
+        border-left: 4px solid #e74c3c;
+    }
+    
+    .status-indicator {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+    }
+    
+    .status-indicator.active {
+        background: #27ae60;
+    }
+    
+    .status-indicator.inactive {
+        background: #e74c3c;
+    }
+    
+    .channel-info {
+        flex: 1;
+    }
+    
+    .channel-name {
+        font-weight: bold;
+        color: #2c3e50;
+        margin-bottom: 5px;
+    }
+    
+    .channel-stats {
+        font-size: 12px;
+        color: #7f8c8d;
+    }
+    
+    .engagement-chart {
+        height: 200px;
+        margin: 20px 0;
+    }
+    
+    .template-category {
+        background: rgba(116, 185, 255, 0.1);
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 15px;
+    }
+    
+    .template-category-title {
+        font-weight: bold;
+        color: #2c3e50;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .template-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    
+    .template-item {
+        padding: 8px 0;
+        border-bottom: 1px solid #ecf0f1;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .template-item:last-child {
+        border-bottom: none;
+    }
+    
+    .template-name {
+        color: #7f8c8d;
+        font-size: 14px;
+    }
+    
+    .template-usage {
+        font-size: 12px;
+        color: #27ae60;
+        font-weight: bold;
+    }
+    
+    .omnichannel-actions {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-top: 20px;
+    }
+    
+    .action-btn {
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        padding: 15px;
+        font-size: 14px;
+        font-weight: bold;
+        text-decoration: none;
+        text-align: center;
+        transition: transform 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+    }
+    
+    .action-btn:hover {
+        transform: translateY(-2px);
+        color: white;
+        text-decoration: none;
+    }
+    
+    .breadcrumb {
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 10px;
+        padding: 15px 20px;
+        margin-bottom: 20px;
+        backdrop-filter: blur(10px);
+    }
+    
+    .breadcrumb a {
+        color: #667eea;
+        text-decoration: none;
+    }
+    
+    .breadcrumb a:hover {
+        color: #764ba2;
+    }
+    
+    .performance-ring {
+        width: 80px;
+        height: 80px;
+        margin: 0 auto;
+    }
+    
+    .performance-ring circle {
+        fill: none;
+        stroke-width: 6;
+        stroke-linecap: round;
+    }
+    
+    .performance-ring .bg {
+        stroke: #ecf0f1;
+    }
+    
+    .performance-ring .progress {
+        stroke: url(#gradient);
+        stroke-dasharray: 188;
+        stroke-dashoffset: 188;
+        transition: stroke-dashoffset 0.5s ease;
+    }
+    
+    @media (max-width: 768px) {
+        .omnichannel-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .omnichannel-actions {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="omnichannel-notifications">
+    <!-- Breadcrumb -->
+    <div class="breadcrumb">
+        {% for breadcrumb in breadcrumbs %}
+            {% if forloop.last %}
+                <span>{{ breadcrumb.name }}</span>
+            {% else %}
+                <a href="{% url breadcrumb.url %}">{{ breadcrumb.name }}</a> / 
+            {% endif %}
+        {% endfor %}
+    </div>
+
+    <!-- Omnichannel Header -->
+    <div class="omnichannel-header">
+        <div class="header-title">
+            <i class="fas fa-broadcast-tower"></i>
+            Sistema Omnicanal de Notificaciones
+        </div>
+        <div class="header-subtitle">
+            Gestión unificada de comunicaciones a través de múltiples canales
+        </div>
+    </div>
+
+    <!-- Omnichannel Grid -->
+    <div class="omnichannel-grid">
+        <!-- Notification Statistics -->
+        <div class="omnichannel-card">
+            <div class="card-header">
+                <div class="card-title">
+                    <div class="card-icon" style="background: linear-gradient(45deg, #27ae60, #2ecc71);">
+                        <i class="fas fa-chart-bar"></i>
+                    </div>
+                    Estadísticas de Notificaciones
+                </div>
+            </div>
+            
+            {% if notification_stats %}
+            <div class="metric-item">
+                <span class="metric-label">Total Enviadas</span>
+                <span class="metric-value">{{ notification_stats.total_sent }}</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-label">Entregadas</span>
+                <span class="metric-value high">{{ notification_stats.delivered }}</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-label">Leídas</span>
+                <span class="metric-value high">{{ notification_stats.read }}</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-label">Tasa de Entrega</span>
+                <span class="metric-value high">{{ notification_stats.delivery_rate }}%</span>
+            </div>
+            {% else %}
+            <p style="color: #7f8c8d; text-align: center;">No hay datos disponibles</p>
+            {% endif %}
+        </div>
+
+        <!-- Channel Performance -->
+        <div class="omnichannel-card">
+            <div class="card-header">
+                <div class="card-title">
+                    <div class="card-icon" style="background: linear-gradient(45deg, #e74c3c, #c0392b);">
+                        <i class="fas fa-tachometer-alt"></i>
+                    </div>
+                    Rendimiento de Canales
+                </div>
+            </div>
+            
+            {% if channel_performance %}
+                {% for channel, data in channel_performance.items %}
+                <div class="channel-status {% if data.status == 'active' %}active{% else %}inactive{% endif %}">
+                    <div class="status-indicator {% if data.status == 'active' %}active{% else %}inactive{% endif %}"></div>
+                    <div class="channel-info">
+                        <div class="channel-name">{{ data.name }}</div>
+                        <div class="channel-stats">
+                            {{ data.messages_sent }} mensajes • {{ data.delivery_rate }}% entrega
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+            <p style="color: #7f8c8d; text-align: center;">No hay datos disponibles</p>
+            {% endif %}
+        </div>
+
+        <!-- Delivery Analytics -->
+        <div class="omnichannel-card">
+            <div class="card-header">
+                <div class="card-title">
+                    <div class="card-icon" style="background: linear-gradient(45deg, #9b59b6, #8e44ad);">
+                        <i class="fas fa-analytics"></i>
+                    </div>
+                    Analytics de Entrega
+                </div>
+            </div>
+            
+            {% if delivery_analytics %}
+            <div class="metric-item">
+                <span class="metric-label">Tiempo Promedio</span>
+                <span class="metric-value">{{ delivery_analytics.avg_delivery_time }}s</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-label">Fallbacks Usados</span>
+                <span class="metric-value">{{ delivery_analytics.fallbacks_used }}</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-label">Reintentos</span>
+                <span class="metric-value medium">{{ delivery_analytics.retries }}</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-label">Errores</span>
+                <span class="metric-value low">{{ delivery_analytics.errors }}</span>
+            </div>
+            {% else %}
+            <p style="color: #7f8c8d; text-align: center;">No hay datos disponibles</p>
+            {% endif %}
+        </div>
+
+        <!-- Engagement Insights -->
+        <div class="omnichannel-card">
+            <div class="card-header">
+                <div class="card-title">
+                    <div class="card-icon" style="background: linear-gradient(45deg, #3498db, #2980b9);">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    Insights de Engagement
+                </div>
+            </div>
+            
+            {% if engagement_insights %}
+            <div class="metric-item">
+                <span class="metric-label">Tasa de Apertura</span>
+                <span class="metric-value high">{{ engagement_insights.open_rate }}%</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-label">Tasa de Clic</span>
+                <span class="metric-value medium">{{ engagement_insights.click_rate }}%</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-label">Respuestas</span>
+                <span class="metric-value">{{ engagement_insights.responses }}</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-label">Satisfacción</span>
+                <span class="metric-value high">{{ engagement_insights.satisfaction }}%</span>
+            </div>
+            {% else %}
+            <p style="color: #7f8c8d; text-align: center;">No hay datos disponibles</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Templates Overview -->
+    <div class="omnichannel-card">
+        <div class="card-header">
+            <div class="card-title">
+                <div class="card-icon" style="background: linear-gradient(45deg, #f39c12, #e67e22);">
+                    <i class="fas fa-file-alt"></i>
+                </div>
+                Templates de Notificación
+            </div>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+            <div class="template-category">
+                <div class="template-category-title">
+                    <i class="fas fa-user" style="color: #27ae60;"></i>
+                    Candidatos
+                </div>
+                <ul class="template-list">
+                    <li class="template-item">
+                        <span class="template-name">Contacto Inicial</span>
+                        <span class="template-usage">1,250 usos</span>
+                    </li>
+                    <li class="template-item">
+                        <span class="template-name">Confirmación Entrevista</span>
+                        <span class="template-usage">890 usos</span>
+                    </li>
+                    <li class="template-item">
+                        <span class="template-name">Carta de Oferta</span>
+                        <span class="template-usage">450 usos</span>
+                    </li>
+                </ul>
+            </div>
+            
+            <div class="template-category">
+                <div class="template-category-title">
+                    <i class="fas fa-building" style="color: #3498db;"></i>
+                    Clientes
+                </div>
+                <ul class="template-list">
+                    <li class="template-item">
+                        <span class="template-name">Actualización Proceso</span>
+                        <span class="template-usage">2,100 usos</span>
+                    </li>
+                    <li class="template-item">
+                        <span class="template-name">Presentación Candidato</span>
+                        <span class="template-usage">1,750 usos</span>
+                    </li>
+                    <li class="template-item">
+                        <span class="template-name">Firma Contrato</span>
+                        <span class="template-usage">320 usos</span>
+                    </li>
+                </ul>
+            </div>
+            
+            <div class="template-category">
+                <div class="template-category-title">
+                    <i class="fas fa-user-tie" style="color: #9b59b6;"></i>
+                    Consultores
+                </div>
+                <ul class="template-list">
+                    <li class="template-item">
+                        <span class="template-name">Nueva Asignación</span>
+                        <span class="template-usage">180 usos</span>
+                    </li>
+                    <li class="template-item">
+                        <span class="template-name">Completado Proceso</span>
+                        <span class="template-usage">95 usos</span>
+                    </li>
+                    <li class="template-item">
+                        <span class="template-name">Actualización Rendimiento</span>
+                        <span class="template-usage">210 usos</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Omnichannel Actions -->
+    <div class="omnichannel-card">
+        <div class="card-header">
+            <div class="card-title">
+                <div class="card-icon" style="background: linear-gradient(45deg, #00b894, #00a085);">
+                    <i class="fas fa-bolt"></i>
+                </div>
+                Acciones Omnicanal
+            </div>
+        </div>
+        
+        <div class="omnichannel-actions">
+            <a href="{% url 'advanced_analytics:conversational_ai_dashboard' %}" class="action-btn">
+                <i class="fas fa-robot"></i>
+                Conversational AI
+            </a>
+            <a href="{% url 'advanced_analytics:notification_channels_dashboard' %}" class="action-btn">
+                <i class="fas fa-broadcast-tower"></i>
+                Gestión Canales
+            </a>
+            <a href="{% url 'advanced_analytics:notification_templates_dashboard' %}" class="action-btn">
+                <i class="fas fa-file-alt"></i>
+                Templates
+            </a>
+            <a href="#" class="action-btn" onclick="sendTestNotification()">
+                <i class="fas fa-paper-plane"></i>
+                Enviar Test
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Función para enviar notificación de prueba
+function sendTestNotification() {
+    const testData = {
+        recipient_id: 1,
+        template_name: 'test_notification',
+        channels: ['email', 'whatsapp'],
+        context: {
+            'user_name': 'Usuario de Prueba',
+            'message': 'Esta es una notificación de prueba del sistema omnicanal'
+        }
+    };
+    
+    fetch('{% url "advanced_analytics:api_send_omnichannel_notification" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify(testData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Notificación de prueba enviada exitosamente');
+        } else {
+            alert('Error al enviar notificación de prueba');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error al enviar notificación de prueba');
+    });
+}
+
+// Auto-refresh cada 5 minutos
+setInterval(function() {
+    location.reload();
+}, 300000);
+
+// Gráfico de rendimiento de canales
+const ctx = document.createElement('canvas');
+ctx.className = 'engagement-chart';
+document.querySelector('.omnichannel-card:nth-child(2)').appendChild(ctx);
+
+const channelChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+        labels: ['WhatsApp', 'Email', 'Telegram', 'SMS'],
+        datasets: [{
+            data: [1250, 2100, 890, 450],
+            backgroundColor: [
+                '#25d366',
+                '#3498db',
+                '#0088cc',
+                '#f39c12'
+            ]
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom'
+            }
+        }
+    }
+});
+
+// Animaciones de performance rings
+document.addEventListener('DOMContentLoaded', function() {
+    const performanceRings = document.querySelectorAll('.performance-ring .progress');
+    performanceRings.forEach(ring => {
+        const percentage = parseInt(ring.getAttribute('data-percentage') || '75');
+        const circumference = 188; // 2 * π * 30
+        const offset = circumference - (percentage / 100) * circumference;
+        ring.style.strokeDashoffset = offset;
+    });
+});
+</script>
+{% endblock %} 

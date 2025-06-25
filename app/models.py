@@ -4511,6 +4511,8 @@ class ApiConfig(models.Model):
         ('rest', 'REST'),
         ('graphql', 'GraphQL'),
         ('soap', 'SOAP'),
+        ('calendly', 'Calendly'),
+        ('zapier', 'Zapier'),
         ('other', 'Otro')
     ])
     base_url = models.URLField()

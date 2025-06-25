@@ -1,0 +1,585 @@
+{% extends 'dashboard/super_admin/super_admin_dashboard.html' %}
+{% load static %}
+{% load dashboard_filters %}
+
+{% block title %}Kanban Avanzado - BRUCE ALMIGHTY MODE{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard/super_admin.css' %}">
+<link rel="stylesheet" href="{% static 'css/dashboard/kanban.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="kanban-container">
+    <!-- Header del Kanban -->
+    <div class="kanban-header">
+        <h1 class="kanban-title">
+            <i class="fas fa-tasks"></i>
+            Kanban Avanzado
+        </h1>
+        <p class="kanban-subtitle">
+            Gestión completa de candidatos con filtros avanzados y acciones masivas
+        </p>
+        
+        <!-- Filtros Avanzados -->
+        <div class="filters-section">
+            <div class="filter-group">
+                <label class="filter-label">Período</label>
+                <select class="filter-select" id="period-filter">
+                    <option value="week">Esta Semana</option>
+                    <option value="month" selected>Este Mes</option>
+                    <option value="quarter">Este Trimestre</option>
+                    <option value="year">Este Año</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label class="filter-label">Cliente</label>
+                <select class="filter-select" id="client-filter">
+                    <option value="all">Todos los Clientes</option>
+                    {% for client in kanban_data.clients %}
+                    <option value="{{ client.id }}">{{ client.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label class="filter-label">Consultor</label>
+                <select class="filter-select" id="consultant-filter">
+                    <option value="all">Todos los Consultores</option>
+                    {% for consultant in kanban_data.consultants %}
+                    <option value="{{ consultant.id }}">{{ consultant.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label class="filter-label">Unidad de Negocio</label>
+                <select class="filter-select" id="business-unit-filter">
+                    <option value="all">Todas las Unidades</option>
+                    {% for unit in kanban_data.business_units %}
+                    <option value="{{ unit.id }}">{{ unit.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label class="filter-label">Prioridad</label>
+                <select class="filter-select" id="priority-filter">
+                    <option value="all">Todas las Prioridades</option>
+                    <option value="high">Alta</option>
+                    <option value="medium">Media</option>
+                    <option value="low">Baja</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label class="filter-label">Ubicación</label>
+                <select class="filter-select" id="location-filter">
+                    <option value="all">Todas las Ubicaciones</option>
+                    <option value="CDMX">CDMX</option>
+                    <option value="Guadalajara">Guadalajara</option>
+                    <option value="Monterrey">Monterrey</option>
+                    <option value="Puebla">Puebla</option>
+                    <option value="Querétaro">Querétaro</option>
+                </select>
+            </div>
+        </div>
+        
+        <!-- Métricas del Kanban -->
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-value">{{ kanban_data.metrics.total_candidates }}</div>
+                <div class="metric-label">Total Candidatos</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{{ kanban_data.metrics.active_candidates }}</div>
+                <div class="metric-label">Candidatos Activos</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{{ kanban_data.metrics.hired_this_period }}</div>
+                <div class="metric-label">Contratados</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{{ kanban_data.metrics.avg_time_to_hire }}</div>
+                <div class="metric-label">Tiempo Promedio</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{{ kanban_data.metrics.conversion_rate }}%</div>
+                <div class="metric-label">Tasa de Conversión</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Acciones Masivas -->
+    <div class="bulk-actions">
+        <h3 class="bulk-actions-title">
+            <i class="fas fa-layer-group"></i>
+            Acciones Masivas
+        </h3>
+        <div class="bulk-actions-grid">
+            <button class="bulk-action-btn" onclick="showBulkActionModal('bulk_move')">
+                <i class="fas fa-arrow-right bulk-action-icon"></i>
+                Mover Múltiples
+            </button>
+            <button class="bulk-action-btn" onclick="showBulkActionModal('bulk_email')">
+                <i class="fas fa-mail-bulk bulk-action-icon"></i>
+                Email Masivo
+            </button>
+            <button class="bulk-action-btn" onclick="showBulkActionModal('bulk_export')">
+                <i class="fas fa-download bulk-action-icon"></i>
+                Exportar
+            </button>
+            <button class="bulk-action-btn" onclick="showBulkActionModal('send_blind_list')">
+                <i class="fas fa-user-secret bulk-action-icon"></i>
+                Lista Blind
+            </button>
+            <button class="bulk-action-btn" onclick="showBulkActionModal('send_open_list')">
+                <i class="fas fa-user-friends bulk-action-icon"></i>
+                Lista Abierta
+            </button>
+        </div>
+    </div>
+    
+    <!-- Tablero Kanban -->
+    <div class="kanban-board">
+        {% for status, column in kanban_data.columns.items %}
+        <div class="kanban-column" data-status="{{ status }}">
+            <div class="column-header">
+                <div class="column-title">
+                    <i class="fas {{ column.icon }} column-icon" style="color: {{ column.color }};"></i>
+                    {{ column.title }}
+                </div>
+                <div class="column-count">{{ column.count }}</div>
+            </div>
+            <div class="column-description">{{ column.description }}</div>
+            
+            {% if kanban_data.candidates|get_item:status %}
+                {% for candidate in kanban_data.candidates|get_item:status %}
+                <div class="candidate-card" data-candidate-id="{{ candidate.id }}">
+                    <!-- Acciones del Candidato -->
+                    <div class="candidate-actions">
+                        <div class="action-btn" onclick="showCandidateActions({{ candidate.id }})" title="Acciones">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="candidate-header">
+                        <div>
+                            <div class="candidate-name">{{ candidate.name }}</div>
+                            <div class="candidate-position">{{ candidate.position }}</div>
+                        </div>
+                        <div class="priority-badge priority-{{ candidate.priority }}">
+                            {{ candidate.priority|title }}
+                        </div>
+                    </div>
+                    
+                    <div class="candidate-info">
+                        <div class="info-item">
+                            <span class="info-label">Cliente:</span> {{ candidate.client }}
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Consultor:</span> {{ candidate.consultant }}
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Ubicación:</span> {{ candidate.location }}
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Experiencia:</span> {{ candidate.experience }}
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Salario:</span> {{ candidate.salary_expectation }}
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Disponibilidad:</span> {{ candidate.availability }}
+                        </div>
+                    </div>
+                    
+                    <div class="candidate-tags">
+                        {% for tag in candidate.tags %}
+                        <span class="tag">{{ tag }}</span>
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="candidate-footer">
+                        <div class="match-score">
+                            <div class="score-circle 
+                                {% if candidate.match_score >= 90 %}score-excellent
+                                {% elif candidate.match_score >= 80 %}score-good
+                                {% elif candidate.match_score >= 70 %}score-average
+                                {% else %}score-poor{% endif %}">
+                                {{ candidate.match_score }}
+                            </div>
+                            <span>Match Score</span>
+                        </div>
+                        <div class="last-activity">
+                            {{ candidate.last_activity }}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-column">
+                    <div class="empty-icon">
+                        <i class="fas fa-inbox"></i>
+                    </div>
+                    <p>No hay candidatos en esta etapa</p>
+                </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Modal de Acciones del Candidato -->
+<div class="modal fade" id="candidateActionsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Acciones del Candidato</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Acciones Individuales</h6>
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-outline-primary" onclick="candidateAction('view_details')">
+                                <i class="fas fa-eye"></i> Ver Detalles
+                            </button>
+                            <button class="btn btn-outline-success" onclick="candidateAction('move_status')">
+                                <i class="fas fa-arrow-right"></i> Mover Estado
+                            </button>
+                            <button class="btn btn-outline-warning" onclick="candidateAction('change_business_unit')">
+                                <i class="fas fa-exchange-alt"></i> Cambiar Unidad
+                            </button>
+                            <button class="btn btn-outline-info" onclick="candidateAction('send_email')">
+                                <i class="fas fa-envelope"></i> Enviar Email
+                            </button>
+                            <button class="btn btn-outline-secondary" onclick="candidateAction('schedule_interview')">
+                                <i class="fas fa-calendar"></i> Agendar Entrevista
+                            </button>
+                            <button class="btn btn-outline-dark" onclick="candidateAction('add_notes')">
+                                <i class="fas fa-sticky-note"></i> Agregar Notas
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Acciones de Propuesta</h6>
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-outline-primary" onclick="candidateAction('create_proposal')">
+                                <i class="fas fa-file-contract"></i> Crear Propuesta
+                            </button>
+                            <button class="btn btn-outline-success" onclick="candidateAction('convert_to_contract')">
+                                <i class="fas fa-file-signature"></i> Convertir a Contrato
+                            </button>
+                            <button class="btn btn-outline-warning" onclick="candidateAction('send_blind_list')">
+                                <i class="fas fa-user-secret"></i> Lista Blind
+                            </button>
+                            <button class="btn btn-outline-info" onclick="candidateAction('send_open_list')">
+                                <i class="fas fa-user-friends"></i> Lista Abierta
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Acciones Masivas -->
+<div class="modal fade" id="bulkActionsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Acciones Masivas</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="bulkActionContent">
+                    <!-- Contenido dinámico según la acción -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let selectedCandidates = [];
+let currentCandidateId = null;
+
+// Filtros del kanban
+document.querySelectorAll('.filter-select').forEach(select => {
+    select.addEventListener('change', function() {
+        applyFilters();
+    });
+});
+
+function applyFilters() {
+    const filters = {
+        period: document.getElementById('period-filter').value,
+        client: document.getElementById('client-filter').value,
+        consultant: document.getElementById('consultant-filter').value,
+        business_unit: document.getElementById('business-unit-filter').value,
+        priority: document.getElementById('priority-filter').value,
+        location: document.getElementById('location-filter').value
+    };
+    
+    // Construir URL con filtros
+    const params = new URLSearchParams(filters);
+    window.location.href = `{% url 'advanced_kanban' %}?${params.toString()}`;
+}
+
+// Acciones del candidato
+function showCandidateActions(candidateId) {
+    currentCandidateId = candidateId;
+    const modal = new bootstrap.Modal(document.getElementById('candidateActionsModal'));
+    modal.show();
+}
+
+function candidateAction(action) {
+    if (!currentCandidateId) return;
+    
+    // Cerrar modal
+    bootstrap.Modal.getInstance(document.getElementById('candidateActionsModal')).hide();
+    
+    // Ejecutar acción
+    switch(action) {
+        case 'view_details':
+            window.location.href = `/dashboard/super-admin/candidate/${currentCandidateId}/`;
+            break;
+        case 'move_status':
+            showMoveStatusModal();
+            break;
+        case 'change_business_unit':
+            showChangeBusinessUnitModal();
+            break;
+        case 'send_email':
+            showSendEmailModal();
+            break;
+        case 'schedule_interview':
+            showScheduleInterviewModal();
+            break;
+        case 'add_notes':
+            showAddNotesModal();
+            break;
+        case 'create_proposal':
+            createProposal();
+            break;
+        case 'convert_to_contract':
+            convertToContract();
+            break;
+        case 'send_blind_list':
+            sendBlindList();
+            break;
+        case 'send_open_list':
+            sendOpenList();
+            break;
+    }
+}
+
+// Acciones masivas
+function showBulkActionModal(action) {
+    const modal = new bootstrap.Modal(document.getElementById('bulkActionsModal'));
+    const content = document.getElementById('bulkActionContent');
+    
+    switch(action) {
+        case 'bulk_move':
+            content.innerHTML = `
+                <h6>Mover Candidatos Seleccionados</h6>
+                <div class="mb-3">
+                    <label class="form-label">Nuevo Estado</label>
+                    <select class="form-select" id="newStatus">
+                        <option value="sourcing">Sourcing</option>
+                        <option value="screening">Screening</option>
+                        <option value="interviewing">Entrevistando</option>
+                        <option value="references">Referencias</option>
+                        <option value="offer">Oferta</option>
+                        <option value="hired">Contratado</option>
+                        <option value="rejected">Rechazado</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" onclick="executeBulkAction('bulk_move')">
+                    <i class="fas fa-arrow-right"></i> Mover Candidatos
+                </button>
+            `;
+            break;
+        case 'bulk_email':
+            content.innerHTML = `
+                <h6>Enviar Email Masivo</h6>
+                <div class="mb-3">
+                    <label class="form-label">Tipo de Email</label>
+                    <select class="form-select" id="emailType">
+                        <option value="welcome">Bienvenida</option>
+                        <option value="interview">Entrevista</option>
+                        <option value="offer">Oferta</option>
+                        <option value="rejection">Rechazo</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" onclick="executeBulkAction('bulk_email')">
+                    <i class="fas fa-mail-bulk"></i> Enviar Emails
+                </button>
+            `;
+            break;
+        case 'bulk_export':
+            content.innerHTML = `
+                <h6>Exportar Candidatos</h6>
+                <div class="mb-3">
+                    <label class="form-label">Formato</label>
+                    <select class="form-select" id="exportFormat">
+                        <option value="excel">Excel</option>
+                        <option value="pdf">PDF</option>
+                        <option value="csv">CSV</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" onclick="executeBulkAction('bulk_export')">
+                    <i class="fas fa-download"></i> Exportar
+                </button>
+            `;
+            break;
+        case 'send_blind_list':
+            content.innerHTML = `
+                <h6>Enviar Lista Blind</h6>
+                <p>Se enviará una lista de candidatos sin información sensible al cliente.</p>
+                <button class="btn btn-primary" onclick="executeBulkAction('send_blind_list')">
+                    <i class="fas fa-user-secret"></i> Enviar Lista Blind
+                </button>
+            `;
+            break;
+        case 'send_open_list':
+            content.innerHTML = `
+                <h6>Enviar Lista Abierta</h6>
+                <p>Se enviará la lista completa de candidatos con toda la información.</p>
+                <button class="btn btn-primary" onclick="executeBulkAction('send_open_list')">
+                    <i class="fas fa-user-friends"></i> Enviar Lista Abierta
+                </button>
+            `;
+            break;
+    }
+    
+    modal.show();
+}
+
+function executeBulkAction(action) {
+    const formData = new FormData();
+    formData.append('action', action);
+    
+    // Agregar datos específicos según la acción
+    switch(action) {
+        case 'bulk_move':
+            formData.append('new_status', document.getElementById('newStatus').value);
+            break;
+        case 'bulk_email':
+            formData.append('email_type', document.getElementById('emailType').value);
+            break;
+        case 'bulk_export':
+            formData.append('export_format', document.getElementById('exportFormat').value);
+            break;
+    }
+    
+    // Agregar candidatos seleccionados
+    selectedCandidates.forEach(id => {
+        formData.append('candidate_ids', id);
+    });
+    
+    fetch('{% url "bulk_candidate_action" %}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Acción ejecutada exitosamente', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('bulkActionsModal')).hide();
+            // Recargar página para ver cambios
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showNotification('Error: ' + data.error, 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('Error al ejecutar la acción', 'error');
+    });
+}
+
+// Funciones auxiliares
+function showNotification(message, type) {
+    // Implementar notificación
+    console.log(`${type}: ${message}`);
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Drag and drop para mover candidatos
+document.addEventListener('DOMContentLoaded', function() {
+    const candidateCards = document.querySelectorAll('.candidate-card');
+    const columns = document.querySelectorAll('.kanban-column');
+    
+    candidateCards.forEach(card => {
+        card.setAttribute('draggable', true);
+        
+        card.addEventListener('dragstart', function(e) {
+            e.dataTransfer.setData('text/plain', card.dataset.candidateId);
+        });
+    });
+    
+    columns.forEach(column => {
+        column.addEventListener('dragover', function(e) {
+            e.preventDefault();
+        });
+        
+        column.addEventListener('drop', function(e) {
+            e.preventDefault();
+            const candidateId = e.dataTransfer.getData('text/plain');
+            const newStatus = column.dataset.status;
+            
+            // Mover candidato a nuevo estado
+            moveCandidate(candidateId, newStatus);
+        });
+    });
+});
+
+function moveCandidate(candidateId, newStatus) {
+    const formData = new FormData();
+    formData.append('new_status', newStatus);
+    
+    fetch(`/dashboard/super-admin/candidate/${candidateId}/action/move_status/`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Candidato movido exitosamente', 'success');
+            setTimeout(() => location.reload(), 500);
+        } else {
+            showNotification('Error al mover candidato', 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('Error al mover candidato', 'error');
+    });
+}
+</script>
+{% endblock %} 

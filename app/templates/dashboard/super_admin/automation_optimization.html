@@ -1,0 +1,912 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ page_title }} - BRUCE ALMIGHTY MODE{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard/automation_optimization.css' %}">
+<link rel="stylesheet" href="{% static 'css/components/metrics_cards.css' %}">
+<link rel="stylesheet" href="{% static 'css/components/charts.css' %}">
+<link rel="stylesheet" href="{% static 'css/components/optimization_panel.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="automation-optimization-dashboard">
+    <!-- Header del Dashboard -->
+    <div class="dashboard-header">
+        <div class="header-content">
+            <h1 class="dashboard-title">
+                <i class="fas fa-magic"></i>
+                Optimización de Automatización
+            </h1>
+            <p class="dashboard-subtitle">
+                Sistema inteligente de optimización y mejora continua
+            </p>
+        </div>
+        <div class="header-actions">
+            <button class="btn btn-primary" onclick="runOptimizationAnalysis()">
+                <i class="fas fa-search"></i>
+                Análisis de Optimización
+            </button>
+            <button class="btn btn-success" onclick="applyAllOptimizations()">
+                <i class="fas fa-rocket"></i>
+                Aplicar Todas las Optimizaciones
+            </button>
+        </div>
+    </div>
+
+    <!-- Métricas de Optimización -->
+    <div class="metrics-section">
+        <div class="metrics-grid">
+            <div class="metric-card primary">
+                <div class="metric-icon">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <div class="metric-content">
+                    <h3 class="metric-value">{{ optimization_metrics.engagement_improvement|floatformat:1 }}%</h3>
+                    <p class="metric-label">Mejora en Engagement</p>
+                    <div class="metric-trend positive">
+                        <i class="fas fa-arrow-up"></i>
+                        <span>+2.3%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="metric-card success">
+                <div class="metric-icon">
+                    <i class="fas fa-cogs"></i>
+                </div>
+                <div class="metric-content">
+                    <h3 class="metric-value">{{ optimization_metrics.automation_efficiency|floatformat:1 }}%</h3>
+                    <p class="metric-label">Eficiencia de Automatización</p>
+                    <div class="metric-trend positive">
+                        <i class="fas fa-arrow-up"></i>
+                        <span>+5.2%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="metric-card warning">
+                <div class="metric-icon">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="metric-content">
+                    <h3 class="metric-value">{{ optimization_metrics.response_time_reduction|floatformat:1 }}%</h3>
+                    <p class="metric-label">Reducción de Tiempo de Respuesta</p>
+                    <div class="metric-trend positive">
+                        <i class="fas fa-arrow-up"></i>
+                        <span>+8.7%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="metric-card info">
+                <div class="metric-icon">
+                    <i class="fas fa-dollar-sign"></i>
+                </div>
+                <div class="metric-content">
+                    <h3 class="metric-value">{{ optimization_metrics.cost_savings|floatformat:1 }}%</h3>
+                    <p class="metric-label">Ahorro de Costos</p>
+                    <div class="metric-trend positive">
+                        <i class="fas fa-arrow-up"></i>
+                        <span>+12.5%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contenido Principal -->
+    <div class="dashboard-content">
+        <div class="content-grid">
+            <!-- Panel de Optimizaciones -->
+            <div class="content-card large">
+                <div class="card-header">
+                    <h3><i class="fas fa-lightbulb"></i> Optimizaciones Recomendadas</h3>
+                    <div class="card-actions">
+                        <button class="btn btn-sm btn-primary" onclick="refreshOptimizations()">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                        <button class="btn btn-sm btn-success" onclick="applySelectedOptimizations()">
+                            <i class="fas fa-check"></i>
+                            Aplicar Seleccionadas
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="optimization-panel">
+                        {% for recommendation in optimization_recommendations %}
+                        <div class="optimization-item" data-type="{{ recommendation.type }}">
+                            <div class="optimization-header">
+                                <div class="optimization-info">
+                                    <h4>{{ recommendation.title }}</h4>
+                                    <span class="priority-badge {{ recommendation.priority }}">{{ recommendation.priority|title }}</span>
+                                </div>
+                                <div class="optimization-actions">
+                                    <label class="checkbox-container">
+                                        <input type="checkbox" class="optimization-checkbox">
+                                        <span class="checkmark"></span>
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="optimization-content">
+                                <p class="description">{{ recommendation.description }}</p>
+                                
+                                <div class="optimization-metrics">
+                                    <div class="metric">
+                                        <span class="metric-label">Impacto Esperado:</span>
+                                        <span class="metric-value impact">{{ recommendation.impact }}</span>
+                                    </div>
+                                    <div class="metric">
+                                        <span class="metric-label">Tiempo de Implementación:</span>
+                                        <span class="metric-value">2-4 horas</span>
+                                    </div>
+                                    <div class="metric">
+                                        <span class="metric-label">Riesgo:</span>
+                                        <span class="metric-value risk-low">Bajo</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="optimization-details">
+                                    <div class="detail-section">
+                                        <h5>Detalles Técnicos</h5>
+                                        <ul>
+                                            <li>Optimización de algoritmos de predicción</li>
+                                            <li>Mejora en la selección de canales</li>
+                                            <li>Personalización de contenido</li>
+                                        </ul>
+                                    </div>
+                                    
+                                    <div class="detail-section">
+                                        <h5>Beneficios Esperados</h5>
+                                        <ul>
+                                            <li>Mayor tasa de engagement</li>
+                                            <li>Reducción de tiempo de respuesta</li>
+                                            <li>Mejor experiencia del usuario</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="optimization-footer">
+                                <button class="btn btn-sm btn-primary" onclick="applyOptimization('{{ recommendation.type }}')">
+                                    <i class="fas fa-magic"></i>
+                                    Aplicar
+                                </button>
+                                <button class="btn btn-sm btn-info" onclick="viewOptimizationDetails('{{ recommendation.type }}')">
+                                    <i class="fas fa-eye"></i>
+                                    Detalles
+                                </button>
+                                <button class="btn btn-sm btn-secondary" onclick="testOptimization('{{ recommendation.type }}')">
+                                    <i class="fas fa-flask"></i>
+                                    Probar
+                                </button>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="empty-state">
+                            <i class="fas fa-check-circle"></i>
+                            <p>No hay optimizaciones pendientes</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Métricas de Rendimiento -->
+            <div class="content-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-chart-bar"></i> Métricas de Rendimiento</h3>
+                </div>
+                <div class="card-body">
+                    <div class="performance-metrics">
+                        {% for metric_name, metric_value in performance_metrics.items %}
+                        <div class="performance-item">
+                            <div class="performance-header">
+                                <h4>{{ metric_name|title }}</h4>
+                                <span class="performance-value">{{ metric_value|floatformat:1 }}%</span>
+                            </div>
+                            
+                            <div class="performance-bar">
+                                <div class="performance-fill" style="width: {{ metric_value }}%"></div>
+                            </div>
+                            
+                            <div class="performance-trend">
+                                <span class="trend-indicator positive">
+                                    <i class="fas fa-arrow-up"></i>
+                                    +2.1%
+                                </span>
+                                <span class="trend-period">vs mes anterior</span>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="empty-state">
+                            <i class="fas fa-chart-bar"></i>
+                            <p>No hay métricas disponibles</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Alertas de Optimización -->
+            <div class="content-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-exclamation-triangle"></i> Alertas de Optimización</h3>
+                </div>
+                <div class="card-body">
+                    <div class="optimization-alerts">
+                        {% for alert in optimization_alerts %}
+                        <div class="alert-item {{ alert.type }}">
+                            <div class="alert-icon">
+                                {% if alert.type == 'warning' %}
+                                <i class="fas fa-exclamation-triangle"></i>
+                                {% elif alert.type == 'error' %}
+                                <i class="fas fa-times-circle"></i>
+                                {% else %}
+                                <i class="fas fa-info-circle"></i>
+                                {% endif %}
+                            </div>
+                            <div class="alert-content">
+                                <h4>{{ alert.title }}</h4>
+                                <p>{{ alert.description }}</p>
+                                <small>{{ alert.timestamp|timesince }} atrás</small>
+                            </div>
+                            <div class="alert-actions">
+                                <button class="btn btn-sm btn-primary" onclick="resolveAlert('{{ alert.type }}')">
+                                    Resolver
+                                </button>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="empty-state">
+                            <i class="fas fa-shield-alt"></i>
+                            <p>No hay alertas activas</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Historial de Optimizaciones -->
+            <div class="content-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-history"></i> Historial de Optimizaciones</h3>
+                </div>
+                <div class="card-body">
+                    <div class="optimization-history">
+                        {% for item in optimization_history %}
+                        <div class="history-item">
+                            <div class="history-header">
+                                <h4>{{ item.type|title }}</h4>
+                                <span class="history-status {{ item.status }}">{{ item.status|title }}</span>
+                            </div>
+                            
+                            <div class="history-content">
+                                <p>{{ item.description }}</p>
+                                <div class="history-metrics">
+                                    <span class="impact">{{ item.impact }}</span>
+                                    <span class="timestamp">{{ item.timestamp|timesince }} atrás</span>
+                                </div>
+                            </div>
+                            
+                            <div class="history-actions">
+                                <button class="btn btn-sm btn-info" onclick="viewHistoryDetails('{{ item.type }}')">
+                                    Ver Detalles
+                                </button>
+                                {% if item.status == 'completed' %}
+                                <button class="btn btn-sm btn-success" onclick="revertOptimization('{{ item.type }}')">
+                                    Revertir
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="empty-state">
+                            <i class="fas fa-history"></i>
+                            <p>No hay historial disponible</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráficos de Optimización -->
+    <div class="analytics-section">
+        <div class="analytics-grid">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-chart-line"></i> Tendencias de Optimización</h3>
+                </div>
+                <div class="card-body">
+                    <canvas id="optimizationTrendsChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-chart-pie"></i> Distribución por Tipo</h3>
+                </div>
+                <div class="card-body">
+                    <canvas id="optimizationTypesChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-chart-bar"></i> Impacto de Optimizaciones</h3>
+                </div>
+                <div class="card-body">
+                    <canvas id="optimizationImpactChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-chart-area"></i> ROI de Optimizaciones</h3>
+                </div>
+                <div class="card-body">
+                    <canvas id="optimizationROIChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Detalles de Optimización -->
+<div id="optimizationDetailsModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-lightbulb"></i> Detalles de Optimización</h3>
+            <span class="close" onclick="closeOptimizationDetailsModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div id="optimizationDetailsContent">
+                <!-- Contenido dinámico -->
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeOptimizationDetailsModal()">Cerrar</button>
+            <button class="btn btn-primary" onclick="applyCurrentOptimization()">Aplicar Optimización</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Análisis de Optimización -->
+<div id="optimizationAnalysisModal" class="modal">
+    <div class="modal-content large">
+        <div class="modal-header">
+            <h3><i class="fas fa-search"></i> Análisis de Optimización</h3>
+            <span class="close" onclick="closeOptimizationAnalysisModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div class="analysis-content">
+                <div class="analysis-section">
+                    <h4>Análisis de Rendimiento Actual</h4>
+                    <div class="performance-analysis">
+                        <div class="analysis-item">
+                            <span class="label">Engagement Rate:</span>
+                            <span class="value">78.5%</span>
+                            <span class="trend positive">+2.3%</span>
+                        </div>
+                        <div class="analysis-item">
+                            <span class="label">Response Time:</span>
+                            <span class="value">2.1 horas</span>
+                            <span class="trend positive">-0.5h</span>
+                        </div>
+                        <div class="analysis-item">
+                            <span class="label">Automation Rate:</span>
+                            <span class="value">87.2%</span>
+                            <span class="trend positive">+1.8%</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="analysis-section">
+                    <h4>Oportunidades de Mejora</h4>
+                    <div class="improvement-opportunities">
+                        <div class="opportunity-item">
+                            <h5>Optimización de Timing</h5>
+                            <p>Mejorar la selección de horarios de envío basado en patrones de comportamiento</p>
+                            <span class="potential-impact">+15% engagement</span>
+                        </div>
+                        <div class="opportunity-item">
+                            <h5>Personalización de Contenido</h5>
+                            <p>Implementar personalización dinámica basada en preferencias del usuario</p>
+                            <span class="potential-impact">+23% engagement</span>
+                        </div>
+                        <div class="opportunity-item">
+                            <h5>Optimización de Canales</h5>
+                            <p>Mejorar la selección automática de canales óptimos</p>
+                            <span class="potential-impact">+10% engagement</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="analysis-section">
+                    <h4>Recomendaciones Prioritarias</h4>
+                    <div class="priority-recommendations">
+                        <div class="recommendation-item high">
+                            <span class="priority">Alta Prioridad</span>
+                            <h5>Implementar ML para predicción de engagement</h5>
+                            <p>Impacto esperado: +25% en engagement</p>
+                        </div>
+                        <div class="recommendation-item medium">
+                            <span class="priority">Media Prioridad</span>
+                            <h5>Optimizar algoritmos de timing</h5>
+                            <p>Impacto esperado: +15% en engagement</p>
+                        </div>
+                        <div class="recommendation-item low">
+                            <span class="priority">Baja Prioridad</span>
+                            <h5>Mejorar templates de notificación</h5>
+                            <p>Impacto esperado: +8% en engagement</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeOptimizationAnalysisModal()">Cerrar</button>
+            <button class="btn btn-primary" onclick="generateOptimizationPlan()">Generar Plan de Optimización</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{% static 'js/dashboard/automation_optimization.js' %}"></script>
+<script>
+// Variables globales
+let currentOptimizationType = null;
+let charts = {};
+
+// Inicialización
+document.addEventListener('DOMContentLoaded', function() {
+    initializeCharts();
+    setupOptimizationPanel();
+});
+
+// Funciones de utilidad
+function openOptimizationDetailsModal() {
+    document.getElementById('optimizationDetailsModal').style.display = 'block';
+}
+
+function closeOptimizationDetailsModal() {
+    document.getElementById('optimizationDetailsModal').style.display = 'none';
+}
+
+function openOptimizationAnalysisModal() {
+    document.getElementById('optimizationAnalysisModal').style.display = 'block';
+}
+
+function closeOptimizationAnalysisModal() {
+    document.getElementById('optimizationAnalysisModal').style.display = 'none';
+}
+
+// Funciones de API
+async function runOptimizationAnalysis() {
+    try {
+        showNotification('Ejecutando análisis de optimización...', 'info');
+        
+        // Simular análisis
+        setTimeout(() => {
+            openOptimizationAnalysisModal();
+            showNotification('Análisis completado', 'success');
+        }, 2000);
+        
+    } catch (error) {
+        console.error('Error running optimization analysis:', error);
+        showNotification('Error al ejecutar análisis', 'error');
+    }
+}
+
+async function applyAllOptimizations() {
+    try {
+        const selectedOptimizations = Array.from(document.querySelectorAll('.optimization-checkbox:checked'))
+            .map(checkbox => checkbox.closest('.optimization-item').dataset.type);
+        
+        if (selectedOptimizations.length === 0) {
+            showNotification('Selecciona al menos una optimización', 'warning');
+            return;
+        }
+        
+        showNotification(`Aplicando ${selectedOptimizations.length} optimizaciones...`, 'info');
+        
+        for (const optimizationType of selectedOptimizations) {
+            await applyOptimization(optimizationType);
+        }
+        
+        showNotification('Todas las optimizaciones aplicadas exitosamente', 'success');
+        
+    } catch (error) {
+        console.error('Error applying all optimizations:', error);
+        showNotification('Error al aplicar optimizaciones', 'error');
+    }
+}
+
+async function applyOptimization(type) {
+    try {
+        showNotification(`Aplicando optimización: ${type}`, 'info');
+        
+        const response = await fetch('{% url "omnichannel_automation:api_apply_optimization" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                optimization_type: type,
+                parameters: {}
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            showNotification('Optimización aplicada exitosamente', 'success');
+            updateOptimizationStatus(type, 'applied');
+        } else {
+            showNotification('Error al aplicar optimización', 'error');
+        }
+    } catch (error) {
+        console.error('Error applying optimization:', error);
+        showNotification('Error al aplicar optimización', 'error');
+    }
+}
+
+async function applySelectedOptimizations() {
+    try {
+        const selectedOptimizations = Array.from(document.querySelectorAll('.optimization-checkbox:checked'))
+            .map(checkbox => checkbox.closest('.optimization-item').dataset.type);
+        
+        if (selectedOptimizations.length === 0) {
+            showNotification('Selecciona al menos una optimización', 'warning');
+            return;
+        }
+        
+        showNotification(`Aplicando ${selectedOptimizations.length} optimizaciones seleccionadas...`, 'info');
+        
+        for (const optimizationType of selectedOptimizations) {
+            await applyOptimization(optimizationType);
+        }
+        
+        // Desmarcar checkboxes
+        document.querySelectorAll('.optimization-checkbox:checked').forEach(checkbox => {
+            checkbox.checked = false;
+        });
+        
+    } catch (error) {
+        console.error('Error applying selected optimizations:', error);
+        showNotification('Error al aplicar optimizaciones seleccionadas', 'error');
+    }
+}
+
+function viewOptimizationDetails(type) {
+    try {
+        currentOptimizationType = type;
+        
+        // Simular carga de detalles
+        const detailsContent = `
+            <div class="optimization-details">
+                <div class="detail-section">
+                    <h4>Descripción Técnica</h4>
+                    <p>Esta optimización implementa algoritmos avanzados de machine learning para mejorar la predicción de engagement y optimizar automáticamente los parámetros de envío de notificaciones.</p>
+                </div>
+                
+                <div class="detail-section">
+                    <h4>Parámetros de Implementación</h4>
+                    <ul>
+                        <li><strong>Algoritmo:</strong> Random Forest con Gradient Boosting</li>
+                        <li><strong>Features:</strong> 25 variables de comportamiento</li>
+                        <li><strong>Entrenamiento:</strong> 15,000 muestras históricas</li>
+                        <li><strong>Precisión:</strong> 82.5% en validación cruzada</li>
+                    </ul>
+                </div>
+                
+                <div class="detail-section">
+                    <h4>Impacto Esperado</h4>
+                    <div class="impact-metrics">
+                        <div class="impact-item">
+                            <span class="metric">Engagement Rate:</span>
+                            <span class="value">+15%</span>
+                        </div>
+                        <div class="impact-item">
+                            <span class="metric">Response Time:</span>
+                            <span class="value">-35%</span>
+                        </div>
+                        <div class="impact-item">
+                            <span class="metric">Cost Savings:</span>
+                            <span class="value">+28%</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="detail-section">
+                    <h4>Riesgos y Consideraciones</h4>
+                    <ul>
+                        <li>Requiere período de adaptación de 1-2 semanas</li>
+                        <li>Monitoreo intensivo durante las primeras 48 horas</li>
+                        <li>Posible necesidad de ajustes manuales iniciales</li>
+                    </ul>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('optimizationDetailsContent').innerHTML = detailsContent;
+        openOptimizationDetailsModal();
+        
+    } catch (error) {
+        console.error('Error viewing optimization details:', error);
+        showNotification('Error al cargar detalles de optimización', 'error');
+    }
+}
+
+function testOptimization(type) {
+    try {
+        showNotification(`Probando optimización: ${type}`, 'info');
+        
+        // Simular prueba
+        setTimeout(() => {
+            showNotification('Prueba completada exitosamente', 'success');
+        }, 3000);
+        
+    } catch (error) {
+        console.error('Error testing optimization:', error);
+        showNotification('Error al probar optimización', 'error');
+    }
+}
+
+function resolveAlert(type) {
+    try {
+        showNotification(`Resolviendo alerta: ${type}`, 'info');
+        
+        // Simular resolución
+        setTimeout(() => {
+            showNotification('Alerta resuelta exitosamente', 'success');
+        }, 1000);
+        
+    } catch (error) {
+        console.error('Error resolving alert:', error);
+        showNotification('Error al resolver alerta', 'error');
+    }
+}
+
+function viewHistoryDetails(type) {
+    try {
+        showNotification(`Vista de detalles históricos: ${type}`, 'info');
+        
+    } catch (error) {
+        console.error('Error viewing history details:', error);
+        showNotification('Error al cargar detalles históricos', 'error');
+    }
+}
+
+function revertOptimization(type) {
+    try {
+        showNotification(`Revirtiendo optimización: ${type}`, 'info');
+        
+        // Simular reversión
+        setTimeout(() => {
+            showNotification('Optimización revertida exitosamente', 'success');
+        }, 2000);
+        
+    } catch (error) {
+        console.error('Error reverting optimization:', error);
+        showNotification('Error al revertir optimización', 'error');
+    }
+}
+
+function refreshOptimizations() {
+    try {
+        showNotification('Actualizando optimizaciones...', 'info');
+        
+        // Simular actualización
+        setTimeout(() => {
+            showNotification('Optimizaciones actualizadas', 'success');
+        }, 1000);
+        
+    } catch (error) {
+        console.error('Error refreshing optimizations:', error);
+        showNotification('Error al actualizar optimizaciones', 'error');
+    }
+}
+
+function applyCurrentOptimization() {
+    if (currentOptimizationType) {
+        applyOptimization(currentOptimizationType);
+        closeOptimizationDetailsModal();
+    }
+}
+
+function generateOptimizationPlan() {
+    try {
+        showNotification('Generando plan de optimización...', 'info');
+        
+        // Simular generación de plan
+        setTimeout(() => {
+            showNotification('Plan de optimización generado exitosamente', 'success');
+            closeOptimizationAnalysisModal();
+        }, 2000);
+        
+    } catch (error) {
+        console.error('Error generating optimization plan:', error);
+        showNotification('Error al generar plan de optimización', 'error');
+    }
+}
+
+// Funciones de configuración
+function setupOptimizationPanel() {
+    // Configurar checkboxes
+    document.querySelectorAll('.optimization-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const optimizationItem = this.closest('.optimization-item');
+            if (this.checked) {
+                optimizationItem.classList.add('selected');
+            } else {
+                optimizationItem.classList.remove('selected');
+            }
+        });
+    });
+}
+
+function updateOptimizationStatus(type, status) {
+    const optimizationItem = document.querySelector(`[data-type="${type}"]`);
+    if (optimizationItem) {
+        optimizationItem.classList.add(status);
+        
+        // Actualizar UI
+        const statusBadge = optimizationItem.querySelector('.status-badge');
+        if (statusBadge) {
+            statusBadge.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+            statusBadge.className = `status-badge ${status}`;
+        }
+    }
+}
+
+// Inicialización de gráficos
+function initializeCharts() {
+    // Gráfico de Tendencias de Optimización
+    const optimizationTrendsCtx = document.getElementById('optimizationTrendsChart').getContext('2d');
+    charts.optimizationTrends = new Chart(optimizationTrendsCtx, {
+        type: 'line',
+        data: {
+            labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'],
+            datasets: [{
+                label: 'Efectividad de Automatización',
+                data: [75, 78, 82, 85, 87, 89],
+                borderColor: '#007bff',
+                backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                tension: 0.4
+            }, {
+                label: 'Tasa de Engagement',
+                data: [65, 68, 72, 75, 78, 82],
+                borderColor: '#28a745',
+                backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100
+                }
+            }
+        }
+    });
+
+    // Gráfico de Tipos de Optimización
+    const optimizationTypesCtx = document.getElementById('optimizationTypesChart').getContext('2d');
+    charts.optimizationTypes = new Chart(optimizationTypesCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Timing', 'Contenido', 'Canales', 'Algoritmos'],
+            datasets: [{
+                data: [30, 25, 20, 25],
+                backgroundColor: ['#007bff', '#28a745', '#ffc107', '#dc3545']
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+
+    // Gráfico de Impacto de Optimizaciones
+    const optimizationImpactCtx = document.getElementById('optimizationImpactChart').getContext('2d');
+    charts.optimizationImpact = new Chart(optimizationImpactCtx, {
+        type: 'bar',
+        data: {
+            labels: ['Timing', 'Contenido', 'Canales', 'Algoritmos', 'Personalización'],
+            datasets: [{
+                label: 'Mejora en Engagement (%)',
+                data: [15, 23, 10, 25, 18],
+                backgroundColor: ['#007bff', '#28a745', '#ffc107', '#dc3545', '#6f42c1']
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 30
+                }
+            }
+        }
+    });
+
+    // Gráfico de ROI de Optimizaciones
+    const optimizationROICtx = document.getElementById('optimizationROIChart').getContext('2d');
+    charts.optimizationROI = new Chart(optimizationROICtx, {
+        type: 'line',
+        data: {
+            labels: ['Mes 1', 'Mes 2', 'Mes 3', 'Mes 4', 'Mes 5', 'Mes 6'],
+            datasets: [{
+                label: 'ROI (%)',
+                data: [120, 135, 150, 165, 180, 200],
+                borderColor: '#17a2b8',
+                backgroundColor: 'rgba(23, 162, 184, 0.1)',
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+// Utilidades
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function showNotification(message, type = 'info') {
+    // Implementar sistema de notificaciones
+    console.log(`${type.toUpperCase()}: ${message}`);
+}
+</script>
+{% endblock %} 

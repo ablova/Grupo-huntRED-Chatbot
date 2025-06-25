@@ -1,0 +1,1045 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ page_title }} - BRUCE ALMIGHTY MODE{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard/intelligent_workflows.css' %}">
+<link rel="stylesheet" href="{% static 'css/components/metrics_cards.css' %}">
+<link rel="stylesheet" href="{% static 'css/components/charts.css' %}">
+<link rel="stylesheet" href="{% static 'css/components/workflow_timeline.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="intelligent-workflows-dashboard">
+    <!-- Header del Dashboard -->
+    <div class="dashboard-header">
+        <div class="header-content">
+            <h1 class="dashboard-title">
+                <i class="fas fa-project-diagram"></i>
+                Workflows Inteligentes
+            </h1>
+            <p class="dashboard-subtitle">
+                Sistema de automatización inteligente de procesos de reclutamiento
+            </p>
+        </div>
+        <div class="header-actions">
+            <button class="btn btn-primary" onclick="openNewWorkflowModal()">
+                <i class="fas fa-plus"></i>
+                Nuevo Workflow
+            </button>
+            <button class="btn btn-success" onclick="bulkOptimizeWorkflows()">
+                <i class="fas fa-magic"></i>
+                Optimización Masiva
+            </button>
+        </div>
+    </div>
+
+    <!-- Métricas de Workflows -->
+    <div class="metrics-section">
+        <div class="metrics-grid">
+            <div class="metric-card primary">
+                <div class="metric-icon">
+                    <i class="fas fa-list"></i>
+                </div>
+                <div class="metric-content">
+                    <h3 class="metric-value">{{ workflow_metrics.total_workflows }}</h3>
+                    <p class="metric-label">Workflows Activos</p>
+                    <div class="metric-trend positive">
+                        <i class="fas fa-arrow-up"></i>
+                        <span>+5</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="metric-card success">
+                <div class="metric-icon">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div class="metric-content">
+                    <h3 class="metric-value">{{ workflow_metrics.completed_today }}</h3>
+                    <p class="metric-label">Completados Hoy</p>
+                    <div class="metric-trend positive">
+                        <i class="fas fa-arrow-up"></i>
+                        <span>+3</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="metric-card warning">
+                <div class="metric-icon">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="metric-content">
+                    <h3 class="metric-value">{{ workflow_metrics.avg_duration|floatformat:1 }}</h3>
+                    <p class="metric-label">Duración Promedio (días)</p>
+                    <div class="metric-trend negative">
+                        <i class="fas fa-arrow-down"></i>
+                        <span>-0.5</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="metric-card info">
+                <div class="metric-icon">
+                    <i class="fas fa-cogs"></i>
+                </div>
+                <div class="metric-content">
+                    <h3 class="metric-value">{{ workflow_metrics.automation_rate|floatformat:1 }}%</h3>
+                    <p class="metric-label">Tasa de Automatización</p>
+                    <div class="metric-trend positive">
+                        <i class="fas fa-arrow-up"></i>
+                        <span>+8%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contenido Principal -->
+    <div class="dashboard-content">
+        <div class="content-grid">
+            <!-- Workflows Activos -->
+            <div class="content-card large">
+                <div class="card-header">
+                    <h3><i class="fas fa-list"></i> Workflows Activos</h3>
+                    <div class="card-actions">
+                        <button class="btn btn-sm btn-primary" onclick="refreshWorkflows()">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                        <button class="btn btn-sm btn-success" onclick="exportWorkflows()">
+                            <i class="fas fa-download"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="workflows-table-container">
+                        <table class="workflows-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Tipo</th>
+                                    <th>Participante</th>
+                                    <th>Etapa Actual</th>
+                                    <th>Duración</th>
+                                    <th>Estado</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="workflowsTableBody">
+                                {% for workflow in active_workflows %}
+                                <tr class="workflow-row" data-workflow-id="{{ workflow.id }}">
+                                    <td>{{ workflow.id|truncatechars:8 }}</td>
+                                    <td>
+                                        <span class="workflow-type {{ workflow.type }}">
+                                            {{ workflow.type|title }}
+                                        </span>
+                                    </td>
+                                    <td>{{ workflow.participant_id }}</td>
+                                    <td>
+                                        <span class="stage-badge {{ workflow.current_stage }}">
+                                            {{ workflow.current_stage|title }}
+                                        </span>
+                                    </td>
+                                    <td>{{ workflow.duration|floatformat:1 }} días</td>
+                                    <td>
+                                        <span class="status-badge active">Activo</span>
+                                    </td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <button class="btn btn-sm btn-success" onclick="advanceWorkflow('{{ workflow.id }}')">
+                                                <i class="fas fa-forward"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-info" onclick="viewWorkflowDetails('{{ workflow.id }}')">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-warning" onclick="pauseWorkflow('{{ workflow.id }}')">
+                                                <i class="fas fa-pause"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="empty-state">
+                                        <i class="fas fa-inbox"></i>
+                                        <p>No hay workflows activos</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Configuraciones de Workflows -->
+            <div class="content-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-cogs"></i> Configuraciones</h3>
+                </div>
+                <div class="card-body">
+                    <div class="workflow-configs">
+                        {% for config_name, config in workflow_configs.items %}
+                        <div class="config-item">
+                            <div class="config-header">
+                                <h4>{{ config_name|title }}</h4>
+                                <span class="config-status active">Activo</span>
+                            </div>
+                            
+                            <div class="config-details">
+                                <div class="detail-item">
+                                    <span class="label">Etapas:</span>
+                                    <span class="value">{{ config.stages|length }}</span>
+                                </div>
+                                
+                                <div class="detail-item">
+                                    <span class="label">Auto-avance:</span>
+                                    <span class="value">{{ config.automation_rules.auto_advance|yesno:"Sí,No" }}</span>
+                                </div>
+                                
+                                <div class="detail-item">
+                                    <span class="label">Notificaciones:</span>
+                                    <span class="value">{{ config.automation_rules.smart_notifications|yesno:"Sí,No" }}</span>
+                                </div>
+                            </div>
+                            
+                            <div class="config-actions">
+                                <button class="btn btn-sm btn-primary" onclick="editConfig('{{ config_name }}')">
+                                    Editar
+                                </button>
+                                <button class="btn btn-sm btn-info" onclick="viewConfigDetails('{{ config_name }}')">
+                                    Detalles
+                                </button>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="empty-state">
+                            <i class="fas fa-cogs"></i>
+                            <p>No hay configuraciones disponibles</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Triggers Automáticos -->
+            <div class="content-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-bolt"></i> Triggers Automáticos</h3>
+                </div>
+                <div class="card-body">
+                    <div class="automated-triggers">
+                        {% for trigger_type, triggers in automated_triggers.items %}
+                        <div class="trigger-group">
+                            <h4>{{ trigger_type|title }}</h4>
+                            <div class="trigger-list">
+                                {% for trigger in triggers %}
+                                <div class="trigger-item">
+                                    <span class="trigger-name">{{ trigger|title }}</span>
+                                    <span class="trigger-status active">Activo</span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="empty-state">
+                            <i class="fas fa-bolt"></i>
+                            <p>No hay triggers configurados</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reportes de Rendimiento -->
+            <div class="content-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-chart-bar"></i> Reportes de Rendimiento</h3>
+                </div>
+                <div class="card-body">
+                    <div class="performance-reports">
+                        {% for report in performance_reports %}
+                        <div class="report-item">
+                            <div class="report-header">
+                                <h4>Reporte {{ report.period|title }}</h4>
+                                <span class="report-period">{{ report.period }}</span>
+                            </div>
+                            
+                            <div class="report-metrics">
+                                <div class="metric">
+                                    <span class="metric-label">Total:</span>
+                                    <span class="metric-value">{{ report.total_workflows }}</span>
+                                </div>
+                                <div class="metric">
+                                    <span class="metric-label">Completados:</span>
+                                    <span class="metric-value">{{ report.completed_workflows }}</span>
+                                </div>
+                                <div class="metric">
+                                    <span class="metric-label">Efectividad:</span>
+                                    <span class="metric-value">{{ report.automation_effectiveness|floatformat:1 }}%</span>
+                                </div>
+                            </div>
+                            
+                            <div class="report-actions">
+                                <button class="btn btn-sm btn-primary" onclick="viewReport('{{ report.period }}')">
+                                    Ver Reporte
+                                </button>
+                                <button class="btn btn-sm btn-success" onclick="downloadReport('{{ report.period }}')">
+                                    Descargar
+                                </button>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="empty-state">
+                            <i class="fas fa-chart-bar"></i>
+                            <p>No hay reportes disponibles</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráficos y Analytics -->
+    <div class="analytics-section">
+        <div class="analytics-grid">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-chart-line"></i> Progreso de Workflows</h3>
+                </div>
+                <div class="card-body">
+                    <canvas id="workflowProgressChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-chart-pie"></i> Distribución por Tipo</h3>
+                </div>
+                <div class="card-body">
+                    <canvas id="workflowTypesChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-chart-bar"></i> Duración por Etapa</h3>
+                </div>
+                <div class="card-body">
+                    <canvas id="stageDurationChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-chart-area"></i> Efectividad de Automatización</h3>
+                </div>
+                <div class="card-body">
+                    <canvas id="automationEffectivenessChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Nuevo Workflow -->
+<div id="newWorkflowModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-plus"></i> Nuevo Workflow</h3>
+            <span class="close" onclick="closeNewWorkflowModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div class="workflow-form">
+                <div class="form-group">
+                    <label for="workflowType">Tipo de Workflow</label>
+                    <select id="workflowType" class="form-control">
+                        <option value="candidate_onboarding">Onboarding de Candidato</option>
+                        <option value="client_communication">Comunicación con Cliente</option>
+                        <option value="consultant_assignment">Asignación de Consultor</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="participantId">ID del Participante</label>
+                    <input type="number" id="participantId" class="form-control" placeholder="Ingresa el ID del participante">
+                </div>
+                
+                <div class="form-group">
+                    <label for="initialData">Datos Iniciales (JSON)</label>
+                    <textarea id="initialData" class="form-control" rows="4" placeholder='{"name": "Juan Pérez", "position": "Desarrollador"}'></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label>Configuración de Automatización</label>
+                    <div class="automation-options">
+                        <label class="checkbox-item">
+                            <input type="checkbox" id="autoAdvance" checked> Auto-avance
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" id="smartNotifications" checked> Notificaciones Inteligentes
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" id="predictiveOptimization" checked> Optimización Predictiva
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" id="escalationRules" checked> Reglas de Escalación
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeNewWorkflowModal()">Cancelar</button>
+            <button class="btn btn-primary" onclick="createWorkflow()">Crear Workflow</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Detalles de Workflow -->
+<div id="workflowDetailsModal" class="modal">
+    <div class="modal-content large">
+        <div class="modal-header">
+            <h3><i class="fas fa-project-diagram"></i> Detalles del Workflow</h3>
+            <span class="close" onclick="closeWorkflowDetailsModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div id="workflowDetailsContent">
+                <!-- Contenido dinámico -->
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeWorkflowDetailsModal()">Cerrar</button>
+            <button class="btn btn-success" onclick="advanceCurrentWorkflow()">Avanzar Etapa</button>
+            <button class="btn btn-warning" onclick="pauseCurrentWorkflow()">Pausar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Configuración -->
+<div id="configModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-cogs"></i> Configuración de Workflow</h3>
+            <span class="close" onclick="closeConfigModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div id="configContent">
+                <!-- Contenido dinámico -->
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeConfigModal()">Cancelar</button>
+            <button class="btn btn-primary" onclick="saveConfig()">Guardar</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{% static 'js/dashboard/intelligent_workflows.js' %}"></script>
+<script>
+// Variables globales
+let currentWorkflowId = null;
+let currentConfigName = null;
+let charts = {};
+
+// Inicialización
+document.addEventListener('DOMContentLoaded', function() {
+    initializeCharts();
+    loadWorkflowData();
+});
+
+// Funciones de utilidad
+function openNewWorkflowModal() {
+    document.getElementById('newWorkflowModal').style.display = 'block';
+}
+
+function closeNewWorkflowModal() {
+    document.getElementById('newWorkflowModal').style.display = 'none';
+}
+
+function openWorkflowDetailsModal() {
+    document.getElementById('workflowDetailsModal').style.display = 'block';
+}
+
+function closeWorkflowDetailsModal() {
+    document.getElementById('workflowDetailsModal').style.display = 'none';
+}
+
+function openConfigModal() {
+    document.getElementById('configModal').style.display = 'block';
+}
+
+function closeConfigModal() {
+    document.getElementById('configModal').style.display = 'none';
+}
+
+// Funciones de API
+async function createWorkflow() {
+    try {
+        const workflowType = document.getElementById('workflowType').value;
+        const participantId = document.getElementById('participantId').value;
+        const initialDataText = document.getElementById('initialData').value;
+        
+        if (!workflowType || !participantId) {
+            showNotification('Por favor completa todos los campos requeridos', 'warning');
+            return;
+        }
+        
+        let initialData = {};
+        if (initialDataText) {
+            try {
+                initialData = JSON.parse(initialDataText);
+            } catch (e) {
+                showNotification('Error en formato JSON de datos iniciales', 'error');
+                return;
+            }
+        }
+        
+        // Obtener configuración de automatización
+        const automationRules = {
+            auto_advance: document.getElementById('autoAdvance').checked,
+            smart_notifications: document.getElementById('smartNotifications').checked,
+            predictive_optimization: document.getElementById('predictiveOptimization').checked,
+            escalation_rules: document.getElementById('escalationRules').checked
+        };
+        
+        showNotification('Creando workflow...', 'info');
+        
+        const response = await fetch('{% url "omnichannel_automation:api_start_workflow" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                workflow_type: workflowType,
+                participant_id: parseInt(participantId),
+                initial_data: initialData
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.workflow_id) {
+            showNotification('Workflow creado exitosamente', 'success');
+            closeNewWorkflowModal();
+            refreshWorkflows();
+        } else {
+            showNotification('Error al crear workflow', 'error');
+        }
+    } catch (error) {
+        console.error('Error creating workflow:', error);
+        showNotification('Error al crear workflow', 'error');
+    }
+}
+
+async function advanceWorkflow(workflowId) {
+    try {
+        showNotification('Avanzando workflow...', 'info');
+        
+        const response = await fetch('{% url "omnichannel_automation:api_advance_workflow" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                workflow_id: workflowId
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.status === 'completed') {
+            showNotification('Workflow completado exitosamente', 'success');
+        } else {
+            showNotification('Workflow avanzado exitosamente', 'success');
+        }
+        
+        refreshWorkflows();
+    } catch (error) {
+        console.error('Error advancing workflow:', error);
+        showNotification('Error al avanzar workflow', 'error');
+    }
+}
+
+async function viewWorkflowDetails(workflowId) {
+    try {
+        currentWorkflowId = workflowId;
+        
+        // Simular carga de detalles
+        const detailsContent = `
+            <div class="workflow-details">
+                <div class="detail-section">
+                    <h4>Información General</h4>
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <span class="label">ID:</span>
+                            <span class="value">${workflowId}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="label">Tipo:</span>
+                            <span class="value">Onboarding de Candidato</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="label">Participante:</span>
+                            <span class="value">12345</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="label">Estado:</span>
+                            <span class="value status-active">Activo</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="detail-section">
+                    <h4>Timeline del Workflow</h4>
+                    <div class="workflow-timeline">
+                        <div class="timeline-item completed">
+                            <div class="timeline-marker"></div>
+                            <div class="timeline-content">
+                                <h5>Contacto Inicial</h5>
+                                <p>Completado el 15/01/2024 10:00</p>
+                                <span class="duration">2 horas</span>
+                            </div>
+                        </div>
+                        <div class="timeline-item active">
+                            <div class="timeline-marker"></div>
+                            <div class="timeline-content">
+                                <h5>Screening</h5>
+                                <p>En progreso desde 15/01/2024 12:00</p>
+                                <span class="duration">En curso</span>
+                            </div>
+                        </div>
+                        <div class="timeline-item pending">
+                            <div class="timeline-marker"></div>
+                            <div class="timeline-content">
+                                <h5>Entrevista</h5>
+                                <p>Pendiente</p>
+                                <span class="duration">-</span>
+                            </div>
+                        </div>
+                        <div class="timeline-item pending">
+                            <div class="timeline-marker"></div>
+                            <div class="timeline-content">
+                                <h5>Evaluación</h5>
+                                <p>Pendiente</p>
+                                <span class="duration">-</span>
+                            </div>
+                        </div>
+                        <div class="timeline-item pending">
+                            <div class="timeline-marker"></div>
+                            <div class="timeline-content">
+                                <h5>Oferta</h5>
+                                <p>Pendiente</p>
+                                <span class="duration">-</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="detail-section">
+                    <h4>Métricas de Rendimiento</h4>
+                    <div class="performance-metrics">
+                        <div class="metric">
+                            <span class="metric-label">Tiempo Total:</span>
+                            <span class="metric-value">2.5 días</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Etapas Completadas:</span>
+                            <span class="metric-value">1 de 5</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Automatización:</span>
+                            <span class="metric-value">85%</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Engagement:</span>
+                            <span class="metric-value">78%</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="detail-section">
+                    <h4>Acciones Automáticas</h4>
+                    <div class="automated-actions">
+                        <div class="action-item">
+                            <i class="fas fa-envelope"></i>
+                            <span>Notificación de bienvenida enviada</span>
+                            <small>15/01/2024 10:05</small>
+                        </div>
+                        <div class="action-item">
+                            <i class="fas fa-calendar"></i>
+                            <span>Entrevista programada</span>
+                            <small>15/01/2024 12:30</small>
+                        </div>
+                        <div class="action-item">
+                            <i class="fas fa-bell"></i>
+                            <span>Recordatorio enviado</span>
+                            <small>15/01/2024 16:00</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('workflowDetailsContent').innerHTML = detailsContent;
+        openWorkflowDetailsModal();
+        
+    } catch (error) {
+        console.error('Error viewing workflow details:', error);
+        showNotification('Error al cargar detalles del workflow', 'error');
+    }
+}
+
+async function pauseWorkflow(workflowId) {
+    try {
+        showNotification('Pausando workflow...', 'info');
+        
+        // Simular pausa
+        setTimeout(() => {
+            showNotification('Workflow pausado exitosamente', 'success');
+            refreshWorkflows();
+        }, 1000);
+        
+    } catch (error) {
+        console.error('Error pausing workflow:', error);
+        showNotification('Error al pausar workflow', 'error');
+    }
+}
+
+async function editConfig(configName) {
+    try {
+        currentConfigName = configName;
+        
+        // Simular carga de configuración
+        const configContent = `
+            <div class="config-form">
+                <div class="form-group">
+                    <label for="configName">Nombre de Configuración</label>
+                    <input type="text" id="configName" class="form-control" value="${configName}" readonly>
+                </div>
+                
+                <div class="form-group">
+                    <label>Etapas del Workflow</label>
+                    <div class="stages-list">
+                        <div class="stage-item">
+                            <input type="text" class="form-control" value="Contacto Inicial">
+                            <button class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
+                        </div>
+                        <div class="stage-item">
+                            <input type="text" class="form-control" value="Screening">
+                            <button class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
+                        </div>
+                        <div class="stage-item">
+                            <input type="text" class="form-control" value="Entrevista">
+                            <button class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
+                        </div>
+                        <button class="btn btn-sm btn-primary" onclick="addStage()">
+                            <i class="fas fa-plus"></i> Agregar Etapa
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Reglas de Automatización</label>
+                    <div class="automation-rules">
+                        <label class="checkbox-item">
+                            <input type="checkbox" id="configAutoAdvance" checked> Auto-avance
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" id="configSmartNotifications" checked> Notificaciones Inteligentes
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" id="configPredictiveOptimization" checked> Optimización Predictiva
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" id="configEscalationRules" checked> Reglas de Escalación
+                        </label>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('configContent').innerHTML = configContent;
+        openConfigModal();
+        
+    } catch (error) {
+        console.error('Error editing config:', error);
+        showNotification('Error al cargar configuración', 'error');
+    }
+}
+
+function viewConfigDetails(configName) {
+    showNotification(`Detalles de configuración: ${configName}`, 'info');
+}
+
+function viewReport(period) {
+    showNotification(`Vista de reporte: ${period}`, 'info');
+}
+
+function downloadReport(period) {
+    showNotification(`Descargando reporte: ${period}`, 'info');
+}
+
+async function bulkOptimizeWorkflows() {
+    try {
+        showNotification('Optimizando workflows...', 'info');
+        
+        // Simular optimización masiva
+        setTimeout(() => {
+            showNotification('Optimización masiva completada', 'success');
+            refreshWorkflows();
+        }, 3000);
+        
+    } catch (error) {
+        console.error('Error bulk optimizing workflows:', error);
+        showNotification('Error en optimización masiva', 'error');
+    }
+}
+
+async function refreshWorkflows() {
+    try {
+        const response = await fetch('{% url "omnichannel_automation:api_get_workflow_status" %}');
+        const data = await response.json();
+        
+        if (data.active_workflows) {
+            updateWorkflowsTable(data.active_workflows);
+        }
+    } catch (error) {
+        console.error('Error refreshing workflows:', error);
+        showNotification('Error al actualizar workflows', 'error');
+    }
+}
+
+function exportWorkflows() {
+    showNotification('Exportando workflows...', 'info');
+}
+
+function advanceCurrentWorkflow() {
+    if (currentWorkflowId) {
+        advanceWorkflow(currentWorkflowId);
+        closeWorkflowDetailsModal();
+    }
+}
+
+function pauseCurrentWorkflow() {
+    if (currentWorkflowId) {
+        pauseWorkflow(currentWorkflowId);
+        closeWorkflowDetailsModal();
+    }
+}
+
+function saveConfig() {
+    showNotification('Configuración guardada exitosamente', 'success');
+    closeConfigModal();
+}
+
+function addStage() {
+    // Simular agregar etapa
+    showNotification('Etapa agregada', 'info');
+}
+
+// Funciones de actualización de UI
+function updateWorkflowsTable(workflows) {
+    const tbody = document.getElementById('workflowsTableBody');
+    
+    if (workflows.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" class="empty-state">
+                    <i class="fas fa-inbox"></i>
+                    <p>No hay workflows activos</p>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    tbody.innerHTML = workflows.map(workflow => `
+        <tr class="workflow-row" data-workflow-id="${workflow.id}">
+            <td>${workflow.id.substring(0, 8)}</td>
+            <td>
+                <span class="workflow-type ${workflow.type}">
+                    ${workflow.type.charAt(0).toUpperCase() + workflow.type.slice(1)}
+                </span>
+            </td>
+            <td>${workflow.participant_id}</td>
+            <td>
+                <span class="stage-badge ${workflow.current_stage}">
+                    ${workflow.current_stage.charAt(0).toUpperCase() + workflow.current_stage.slice(1)}
+                </span>
+            </td>
+            <td>${workflow.duration.toFixed(1)} días</td>
+            <td>
+                <span class="status-badge active">Activo</span>
+            </td>
+            <td>
+                <div class="action-buttons">
+                    <button class="btn btn-sm btn-success" onclick="advanceWorkflow('${workflow.id}')">
+                        <i class="fas fa-forward"></i>
+                    </button>
+                    <button class="btn btn-sm btn-info" onclick="viewWorkflowDetails('${workflow.id}')">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button class="btn btn-sm btn-warning" onclick="pauseWorkflow('${workflow.id}')">
+                        <i class="fas fa-pause"></i>
+                    </button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function loadWorkflowData() {
+    // Cargar datos de workflows
+    console.log('Datos de workflows cargados');
+}
+
+// Inicialización de gráficos
+function initializeCharts() {
+    // Gráfico de Progreso de Workflows
+    const workflowProgressCtx = document.getElementById('workflowProgressChart').getContext('2d');
+    charts.workflowProgress = new Chart(workflowProgressCtx, {
+        type: 'line',
+        data: {
+            labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'],
+            datasets: [{
+                label: 'Workflows Activos',
+                data: [12, 15, 18, 22, 25, 20, 16],
+                borderColor: '#007bff',
+                backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                tension: 0.4
+            }, {
+                label: 'Workflows Completados',
+                data: [8, 12, 15, 18, 20, 16, 12],
+                borderColor: '#28a745',
+                backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+
+    // Gráfico de Tipos de Workflow
+    const workflowTypesCtx = document.getElementById('workflowTypesChart').getContext('2d');
+    charts.workflowTypes = new Chart(workflowTypesCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Onboarding', 'Comunicación', 'Asignación'],
+            datasets: [{
+                data: [45, 30, 25],
+                backgroundColor: ['#007bff', '#28a745', '#ffc107']
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+
+    // Gráfico de Duración por Etapa
+    const stageDurationCtx = document.getElementById('stageDurationChart').getContext('2d');
+    charts.stageDuration = new Chart(stageDurationCtx, {
+        type: 'bar',
+        data: {
+            labels: ['Contacto', 'Screening', 'Entrevista', 'Evaluación', 'Oferta'],
+            datasets: [{
+                label: 'Duración Promedio (días)',
+                data: [1, 2, 3, 2, 1],
+                backgroundColor: ['#007bff', '#28a745', '#ffc107', '#dc3545', '#6f42c1']
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+
+    // Gráfico de Efectividad de Automatización
+    const automationEffectivenessCtx = document.getElementById('automationEffectivenessChart').getContext('2d');
+    charts.automationEffectiveness = new Chart(automationEffectivenessCtx, {
+        type: 'line',
+        data: {
+            labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'],
+            datasets: [{
+                label: 'Efectividad (%)',
+                data: [75, 78, 82, 85, 87, 89],
+                borderColor: '#17a2b8',
+                backgroundColor: 'rgba(23, 162, 184, 0.1)',
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100
+                }
+            }
+        }
+    });
+}
+
+// Utilidades
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function showNotification(message, type = 'info') {
+    // Implementar sistema de notificaciones
+    console.log(`${type.toUpperCase()}: ${message}`);
+}
+</script>
+{% endblock %} 

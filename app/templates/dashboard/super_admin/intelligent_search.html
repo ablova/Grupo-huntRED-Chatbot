@@ -1,0 +1,866 @@
+{% extends 'dashboard/base.html' %}
+{% load static %}
+
+{% block title %}Buscador Inteligente Avanzado - BRUCE ALMIGHTY MODE{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard/super_admin.css' %}">
+<style>
+.intelligent-search-container {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 2rem 0;
+}
+
+.search-hero {
+    text-align: center;
+    margin-bottom: 3rem;
+    color: white;
+}
+
+.search-hero h1 {
+    font-size: 3rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+.search-hero p {
+    font-size: 1.2rem;
+    opacity: 0.9;
+    margin-bottom: 2rem;
+}
+
+.search-form-container {
+    background: rgba(255,255,255,0.95);
+    border-radius: 20px;
+    padding: 2rem;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+    backdrop-filter: blur(10px);
+    margin-bottom: 2rem;
+}
+
+.search-input-group {
+    position: relative;
+    margin-bottom: 1.5rem;
+}
+
+.search-input {
+    width: 100%;
+    padding: 1.5rem 1rem 1.5rem 3rem;
+    border: 2px solid #e1e5e9;
+    border-radius: 15px;
+    font-size: 1.1rem;
+    transition: all 0.3s ease;
+    background: white;
+}
+
+.search-input:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    outline: none;
+}
+
+.search-icon {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #667eea;
+    font-size: 1.2rem;
+}
+
+.search-type-selector {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.search-type-btn {
+    padding: 0.75rem 1.5rem;
+    border: 2px solid #667eea;
+    background: white;
+    color: #667eea;
+    border-radius: 25px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 500;
+}
+
+.search-type-btn.active {
+    background: #667eea;
+    color: white;
+}
+
+.search-submit-btn {
+    width: 100%;
+    padding: 1rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 15px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.search-submit-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+}
+
+.results-container {
+    background: white;
+    border-radius: 20px;
+    padding: 2rem;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+}
+
+.results-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #f0f0f0;
+}
+
+.results-count {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #333;
+}
+
+.ai-analysis-badge {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.result-card {
+    background: #f8f9fa;
+    border-radius: 15px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    border-left: 4px solid #667eea;
+    transition: all 0.3s ease;
+}
+
+.result-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+}
+
+.result-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.result-title {
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: #333;
+}
+
+.match-score {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-weight: 600;
+}
+
+.result-details {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.detail-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.detail-label {
+    font-size: 0.9rem;
+    color: #666;
+    margin-bottom: 0.25rem;
+}
+
+.detail-value {
+    font-weight: 500;
+    color: #333;
+}
+
+.skills-analysis {
+    background: white;
+    border-radius: 10px;
+    padding: 1rem;
+    margin-top: 1rem;
+}
+
+.skills-title {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: #333;
+}
+
+.skills-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.skill-tag {
+    background: #e9ecef;
+    color: #495057;
+    padding: 0.25rem 0.75rem;
+    border-radius: 15px;
+    font-size: 0.85rem;
+}
+
+.skill-tag.matching {
+    background: #d4edda;
+    color: #155724;
+}
+
+.skill-tag.missing {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.market-data-section {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 15px;
+    padding: 1.5rem;
+    margin-top: 2rem;
+}
+
+.market-data-title {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: #333;
+}
+
+.market-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.metric-card {
+    background: white;
+    padding: 1rem;
+    border-radius: 10px;
+    text-align: center;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.metric-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #667eea;
+    margin-bottom: 0.25rem;
+}
+
+.metric-label {
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.insights-section {
+    margin-top: 2rem;
+}
+
+.insight-card {
+    background: white;
+    border-radius: 15px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    border-left: 4px solid #28a745;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+.insight-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: #333;
+}
+
+.insight-description {
+    color: #666;
+    margin-bottom: 1rem;
+}
+
+.insight-confidence {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.confidence-bar {
+    flex: 1;
+    height: 8px;
+    background: #e9ecef;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.confidence-fill {
+    height: 100%;
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    transition: width 0.3s ease;
+}
+
+.confidence-text {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #333;
+}
+
+.action-items {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.action-item {
+    background: #f8f9fa;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+    color: #495057;
+}
+
+.recommendations-section {
+    margin-top: 2rem;
+}
+
+.recommendation-card {
+    background: white;
+    border-radius: 15px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    border-left: 4px solid #ffc107;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+.recommendation-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.recommendation-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #333;
+}
+
+.priority-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.priority-high {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.priority-medium {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.recommendation-description {
+    color: #666;
+    margin-bottom: 1rem;
+}
+
+.impact-estimate {
+    font-size: 0.9rem;
+    color: #28a745;
+    font-weight: 500;
+}
+
+.loading-spinner {
+    display: none;
+    text-align: center;
+    padding: 2rem;
+}
+
+.spinner {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #667eea;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.example-queries {
+    background: rgba(255,255,255,0.1);
+    border-radius: 15px;
+    padding: 1.5rem;
+    margin-top: 2rem;
+}
+
+.example-queries h3 {
+    color: white;
+    margin-bottom: 1rem;
+    font-size: 1.2rem;
+}
+
+.example-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.example-item {
+    background: rgba(255,255,255,0.1);
+    padding: 0.75rem 1rem;
+    border-radius: 10px;
+    margin-bottom: 0.5rem;
+    color: white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.example-item:hover {
+    background: rgba(255,255,255,0.2);
+    transform: translateX(5px);
+}
+
+@media (max-width: 768px) {
+    .search-hero h1 {
+        font-size: 2rem;
+    }
+    
+    .search-type-selector {
+        justify-content: center;
+    }
+    
+    .result-details {
+        grid-template-columns: 1fr;
+    }
+    
+    .market-metrics {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="intelligent-search-container">
+    <div class="container">
+        <!-- Hero Section -->
+        <div class="search-hero">
+            <h1><i class="fas fa-search-plus"></i> Buscador Inteligente Avanzado</h1>
+            <p>Potenciado por AURA, Machine Learning y GenIA para búsquedas inteligentes de perfiles, roles y salarios</p>
+            <div class="ai-badges">
+                <span class="badge bg-primary me-2"><i class="fas fa-brain"></i> AURA</span>
+                <span class="badge bg-success me-2"><i class="fas fa-robot"></i> ML</span>
+                <span class="badge bg-info"><i class="fas fa-magic"></i> GenIA</span>
+            </div>
+        </div>
+
+        <!-- Search Form -->
+        <div class="search-form-container">
+            <form method="POST" id="intelligent-search-form">
+                {% csrf_token %}
+                <div class="search-input-group">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" 
+                           name="search_query" 
+                           class="search-input" 
+                           placeholder="Ej: Market Researcher para PEPSI, CFO en Querétaro, salario de Developer senior..."
+                           value="{{ search_query }}"
+                           required>
+                </div>
+                
+                <div class="search-type-selector">
+                    <button type="button" class="search-type-btn active" data-type="all">
+                        <i class="fas fa-globe"></i> Todo
+                    </button>
+                    <button type="button" class="search-type-btn" data-type="profiles">
+                        <i class="fas fa-users"></i> Perfiles
+                    </button>
+                    <button type="button" class="search-type-btn" data-type="roles">
+                        <i class="fas fa-briefcase"></i> Roles
+                    </button>
+                    <button type="button" class="search-type-btn" data-type="salaries">
+                        <i class="fas fa-dollar-sign"></i> Salarios
+                    </button>
+                </div>
+                
+                <input type="hidden" name="search_type" id="search_type" value="all">
+                <button type="submit" class="search-submit-btn">
+                    <i class="fas fa-search"></i> Buscar Inteligentemente
+                </button>
+            </form>
+        </div>
+
+        <!-- Example Queries -->
+        <div class="example-queries">
+            <h3><i class="fas fa-lightbulb"></i> Ejemplos de búsquedas inteligentes:</h3>
+            <ul class="example-list">
+                <li class="example-item" onclick="setSearchQuery('Market Researcher para PEPSI')">
+                    "Market Researcher para PEPSI"
+                </li>
+                <li class="example-item" onclick="setSearchQuery('CFO en Querétaro')">
+                    "CFO en Querétaro"
+                </li>
+                <li class="example-item" onclick="setSearchQuery('salario de Developer senior en CDMX')">
+                    "Salario de Developer senior en CDMX"
+                </li>
+                <li class="example-item" onclick="setSearchQuery('Manager de Marketing con experiencia en FMCG')">
+                    "Manager de Marketing con experiencia en FMCG"
+                </li>
+            </ul>
+        </div>
+
+        <!-- Loading Spinner -->
+        <div class="loading-spinner" id="loading-spinner">
+            <div class="spinner"></div>
+            <p>Analizando con AURA, ML y GenIA...</p>
+        </div>
+
+        <!-- Results Container -->
+        {% if search_results %}
+        <div class="results-container">
+            <div class="results-header">
+                <div class="results-count">
+                    <i class="fas fa-chart-line"></i> 
+                    Resultados de búsqueda inteligente
+                </div>
+                <div class="ai-analysis-badge">
+                    <i class="fas fa-brain"></i> Análisis IA
+                </div>
+            </div>
+
+            <!-- AI Analysis Summary -->
+            {% if search_results.ai_analysis %}
+            <div class="market-data-section">
+                <div class="market-data-title">
+                    <i class="fas fa-brain"></i> Análisis IA Completo
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5>Resumen</h5>
+                        <p>{{ search_results.ai_analysis.summary }}</p>
+                        
+                        <h5>Hallazgos Clave</h5>
+                        <ul>
+                            {% for finding in search_results.ai_analysis.key_findings %}
+                            <li>{{ finding }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h5>Próximos Pasos</h5>
+                        <ul>
+                            {% for step in search_results.ai_analysis.next_steps %}
+                            <li>{{ step }}</li>
+                            {% endfor %}
+                        </ul>
+                        
+                        <h5>Probabilidad de Éxito</h5>
+                        <div class="progress mb-2">
+                            <div class="progress-bar bg-success" style="width: {{ search_results.ai_analysis.success_probability }}%">
+                                {{ search_results.ai_analysis.success_probability }}%
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Search Results -->
+            {% for result in search_results.results %}
+            <div class="result-card">
+                <div class="result-header">
+                    <div class="result-title">
+                        {% if result.type == 'profile' %}
+                        <i class="fas fa-user"></i> {{ result.name }}
+                        {% else %}
+                        <i class="fas fa-briefcase"></i> {{ result.role }} en {{ result.location }}
+                        {% endif %}
+                    </div>
+                    {% if result.match_score %}
+                    <div class="match-score">{{ result.match_score|floatformat:0 }}% Match</div>
+                    {% endif %}
+                </div>
+
+                <div class="result-details">
+                    {% if result.type == 'profile' %}
+                    <div class="detail-item">
+                        <span class="detail-label">Rol Actual</span>
+                        <span class="detail-value">{{ result.current_role }}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Ubicación</span>
+                        <span class="detail-value">{{ result.location }}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Disponibilidad</span>
+                        <span class="detail-value">{{ result.availability }}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Expectativa Salarial</span>
+                        <span class="detail-value">{{ result.salary_expectations }}</span>
+                    </div>
+                    {% endif %}
+
+                    {% if result.type == 'role_salary' %}
+                    <div class="detail-item">
+                        <span class="detail-label">Rol</span>
+                        <span class="detail-value">{{ result.role }}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Ubicación</span>
+                        <span class="detail-value">{{ result.location }}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Nivel de Experiencia</span>
+                        <span class="detail-value">{{ result.experience_level|title }}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Salario de Mercado</span>
+                        <span class="detail-value">${{ result.market_data.location_adjusted_salary|floatformat:0 }} MXN</span>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Skills Analysis for Profiles -->
+                {% if result.type == 'profile' and result.skill_analysis %}
+                <div class="skills-analysis">
+                    <div class="skills-title">Análisis de Habilidades</div>
+                    <div class="skills-list">
+                        {% for skill in result.skill_analysis.matching_skills %}
+                        <span class="skill-tag matching">{{ skill }}</span>
+                        {% endfor %}
+                        {% for skill in result.skill_analysis.missing_skills %}
+                        <span class="skill-tag missing">{{ skill }}</span>
+                        {% endfor %}
+                    </div>
+                    <small class="text-muted">
+                        Match: {{ result.skill_analysis.match_percentage|floatformat:0 }}% 
+                        ({{ result.skill_analysis.total_skills }} habilidades totales)
+                    </small>
+                </div>
+                {% endif %}
+
+                <!-- Market Data for Roles -->
+                {% if result.type == 'role_salary' and result.market_data %}
+                <div class="market-metrics">
+                    <div class="metric-card">
+                        <div class="metric-value">${{ result.market_data.base_salary|floatformat:0 }}</div>
+                        <div class="metric-label">Salario Base</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">{{ result.market_data.market_percentile }}</div>
+                        <div class="metric-label">Percentil Mercado</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">{{ result.demand_analysis.demand_level|title }}</div>
+                        <div class="metric-label">Demanda</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">{{ result.demand_analysis.time_to_fill }}</div>
+                        <div class="metric-label">Tiempo de Contratación</div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+
+            <!-- Market Intelligence -->
+            {% if search_results.market_data %}
+            <div class="market-data-section">
+                <div class="market-data-title">
+                    <i class="fas fa-chart-line"></i> Inteligencia de Mercado
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5>Tendencias del Mercado</h5>
+                        <ul>
+                            <li>Crecimiento del rol: {{ search_results.market_data.market_trends.role_growth }}</li>
+                            <li>Inflación salarial: {{ search_results.market_data.market_trends.salary_inflation }}</li>
+                        </ul>
+                        
+                        <h5>Habilidades en Demanda</h5>
+                        <div class="skills-list">
+                            {% for skill in search_results.market_data.market_trends.skill_demand %}
+                            <span class="skill-tag matching">{{ skill }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h5>Landscape Competitivo</h5>
+                        <ul>
+                            <li>Empresas top: {{ search_results.market_data.competitive_landscape.top_companies|join:", " }}</li>
+                            <li>Benchmarks salariales: {{ search_results.market_data.competitive_landscape.salary_benchmarks }}</li>
+                        </ul>
+                        
+                        <h5>Tendencias de Beneficios</h5>
+                        <div class="skills-list">
+                            {% for benefit in search_results.market_data.competitive_landscape.benefits_trends %}
+                            <span class="skill-tag">{{ benefit }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- AURA Insights -->
+            {% if search_results.insights %}
+            <div class="insights-section">
+                <h4><i class="fas fa-brain"></i> Insights de AURA</h4>
+                {% for insight in search_results.insights %}
+                <div class="insight-card">
+                    <div class="insight-title">{{ insight.title }}</div>
+                    <div class="insight-description">{{ insight.description }}</div>
+                    <div class="insight-confidence">
+                        <span>Confianza:</span>
+                        <div class="confidence-bar">
+                            <div class="confidence-fill" style="width: {{ insight.confidence }}%"></div>
+                        </div>
+                        <span class="confidence-text">{{ insight.confidence }}%</span>
+                    </div>
+                    <ul class="action-items">
+                        {% for action in insight.action_items %}
+                        <li class="action-item">{{ action }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- AI Recommendations -->
+            {% if search_results.recommendations %}
+            <div class="recommendations-section">
+                <h4><i class="fas fa-magic"></i> Recomendaciones de GenIA</h4>
+                {% for recommendation in search_results.recommendations %}
+                <div class="recommendation-card">
+                    <div class="recommendation-header">
+                        <div class="recommendation-title">{{ recommendation.title }}</div>
+                        <div class="priority-badge priority-{{ recommendation.priority }}">
+                            {{ recommendation.priority|title }}
+                        </div>
+                    </div>
+                    <div class="recommendation-description">{{ recommendation.description }}</div>
+                    <div class="impact-estimate">
+                        <i class="fas fa-chart-line"></i> {{ recommendation.estimated_impact }}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/dashboard/super_admin.js' %}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Search type selector
+    const searchTypeBtns = document.querySelectorAll('.search-type-btn');
+    const searchTypeInput = document.getElementById('search_type');
+    
+    searchTypeBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            searchTypeBtns.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            searchTypeInput.value = this.dataset.type;
+        });
+    });
+
+    // Form submission with loading
+    const searchForm = document.getElementById('intelligent-search-form');
+    const loadingSpinner = document.getElementById('loading-spinner');
+    
+    searchForm.addEventListener('submit', function() {
+        loadingSpinner.style.display = 'block';
+        document.querySelector('.results-container')?.remove();
+    });
+
+    // Real-time search suggestions
+    const searchInput = document.querySelector('.search-input');
+    let searchTimeout;
+    
+    searchInput.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        const query = this.value.trim();
+        
+        if (query.length > 3) {
+            searchTimeout = setTimeout(() => {
+                // Here you could add real-time suggestions
+                console.log('Searching for:', query);
+            }, 500);
+        }
+    });
+});
+
+function setSearchQuery(query) {
+    document.querySelector('.search-input').value = query;
+    document.querySelector('.search-input').focus();
+}
+
+// Auto-complete functionality
+function setupAutoComplete() {
+    const searchInput = document.querySelector('.search-input');
+    const suggestions = [
+        'Market Researcher para PEPSI',
+        'CFO en Querétaro',
+        'Developer senior en CDMX',
+        'Manager de Marketing',
+        'Analista de Datos',
+        'Consultor de Negocios',
+        'Ingeniero de Software',
+        'Director de Ventas'
+    ];
+    
+    searchInput.addEventListener('input', function() {
+        const query = this.value.toLowerCase();
+        const matches = suggestions.filter(s => s.toLowerCase().includes(query));
+        
+        // Show suggestions (you could implement a dropdown here)
+        if (matches.length > 0 && query.length > 2) {
+            console.log('Suggestions:', matches);
+        }
+    });
+}
+
+// Initialize auto-complete
+setupAutoComplete();
+</script>
+{% endblock %} 

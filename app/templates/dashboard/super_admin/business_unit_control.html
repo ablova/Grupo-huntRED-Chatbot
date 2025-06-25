@@ -1,0 +1,375 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Control por Unidad de Negocio - Bruce Almighty Mode{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard/super_admin.css' %}">
+<style>
+    .bu-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 20px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }
+    
+    .bu-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+    
+    .bu-name {
+        font-size: 1.5rem;
+        font-weight: bold;
+    }
+    
+    .bu-status {
+        padding: 5px 15px;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        font-weight: bold;
+    }
+    
+    .bu-status.active {
+        background: rgba(40, 167, 69, 0.3);
+        border: 1px solid #28a745;
+    }
+    
+    .bu-status.inactive {
+        background: rgba(220, 53, 69, 0.3);
+        border: 1px solid #dc3545;
+    }
+    
+    .bu-metrics {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .metric-item {
+        background: rgba(255,255,255,0.1);
+        border-radius: 10px;
+        padding: 15px;
+        text-align: center;
+    }
+    
+    .metric-value {
+        font-size: 2rem;
+        font-weight: bold;
+        margin: 5px 0;
+    }
+    
+    .metric-label {
+        font-size: 0.9rem;
+        opacity: 0.8;
+    }
+    
+    .health-score {
+        background: rgba(255,255,255,0.2);
+        border-radius: 10px;
+        padding: 15px;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+    
+    .health-score-value {
+        font-size: 3rem;
+        font-weight: bold;
+        margin: 10px 0;
+    }
+    
+    .health-score-label {
+        font-size: 1rem;
+        opacity: 0.8;
+    }
+    
+    .consultant-list {
+        background: rgba(255,255,255,0.1);
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .consultant-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 0;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .consultant-item:last-child {
+        border-bottom: none;
+    }
+    
+    .consultant-info {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+    
+    .consultant-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+    }
+    
+    .consultant-metrics {
+        display: flex;
+        gap: 20px;
+    }
+    
+    .opportunity-list {
+        background: rgba(255,255,255,0.1);
+        border-radius: 10px;
+        padding: 20px;
+    }
+    
+    .opportunity-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 0;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .opportunity-item:last-child {
+        border-bottom: none;
+    }
+    
+    .probability-badge {
+        padding: 5px 10px;
+        border-radius: 15px;
+        font-size: 0.8rem;
+        font-weight: bold;
+    }
+    
+    .probability-high {
+        background: rgba(40, 167, 69, 0.3);
+        border: 1px solid #28a745;
+    }
+    
+    .probability-medium {
+        background: rgba(255, 193, 7, 0.3);
+        border: 1px solid #ffc107;
+    }
+    
+    .probability-low {
+        background: rgba(220, 53, 69, 0.3);
+        border: 1px solid #dc3545;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- HEADER -->
+    <div class="bu-card">
+        <div class="bu-header">
+            <h1><i class="fas fa-sitemap"></i> Control por Unidad de Negocio</h1>
+            <div>
+                <span class="badge bg-success">{{ bu_data.total_bus }} Unidades Totales</span>
+                <span class="badge bg-primary">{{ bu_data.active_bus }} Activas</span>
+            </div>
+        </div>
+        
+        <!-- RESUMEN DE RENDIMIENTO -->
+        <div class="health-score">
+            <div class="health-score-label">Rendimiento General del Sistema</div>
+            <div class="health-score-value">{{ bu_data.performance_summary.overall_score|floatformat:1 }}%</div>
+            <div class="health-score-label">{{ bu_data.performance_summary.status }}</div>
+        </div>
+    </div>
+
+    <!-- UNIDADES DE NEGOCIO -->
+    {% for bu in bu_data.business_units %}
+    <div class="bu-card">
+        <div class="bu-header">
+            <div class="bu-name">{{ bu.name }}</div>
+            <div class="bu-status {% if bu.active %}active{% else %}inactive{% endif %}">
+                {% if bu.active %}ACTIVA{% else %}INACTIVA{% endif %}
+            </div>
+        </div>
+        
+        <p class="text-muted">{{ bu.description }}</p>
+        
+        <!-- MÉTRICAS DE LA BU -->
+        <div class="bu-metrics">
+            <div class="metric-item">
+                <div class="metric-label">Vacantes Activas</div>
+                <div class="metric-value">{{ bu.metrics.active_vacancies }}</div>
+            </div>
+            <div class="metric-item">
+                <div class="metric-label">Aplicaciones</div>
+                <div class="metric-value">{{ bu.metrics.total_applications }}</div>
+            </div>
+            <div class="metric-item">
+                <div class="metric-label">Contrataciones</div>
+                <div class="metric-value">{{ bu.metrics.total_hires }}</div>
+            </div>
+            <div class="metric-item">
+                <div class="metric-label">Ingresos Generados</div>
+                <div class="metric-value">${{ bu.metrics.revenue_generated|floatformat:0 }}</div>
+            </div>
+            <div class="metric-item">
+                <div class="metric-label">Tiempo Promedio</div>
+                <div class="metric-value">{{ bu.metrics.avg_time_to_hire }} días</div>
+            </div>
+        </div>
+        
+        <!-- SCORE DE SALUD -->
+        <div class="health-score">
+            <div class="health-score-label">Health Score</div>
+            <div class="health-score-value">{{ bu.health_score }}%</div>
+            <div class="health-score-label">
+                {% if bu.health_score >= 80 %}
+                    <i class="fas fa-heart text-success"></i> Excelente
+                {% elif bu.health_score >= 60 %}
+                    <i class="fas fa-heart text-warning"></i> Bueno
+                {% else %}
+                    <i class="fas fa-heart text-danger"></i> Necesita Atención
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- RENDIMIENTO DE CONSULTORES -->
+        <div class="consultant-list">
+            <h5><i class="fas fa-users"></i> Rendimiento de Consultores</h5>
+            {% for consultant in bu.consultant_performance %}
+            <div class="consultant-item">
+                <div class="consultant-info">
+                    <div class="consultant-avatar">
+                        {{ consultant.name|slice:":2"|upper }}
+                    </div>
+                    <div>
+                        <div class="fw-bold">{{ consultant.name }}</div>
+                        <small class="text-muted">{{ consultant.applications_processed }} aplicaciones procesadas</small>
+                    </div>
+                </div>
+                <div class="consultant-metrics">
+                    <div>
+                        <div class="metric-label">Tasa de Éxito</div>
+                        <div class="metric-value">{{ consultant.success_rate }}%</div>
+                    </div>
+                    <div>
+                        <div class="metric-label">Ingresos</div>
+                        <div class="metric-value">${{ consultant.revenue_generated|floatformat:0 }}</div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <!-- OPORTUNIDADES ACTIVAS -->
+        <div class="opportunity-list">
+            <h5><i class="fas fa-lightbulb"></i> Oportunidades Activas</h5>
+            {% for opportunity in bu.active_opportunities %}
+            <div class="opportunity-item">
+                <div>
+                    <div class="fw-bold">{{ opportunity.title }}</div>
+                    <small class="text-muted">{{ opportunity.client }} - ${{ opportunity.value|floatformat:0 }}</small>
+                </div>
+                <div class="d-flex align-items-center gap-3">
+                    <div class="probability-badge 
+                        {% if opportunity.probability >= 70 %}probability-high
+                        {% elif opportunity.probability >= 40 %}probability-medium
+                        {% else %}probability-low{% endif %}">
+                        {{ opportunity.probability }}% Probabilidad
+                    </div>
+                    <small class="text-muted">Cierre: {{ opportunity.expected_close }}</small>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <!-- RATIOS DE PROPUESTAS -->
+        <div class="mt-3">
+            <h6><i class="fas fa-file-contract"></i> Ratios de Propuestas</h6>
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="metric-item">
+                        <div class="metric-label">Enviadas</div>
+                        <div class="metric-value">{{ bu.proposals_ratios.proposals_sent }}</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="metric-item">
+                        <div class="metric-label">Aceptadas</div>
+                        <div class="metric-value">{{ bu.proposals_ratios.proposals_accepted }}</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="metric-item">
+                        <div class="metric-label">Tasa de Aceptación</div>
+                        <div class="metric-value">{{ bu.proposals_ratios.acceptance_rate }}%</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="metric-item">
+                        <div class="metric-label">Valor Total</div>
+                        <div class="metric-value">${{ bu.proposals_ratios.total_value|floatformat:0 }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Actualizar datos en tiempo real
+    setInterval(() => {
+        location.reload();
+    }, 300000); // Cada 5 minutos
+    
+    // Animaciones para las métricas
+    document.addEventListener('DOMContentLoaded', function() {
+        const metrics = document.querySelectorAll('.metric-value');
+        metrics.forEach(metric => {
+            const value = metric.textContent;
+            if (value.includes('$') || value.includes('%')) {
+                animateValue(metric, 0, parseFloat(value.replace(/[$,%]/g, '')), 2000);
+            }
+        });
+    });
+    
+    function animateValue(element, start, end, duration) {
+        const startTime = performance.now();
+        const startValue = start;
+        const endValue = end;
+        
+        function updateValue(currentTime) {
+            const elapsed = currentTime - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            
+            const currentValue = startValue + (endValue - startValue) * progress;
+            
+            if (element.textContent.includes('$')) {
+                element.textContent = '$' + Math.floor(currentValue).toLocaleString();
+            } else if (element.textContent.includes('%')) {
+                element.textContent = currentValue.toFixed(1) + '%';
+            } else {
+                element.textContent = Math.floor(currentValue);
+            }
+            
+            if (progress < 1) {
+                requestAnimationFrame(updateValue);
+            }
+        }
+        
+        requestAnimationFrame(updateValue);
+    }
+</script>
+{% endblock %} 

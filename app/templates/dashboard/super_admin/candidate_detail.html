@@ -1,0 +1,771 @@
+{% extends 'dashboard/super_admin/super_admin_dashboard.html' %}
+{% load static %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard/super_admin.css' %}">
+<style>
+    .candidate-detail-container {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 20px;
+    }
+    
+    .candidate-header {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        padding: 30px;
+        margin-bottom: 30px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    }
+    
+    .candidate-title {
+        font-size: 2.5rem;
+        font-weight: 800;
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 20px;
+    }
+    
+    .candidate-subtitle {
+        font-size: 1.2rem;
+        color: #666;
+        margin-bottom: 30px;
+    }
+    
+    .candidate-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    
+    .stat-card {
+        background: white;
+        padding: 20px;
+        border-radius: 15px;
+        text-align: center;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s ease;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .stat-value {
+        font-size: 2rem;
+        font-weight: 800;
+        color: #667eea;
+        margin-bottom: 5px;
+    }
+    
+    .stat-label {
+        font-size: 0.9rem;
+        color: #666;
+        font-weight: 500;
+    }
+    
+    .candidate-content {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 30px;
+        margin-bottom: 30px;
+    }
+    
+    .main-content {
+        display: flex;
+        flex-direction: column;
+        gap: 30px;
+    }
+    
+    .sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 30px;
+    }
+    
+    .content-section {
+        background: white;
+        border-radius: 20px;
+        padding: 30px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    }
+    
+    .section-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #333;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+    }
+    
+    .section-icon {
+        margin-right: 10px;
+        color: #667eea;
+    }
+    
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+    }
+    
+    .info-item {
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 10px;
+        border-left: 4px solid #667eea;
+    }
+    
+    .info-label {
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 5px;
+        font-size: 0.9rem;
+    }
+    
+    .info-value {
+        color: #666;
+        font-size: 1rem;
+    }
+    
+    .contact-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+    
+    .contact-card {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 15px;
+        border: 2px solid #e9ecef;
+    }
+    
+    .contact-title {
+        font-weight: 700;
+        color: #333;
+        margin-bottom: 15px;
+        font-size: 1.1rem;
+    }
+    
+    .contact-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 10px;
+        font-size: 0.9rem;
+    }
+    
+    .contact-icon {
+        margin-right: 10px;
+        color: #667eea;
+        width: 20px;
+    }
+    
+    .skills-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    
+    .skill-tag {
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        color: white;
+        padding: 8px 15px;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+    
+    .timeline {
+        position: relative;
+        padding-left: 30px;
+    }
+    
+    .timeline::before {
+        content: '';
+        position: absolute;
+        left: 15px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #667eea;
+    }
+    
+    .timeline-item {
+        position: relative;
+        margin-bottom: 20px;
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 10px;
+        border-left: 4px solid #667eea;
+    }
+    
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        left: -22px;
+        top: 20px;
+        width: 10px;
+        height: 10px;
+        background: #667eea;
+        border-radius: 50%;
+    }
+    
+    .timeline-date {
+        font-weight: 600;
+        color: #667eea;
+        font-size: 0.9rem;
+        margin-bottom: 5px;
+    }
+    
+    .timeline-action {
+        font-weight: 500;
+        color: #333;
+        margin-bottom: 5px;
+    }
+    
+    .timeline-user {
+        font-size: 0.8rem;
+        color: #666;
+    }
+    
+    .interview-item {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 15px;
+        margin-bottom: 15px;
+        border-left: 4px solid #17a2b8;
+    }
+    
+    .interview-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+    
+    .interview-type {
+        font-weight: 700;
+        color: #17a2b8;
+        font-size: 1.1rem;
+    }
+    
+    .interview-status {
+        padding: 5px 10px;
+        border-radius: 10px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+    
+    .status-scheduled {
+        background: #ffc107;
+        color: #333;
+    }
+    
+    .status-completed {
+        background: #28a745;
+        color: white;
+    }
+    
+    .status-cancelled {
+        background: #dc3545;
+        color: white;
+    }
+    
+    .action-buttons {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+        margin-top: 20px;
+    }
+    
+    .action-btn {
+        padding: 15px 20px;
+        border: none;
+        border-radius: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .action-btn-primary {
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        color: white;
+    }
+    
+    .action-btn-secondary {
+        background: #f8f9fa;
+        color: #333;
+        border: 2px solid #e9ecef;
+    }
+    
+    .action-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+    }
+    
+    .action-icon {
+        margin-right: 10px;
+    }
+    
+    .match-score-circle {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        font-weight: 800;
+        color: white;
+        margin: 0 auto 15px;
+    }
+    
+    .score-excellent {
+        background: linear-gradient(45deg, #28a745, #20c997);
+    }
+    
+    .score-good {
+        background: linear-gradient(45deg, #17a2b8, #6f42c1);
+    }
+    
+    .score-average {
+        background: linear-gradient(45deg, #ffc107, #fd7e14);
+    }
+    
+    .score-poor {
+        background: linear-gradient(45deg, #dc3545, #e83e8c);
+    }
+    
+    @media (max-width: 768px) {
+        .candidate-content {
+            grid-template-columns: 1fr;
+        }
+        
+        .contact-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .action-buttons {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="candidate-detail-container">
+    <!-- Header del Candidato -->
+    <div class="candidate-header">
+        <h1 class="candidate-title">
+            <i class="fas fa-user"></i>
+            {{ candidate.name }}
+        </h1>
+        <p class="candidate-subtitle">
+            {{ candidate.position }} en {{ candidate.client }}
+        </p>
+        
+        <!-- Estadísticas del Candidato -->
+        <div class="candidate-stats">
+            <div class="stat-card">
+                <div class="stat-value">{{ candidate.match_score }}</div>
+                <div class="stat-label">Match Score</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ candidate.experience }}</div>
+                <div class="stat-label">Experiencia</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ candidate.salary_expectation }}</div>
+                <div class="stat-label">Expectativa Salarial</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ candidate.availability }}</div>
+                <div class="stat-label">Disponibilidad</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ candidate.location }}</div>
+                <div class="stat-label">Ubicación</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Contenido Principal -->
+    <div class="candidate-content">
+        <div class="main-content">
+            <!-- Información Personal -->
+            <div class="content-section">
+                <h3 class="section-title">
+                    <i class="fas fa-user-circle section-icon"></i>
+                    Información Personal
+                </h3>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">Nombre Completo</div>
+                        <div class="info-value">{{ candidate.name }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Posición</div>
+                        <div class="info-value">{{ candidate.position }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Cliente</div>
+                        <div class="info-value">{{ candidate.client }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Consultor Asignado</div>
+                        <div class="info-value">{{ candidate.consultant }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Unidad de Negocio</div>
+                        <div class="info-value">{{ candidate.business_unit }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Estado Actual</div>
+                        <div class="info-value">{{ candidate.status|title }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Prioridad</div>
+                        <div class="info-value">{{ candidate.priority|title }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Última Actividad</div>
+                        <div class="info-value">{{ candidate.last_activity }}</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Habilidades y Tecnologías -->
+            <div class="content-section">
+                <h3 class="section-title">
+                    <i class="fas fa-code section-icon"></i>
+                    Habilidades y Tecnologías
+                </h3>
+                <div class="skills-grid">
+                    {% for skill in candidate.skills %}
+                    <span class="skill-tag">{{ skill }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <!-- Educación -->
+            <div class="content-section">
+                <h3 class="section-title">
+                    <i class="fas fa-graduation-cap section-icon"></i>
+                    Educación
+                </h3>
+                {% for education in candidate.education %}
+                <div class="info-item">
+                    <div class="info-label">{{ education.degree }}</div>
+                    <div class="info-value">{{ education.institution }} - {{ education.year }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Experiencia Laboral -->
+            <div class="content-section">
+                <h3 class="section-title">
+                    <i class="fas fa-briefcase section-icon"></i>
+                    Experiencia Laboral
+                </h3>
+                {% for exp in candidate.experience %}
+                <div class="info-item">
+                    <div class="info-label">{{ exp.position }} en {{ exp.company }}</div>
+                    <div class="info-value">{{ exp.duration }}</div>
+                    <div class="info-value">{{ exp.description }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Entrevistas -->
+            <div class="content-section">
+                <h3 class="section-title">
+                    <i class="fas fa-comments section-icon"></i>
+                    Entrevistas
+                </h3>
+                {% for interview in candidate.interviews %}
+                <div class="interview-item">
+                    <div class="interview-header">
+                        <div class="interview-type">{{ interview.type }}</div>
+                        <div class="interview-status status-{{ interview.status|lower }}">
+                            {{ interview.status }}
+                        </div>
+                    </div>
+                    <div class="info-value">
+                        <strong>Fecha:</strong> {{ interview.date }}<br>
+                        <strong>Entrevistador:</strong> {{ interview.interviewer }}<br>
+                        <strong>Notas:</strong> {{ interview.notes }}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Timeline -->
+            <div class="content-section">
+                <h3 class="section-title">
+                    <i class="fas fa-history section-icon"></i>
+                    Timeline de Actividades
+                </h3>
+                <div class="timeline">
+                    {% for activity in candidate.timeline %}
+                    <div class="timeline-item">
+                        <div class="timeline-date">{{ activity.date }}</div>
+                        <div class="timeline-action">{{ activity.action }}</div>
+                        <div class="timeline-user">por {{ activity.user }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <!-- Match Score -->
+            <div class="content-section">
+                <h3 class="section-title">
+                    <i class="fas fa-chart-line section-icon"></i>
+                    Match Score
+                </h3>
+                <div class="match-score-circle 
+                    {% if candidate.match_score >= 90 %}score-excellent
+                    {% elif candidate.match_score >= 80 %}score-good
+                    {% elif candidate.match_score >= 70 %}score-average
+                    {% else %}score-poor{% endif %}">
+                    {{ candidate.match_score }}
+                </div>
+                <div style="text-align: center; color: #666;">
+                    Puntuación de compatibilidad
+                </div>
+            </div>
+            
+            <!-- Información de Contacto -->
+            <div class="content-section">
+                <h3 class="section-title">
+                    <i class="fas fa-address-book section-icon"></i>
+                    Información de Contacto
+                </h3>
+                <div class="contact-grid">
+                    <div class="contact-card">
+                        <div class="contact-title">Candidato</div>
+                        <div class="contact-item">
+                            <i class="fas fa-envelope contact-icon"></i>
+                            {{ candidate.contact_info.email }}
+                        </div>
+                        <div class="contact-item">
+                            <i class="fas fa-phone contact-icon"></i>
+                            {{ candidate.contact_info.phone }}
+                        </div>
+                        <div class="contact-item">
+                            <i class="fab fa-linkedin contact-icon"></i>
+                            {{ candidate.contact_info.linkedin }}
+                        </div>
+                        {% if candidate.contact_info.github %}
+                        <div class="contact-item">
+                            <i class="fab fa-github contact-icon"></i>
+                            {{ candidate.contact_info.github }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="contact-card">
+                        <div class="contact-title">Contacto del Cliente</div>
+                        <div class="contact-item">
+                            <i class="fas fa-user contact-icon"></i>
+                            {{ candidate.client_contact.name }}
+                        </div>
+                        <div class="contact-item">
+                            <i class="fas fa-envelope contact-icon"></i>
+                            {{ candidate.client_contact.email }}
+                        </div>
+                        <div class="contact-item">
+                            <i class="fas fa-phone contact-icon"></i>
+                            {{ candidate.client_contact.phone }}
+                        </div>
+                        {% if candidate.client_contact.position %}
+                        <div class="contact-item">
+                            <i class="fas fa-briefcase contact-icon"></i>
+                            {{ candidate.client_contact.position }}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Acciones Rápidas -->
+            <div class="content-section">
+                <h3 class="section-title">
+                    <i class="fas fa-bolt section-icon"></i>
+                    Acciones Rápidas
+                </h3>
+                <div class="action-buttons">
+                    <button class="action-btn action-btn-primary" onclick="candidateAction('move_status')">
+                        <i class="fas fa-arrow-right action-icon"></i>
+                        Mover Estado
+                    </button>
+                    <button class="action-btn action-btn-secondary" onclick="candidateAction('send_email')">
+                        <i class="fas fa-envelope action-icon"></i>
+                        Enviar Email
+                    </button>
+                    <button class="action-btn action-btn-secondary" onclick="candidateAction('schedule_interview')">
+                        <i class="fas fa-calendar action-icon"></i>
+                        Agendar Entrevista
+                    </button>
+                    <button class="action-btn action-btn-secondary" onclick="candidateAction('add_notes')">
+                        <i class="fas fa-sticky-note action-icon"></i>
+                        Agregar Notas
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Acciones de Propuesta -->
+            <div class="content-section">
+                <h3 class="section-title">
+                    <i class="fas fa-file-contract section-icon"></i>
+                    Propuestas y Contratos
+                </h3>
+                <div class="action-buttons">
+                    <button class="action-btn action-btn-primary" onclick="candidateAction('create_proposal')">
+                        <i class="fas fa-file-contract action-icon"></i>
+                        Crear Propuesta
+                    </button>
+                    <button class="action-btn action-btn-secondary" onclick="candidateAction('convert_to_contract')">
+                        <i class="fas fa-file-signature action-icon"></i>
+                        Convertir a Contrato
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Documentos -->
+            <div class="content-section">
+                <h3 class="section-title">
+                    <i class="fas fa-file-alt section-icon"></i>
+                    Documentos
+                </h3>
+                <div class="action-buttons">
+                    <a href="{% url 'cv_viewer' candidate.id %}" class="action-btn action-btn-primary" target="_blank">
+                        <i class="fas fa-eye action-icon"></i>
+                        Ver CV Completo
+                    </a>
+                    {% if candidate.resume_url %}
+                    <a href="{{ candidate.resume_url }}" class="action-btn action-btn-secondary" target="_blank">
+                        <i class="fas fa-file-pdf action-icon"></i>
+                        Ver CV Original
+                    </a>
+                    {% endif %}
+                    {% if candidate.portfolio_url %}
+                    <a href="{{ candidate.portfolio_url }}" class="action-btn action-btn-secondary" target="_blank">
+                        <i class="fas fa-globe action-icon"></i>
+                        Portfolio
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Notas -->
+<div class="modal fade" id="notesModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Agregar Notas</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <textarea class="form-control" id="notesText" rows="5" placeholder="Escribe tus notas aquí..."></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="saveNotes()">Guardar Notas</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function candidateAction(action) {
+    switch(action) {
+        case 'move_status':
+            showMoveStatusModal();
+            break;
+        case 'send_email':
+            showSendEmailModal();
+            break;
+        case 'schedule_interview':
+            showScheduleInterviewModal();
+            break;
+        case 'add_notes':
+            showNotesModal();
+            break;
+        case 'create_proposal':
+            createProposal();
+            break;
+        case 'convert_to_contract':
+            convertToContract();
+            break;
+    }
+}
+
+function showNotesModal() {
+    const modal = new bootstrap.Modal(document.getElementById('notesModal'));
+    modal.show();
+}
+
+function saveNotes() {
+    const notes = document.getElementById('notesText').value;
+    
+    fetch(`/dashboard/super-admin/candidate/{{ candidate.id }}/action/add_notes/`, {
+        method: 'POST',
+        body: JSON.stringify({notes: notes}),
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Notas guardadas exitosamente', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('notesModal')).hide();
+        } else {
+            showNotification('Error al guardar notas', 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('Error al guardar notas', 'error');
+    });
+}
+
+function showNotification(message, type) {
+    // Implementar notificación
+    console.log(`${type}: ${message}`);
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %} 

@@ -1,0 +1,780 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ page_title }} - BRUCE ALMIGHTY MODE{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard/omnichannel_automation.css' %}">
+<link rel="stylesheet" href="{% static 'css/components/metrics_cards.css' %}">
+<link rel="stylesheet" href="{% static 'css/components/charts.css' %}">
+<link rel="stylesheet" href="{% static 'css/components/alerts.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="omnichannel-automation-dashboard">
+    <!-- Header del Dashboard -->
+    <div class="dashboard-header">
+        <div class="header-content">
+            <h1 class="dashboard-title">
+                <i class="fas fa-robot"></i>
+                Automatización Omnicanal
+            </h1>
+            <p class="dashboard-subtitle">
+                Sistema inteligente de workflows y engagement predictivo
+            </p>
+        </div>
+        <div class="header-actions">
+            <button class="btn btn-primary" onclick="openOptimizationModal()">
+                <i class="fas fa-magic"></i>
+                Optimización Automática
+            </button>
+            <button class="btn btn-success" onclick="retrainModels()">
+                <i class="fas fa-brain"></i>
+                Reentrenar Modelos
+            </button>
+        </div>
+    </div>
+
+    <!-- Métricas Principales -->
+    <div class="metrics-section">
+        <div class="metrics-grid">
+            <div class="metric-card primary">
+                <div class="metric-icon">
+                    <i class="fas fa-project-diagram"></i>
+                </div>
+                <div class="metric-content">
+                    <h3 class="metric-value">{{ general_metrics.total_workflows }}</h3>
+                    <p class="metric-label">Workflows Activos</p>
+                    <div class="metric-trend positive">
+                        <i class="fas fa-arrow-up"></i>
+                        <span>+12%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="metric-card success">
+                <div class="metric-icon">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <div class="metric-content">
+                    <h3 class="metric-value">{{ general_metrics.engagement_rate|floatformat:1 }}%</h3>
+                    <p class="metric-label">Tasa de Engagement</p>
+                    <div class="metric-trend positive">
+                        <i class="fas fa-arrow-up"></i>
+                        <span>+8%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="metric-card warning">
+                <div class="metric-icon">
+                    <i class="fas fa-cogs"></i>
+                </div>
+                <div class="metric-content">
+                    <h3 class="metric-value">{{ general_metrics.automation_effectiveness|floatformat:1 }}%</h3>
+                    <p class="metric-label">Efectividad Automatización</p>
+                    <div class="metric-trend positive">
+                        <i class="fas fa-arrow-up"></i>
+                        <span>+15%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="metric-card info">
+                <div class="metric-icon">
+                    <i class="fas fa-bullseye"></i>
+                </div>
+                <div class="metric-content">
+                    <h3 class="metric-value">{{ general_metrics.predictive_accuracy|floatformat:1 }}%</h3>
+                    <p class="metric-label">Precisión Predictiva</p>
+                    <div class="metric-trend positive">
+                        <i class="fas fa-arrow-up"></i>
+                        <span>+5%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contenido Principal -->
+    <div class="dashboard-content">
+        <div class="content-grid">
+            <!-- Workflows Activos -->
+            <div class="content-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-list"></i> Workflows Activos</h3>
+                    <div class="card-actions">
+                        <button class="btn btn-sm btn-primary" onclick="refreshWorkflows()">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="workflows-list" id="workflowsList">
+                        {% for workflow in active_workflows %}
+                        <div class="workflow-item">
+                            <div class="workflow-info">
+                                <h4>{{ workflow.type|title }}</h4>
+                                <p>Participante: {{ workflow.participant_id }}</p>
+                                <p>Etapa: {{ workflow.current_stage }}</p>
+                                <p>Duración: {{ workflow.duration|floatformat:1 }} días</p>
+                            </div>
+                            <div class="workflow-actions">
+                                <button class="btn btn-sm btn-success" onclick="advanceWorkflow('{{ workflow.id }}')">
+                                    Avanzar
+                                </button>
+                                <button class="btn btn-sm btn-info" onclick="viewWorkflowDetails('{{ workflow.id }}')">
+                                    Detalles
+                                </button>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="empty-state">
+                            <i class="fas fa-inbox"></i>
+                            <p>No hay workflows activos</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Insights de Engagement -->
+            <div class="content-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-chart-bar"></i> Insights de Engagement</h3>
+                </div>
+                <div class="card-body">
+                    <div class="engagement-insights">
+                        <div class="insight-item">
+                            <h4>Rendimiento por Canal</h4>
+                            <div class="channel-performance">
+                                {% for channel, metrics in channel_metrics.items %}
+                                <div class="channel-metric">
+                                    <span class="channel-name">{{ channel|title }}</span>
+                                    <div class="channel-stats">
+                                        <span class="delivery-rate">{{ metrics.delivery_rate|floatformat:1 }}%</span>
+                                        <span class="engagement-rate">{{ metrics.engagement_rate|floatformat:1 }}%</span>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <div class="insight-item">
+                            <h4>Segmentos de Usuarios</h4>
+                            <div class="user-segments">
+                                {% for segment, data in engagement_insights.user_segments.items %}
+                                <div class="segment-item">
+                                    <span class="segment-name">{{ segment|title }}</span>
+                                    <span class="segment-count">{{ data.count }}</span>
+                                    <span class="segment-rate">{{ data.avg_rate|floatformat:1 }}%</span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Optimizaciones Recomendadas -->
+            <div class="content-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-lightbulb"></i> Optimizaciones Recomendadas</h3>
+                </div>
+                <div class="card-body">
+                    <div class="optimization-recommendations">
+                        {% for recommendation in optimization_recommendations %}
+                        <div class="recommendation-item">
+                            <div class="recommendation-header">
+                                <h4>{{ recommendation.title }}</h4>
+                                <span class="impact-badge">{{ recommendation.impact }}</span>
+                            </div>
+                            <p>{{ recommendation.description }}</p>
+                            <button class="btn btn-sm btn-primary" onclick="applyOptimization('{{ recommendation.type }}')">
+                                Aplicar
+                            </button>
+                        </div>
+                        {% empty %}
+                        <div class="empty-state">
+                            <i class="fas fa-check-circle"></i>
+                            <p>No hay optimizaciones pendientes</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Alertas del Sistema -->
+            <div class="content-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-exclamation-triangle"></i> Alertas del Sistema</h3>
+                </div>
+                <div class="card-body">
+                    <div class="alerts-list">
+                        {% for alert in alerts %}
+                        <div class="alert-item {{ alert.type }}">
+                            <div class="alert-icon">
+                                {% if alert.type == 'warning' %}
+                                <i class="fas fa-exclamation-triangle"></i>
+                                {% elif alert.type == 'error' %}
+                                <i class="fas fa-times-circle"></i>
+                                {% else %}
+                                <i class="fas fa-info-circle"></i>
+                                {% endif %}
+                            </div>
+                            <div class="alert-content">
+                                <h4>{{ alert.title }}</h4>
+                                <p>{{ alert.description }}</p>
+                                <small>{{ alert.timestamp|timesince }} atrás</small>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="empty-state">
+                            <i class="fas fa-shield-alt"></i>
+                            <p>No hay alertas activas</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráficos y Analytics -->
+    <div class="analytics-section">
+        <div class="analytics-grid">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-chart-line"></i> Tendencias de Engagement</h3>
+                </div>
+                <div class="card-body">
+                    <canvas id="engagementChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-chart-pie"></i> Distribución por Canales</h3>
+                </div>
+                <div class="card-body">
+                    <canvas id="channelsChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-chart-area"></i> Efectividad de Automatización</h3>
+                </div>
+                <div class="card-body">
+                    <canvas id="automationChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-chart-bar"></i> Rendimiento de Workflows</h3>
+                </div>
+                <div class="card-body">
+                    <canvas id="workflowsChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Optimización -->
+<div id="optimizationModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-magic"></i> Optimización Automática</h3>
+            <span class="close" onclick="closeOptimizationModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div class="optimization-options">
+                <div class="option-group">
+                    <h4>Tipos de Optimización</h4>
+                    <div class="option-item">
+                        <input type="checkbox" id="timing_optimization" checked>
+                        <label for="timing_optimization">Optimización de Timing</label>
+                    </div>
+                    <div class="option-item">
+                        <input type="checkbox" id="content_optimization" checked>
+                        <label for="content_optimization">Optimización de Contenido</label>
+                    </div>
+                    <div class="option-item">
+                        <input type="checkbox" id="channel_optimization" checked>
+                        <label for="channel_optimization">Optimización de Canales</label>
+                    </div>
+                </div>
+
+                <div class="option-group">
+                    <h4>Alcance</h4>
+                    <div class="option-item">
+                        <input type="radio" id="scope_all" name="scope" value="all" checked>
+                        <label for="scope_all">Todos los workflows</label>
+                    </div>
+                    <div class="option-item">
+                        <input type="radio" id="scope_active" name="scope" value="active">
+                        <label for="scope_active">Solo workflows activos</label>
+                    </div>
+                    <div class="option-item">
+                        <input type="radio" id="scope_selected" name="scope" value="selected">
+                        <label for="scope_selected">Workflows seleccionados</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeOptimizationModal()">Cancelar</button>
+            <button class="btn btn-primary" onclick="executeOptimization()">Ejecutar Optimización</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Detalles de Workflow -->
+<div id="workflowDetailsModal" class="modal">
+    <div class="modal-content large">
+        <div class="modal-header">
+            <h3><i class="fas fa-project-diagram"></i> Detalles del Workflow</h3>
+            <span class="close" onclick="closeWorkflowDetailsModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div id="workflowDetailsContent">
+                <!-- Contenido dinámico -->
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeWorkflowDetailsModal()">Cerrar</button>
+            <button class="btn btn-success" onclick="advanceCurrentWorkflow()">Avanzar Etapa</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{% static 'js/dashboard/omnichannel_automation.js' %}"></script>
+<script>
+// Variables globales
+let currentWorkflowId = null;
+let charts = {};
+
+// Inicialización
+document.addEventListener('DOMContentLoaded', function() {
+    initializeCharts();
+    loadRealTimeData();
+});
+
+// Funciones de utilidad
+function openOptimizationModal() {
+    document.getElementById('optimizationModal').style.display = 'block';
+}
+
+function closeOptimizationModal() {
+    document.getElementById('optimizationModal').style.display = 'none';
+}
+
+function openWorkflowDetailsModal() {
+    document.getElementById('workflowDetailsModal').style.display = 'block';
+}
+
+function closeWorkflowDetailsModal() {
+    document.getElementById('workflowDetailsModal').style.display = 'none';
+}
+
+// Funciones de API
+async function refreshWorkflows() {
+    try {
+        const response = await fetch('{% url "omnichannel_automation:api_get_workflow_status" %}');
+        const data = await response.json();
+        
+        if (data.active_workflows) {
+            updateWorkflowsList(data.active_workflows);
+        }
+    } catch (error) {
+        console.error('Error refreshing workflows:', error);
+        showNotification('Error al actualizar workflows', 'error');
+    }
+}
+
+async function advanceWorkflow(workflowId) {
+    try {
+        const response = await fetch('{% url "omnichannel_automation:api_advance_workflow" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                workflow_id: workflowId
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.status === 'completed') {
+            showNotification('Workflow completado exitosamente', 'success');
+        } else {
+            showNotification('Workflow avanzado exitosamente', 'success');
+        }
+        
+        refreshWorkflows();
+    } catch (error) {
+        console.error('Error advancing workflow:', error);
+        showNotification('Error al avanzar workflow', 'error');
+    }
+}
+
+async function viewWorkflowDetails(workflowId) {
+    try {
+        currentWorkflowId = workflowId;
+        
+        // Simular carga de detalles
+        const detailsContent = `
+            <div class="workflow-details">
+                <div class="detail-section">
+                    <h4>Información General</h4>
+                    <p><strong>ID:</strong> ${workflowId}</p>
+                    <p><strong>Estado:</strong> Activo</p>
+                    <p><strong>Etapa Actual:</strong> Screening</p>
+                </div>
+                
+                <div class="detail-section">
+                    <h4>Historial de Etapas</h4>
+                    <div class="stage-history">
+                        <div class="stage-item completed">
+                            <span class="stage-name">Contacto Inicial</span>
+                            <span class="stage-date">2024-01-15 10:00</span>
+                        </div>
+                        <div class="stage-item active">
+                            <span class="stage-name">Screening</span>
+                            <span class="stage-date">En progreso</span>
+                        </div>
+                        <div class="stage-item pending">
+                            <span class="stage-name">Entrevista</span>
+                            <span class="stage-date">Pendiente</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="detail-section">
+                    <h4>Métricas de Engagement</h4>
+                    <div class="engagement-metrics">
+                        <div class="metric">
+                            <span class="metric-label">Tasa de Respuesta:</span>
+                            <span class="metric-value">85%</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Tiempo de Respuesta:</span>
+                            <span class="metric-value">2.5 horas</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Canal Preferido:</span>
+                            <span class="metric-value">WhatsApp</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('workflowDetailsContent').innerHTML = detailsContent;
+        openWorkflowDetailsModal();
+        
+    } catch (error) {
+        console.error('Error viewing workflow details:', error);
+        showNotification('Error al cargar detalles del workflow', 'error');
+    }
+}
+
+async function retrainModels() {
+    try {
+        showNotification('Reentrenando modelos...', 'info');
+        
+        const response = await fetch('{% url "omnichannel_automation:api_retrain_models" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            showNotification('Modelos reentrenados exitosamente', 'success');
+        } else {
+            showNotification('Error al reentrenar modelos', 'error');
+        }
+    } catch (error) {
+        console.error('Error retraining models:', error);
+        showNotification('Error al reentrenar modelos', 'error');
+    }
+}
+
+async function executeOptimization() {
+    try {
+        const optimizationTypes = [];
+        
+        if (document.getElementById('timing_optimization').checked) {
+            optimizationTypes.push('timing');
+        }
+        if (document.getElementById('content_optimization').checked) {
+            optimizationTypes.push('content');
+        }
+        if (document.getElementById('channel_optimization').checked) {
+            optimizationTypes.push('channels');
+        }
+        
+        const scope = document.querySelector('input[name="scope"]:checked').value;
+        
+        showNotification('Ejecutando optimización...', 'info');
+        
+        const response = await fetch('{% url "omnichannel_automation:api_apply_optimization" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                optimization_type: 'comprehensive',
+                parameters: {
+                    types: optimizationTypes,
+                    scope: scope
+                }
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            showNotification('Optimización aplicada exitosamente', 'success');
+            closeOptimizationModal();
+            refreshDashboard();
+        } else {
+            showNotification('Error al aplicar optimización', 'error');
+        }
+    } catch (error) {
+        console.error('Error executing optimization:', error);
+        showNotification('Error al ejecutar optimización', 'error');
+    }
+}
+
+async function applyOptimization(type) {
+    try {
+        showNotification(`Aplicando optimización: ${type}`, 'info');
+        
+        const response = await fetch('{% url "omnichannel_automation:api_apply_optimization" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                optimization_type: type,
+                parameters: {}
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            showNotification('Optimización aplicada exitosamente', 'success');
+            refreshDashboard();
+        } else {
+            showNotification('Error al aplicar optimización', 'error');
+        }
+    } catch (error) {
+        console.error('Error applying optimization:', error);
+        showNotification('Error al aplicar optimización', 'error');
+    }
+}
+
+function advanceCurrentWorkflow() {
+    if (currentWorkflowId) {
+        advanceWorkflow(currentWorkflowId);
+        closeWorkflowDetailsModal();
+    }
+}
+
+// Funciones de actualización de UI
+function updateWorkflowsList(workflows) {
+    const workflowsList = document.getElementById('workflowsList');
+    
+    if (workflows.length === 0) {
+        workflowsList.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-inbox"></i>
+                <p>No hay workflows activos</p>
+            </div>
+        `;
+        return;
+    }
+    
+    workflowsList.innerHTML = workflows.map(workflow => `
+        <div class="workflow-item">
+            <div class="workflow-info">
+                <h4>${workflow.type}</h4>
+                <p>Participante: ${workflow.participant_id}</p>
+                <p>Etapa: ${workflow.current_stage}</p>
+                <p>Duración: ${workflow.duration} días</p>
+            </div>
+            <div class="workflow-actions">
+                <button class="btn btn-sm btn-success" onclick="advanceWorkflow('${workflow.id}')">
+                    Avanzar
+                </button>
+                <button class="btn btn-sm btn-info" onclick="viewWorkflowDetails('${workflow.id}')">
+                    Detalles
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function refreshDashboard() {
+    location.reload();
+}
+
+function loadRealTimeData() {
+    // Cargar datos en tiempo real cada 30 segundos
+    setInterval(() => {
+        refreshWorkflows();
+    }, 30000);
+}
+
+// Inicialización de gráficos
+function initializeCharts() {
+    // Gráfico de Engagement
+    const engagementCtx = document.getElementById('engagementChart').getContext('2d');
+    charts.engagement = new Chart(engagementCtx, {
+        type: 'line',
+        data: {
+            labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'],
+            datasets: [{
+                label: 'Tasa de Engagement',
+                data: [65, 72, 78, 82, 85, 87],
+                borderColor: '#28a745',
+                backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100
+                }
+            }
+        }
+    });
+
+    // Gráfico de Canales
+    const channelsCtx = document.getElementById('channelsChart').getContext('2d');
+    charts.channels = new Chart(channelsCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['WhatsApp', 'Email', 'Telegram', 'SMS'],
+            datasets: [{
+                data: [45, 30, 15, 10],
+                backgroundColor: ['#25D366', '#007bff', '#0088cc', '#ffc107']
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+
+    // Gráfico de Automatización
+    const automationCtx = document.getElementById('automationChart').getContext('2d');
+    charts.automation = new Chart(automationCtx, {
+        type: 'bar',
+        data: {
+            labels: ['Workflows', 'Notificaciones', 'Optimizaciones', 'Predicciones'],
+            datasets: [{
+                label: 'Efectividad (%)',
+                data: [87, 92, 78, 85],
+                backgroundColor: ['#17a2b8', '#28a745', '#ffc107', '#dc3545']
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100
+                }
+            }
+        }
+    });
+
+    // Gráfico de Workflows
+    const workflowsCtx = document.getElementById('workflowsChart').getContext('2d');
+    charts.workflows = new Chart(workflowsCtx, {
+        type: 'line',
+        data: {
+            labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'],
+            datasets: [{
+                label: 'Workflows Activos',
+                data: [12, 15, 18, 22, 25, 20, 16],
+                borderColor: '#007bff',
+                backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+// Utilidades
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function showNotification(message, type = 'info') {
+    // Implementar sistema de notificaciones
+    console.log(`${type.toUpperCase()}: ${message}`);
+}
+</script>
+{% endblock %} 

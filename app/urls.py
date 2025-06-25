@@ -112,6 +112,9 @@ urlpatterns = [
     
     # 🌟 INTEGRACIÓN DE AURA - SISTEMA DE INTELIGENCIA RELACIONAL
     path('api/aura/', include('app.ml.aura.urls', namespace='aura')),
+    
+    # 🚀 ANALYTICS AVANZADOS Y MATCHING AUTOMÁTICO
+    path('advanced-analytics/', include('app.urls.advanced_analytics')),
 ]
 
 # ---------------------------------

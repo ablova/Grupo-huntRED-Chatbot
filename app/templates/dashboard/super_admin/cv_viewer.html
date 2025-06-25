@@ -1,0 +1,586 @@
+{% extends 'dashboard/super_admin/super_admin_dashboard.html' %}
+{% load static %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard/super_admin.css' %}">
+<style>
+    .cv-viewer-container {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 20px;
+    }
+    
+    .cv-header {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        padding: 30px;
+        margin-bottom: 30px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    }
+    
+    .cv-title {
+        font-size: 2.5rem;
+        font-weight: 800;
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 20px;
+    }
+    
+    .cv-subtitle {
+        font-size: 1.2rem;
+        color: #666;
+        margin-bottom: 30px;
+    }
+    
+    .cv-controls {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+    
+    .cv-info {
+        display: flex;
+        gap: 20px;
+        align-items: center;
+    }
+    
+    .cv-version {
+        background: #667eea;
+        color: white;
+        padding: 5px 15px;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        font-weight: 600;
+    }
+    
+    .cv-status {
+        padding: 5px 15px;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        font-weight: 600;
+    }
+    
+    .status-active {
+        background: #28a745;
+        color: white;
+    }
+    
+    .cv-actions {
+        display: flex;
+        gap: 15px;
+    }
+    
+    .cv-action-btn {
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        color: white;
+        border: none;
+        padding: 12px 20px;
+        border-radius: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .cv-action-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+    }
+    
+    .cv-content {
+        display: grid;
+        grid-template-columns: 1fr 300px;
+        gap: 30px;
+        margin-bottom: 30px;
+    }
+    
+    .cv-preview {
+        background: white;
+        border-radius: 20px;
+        padding: 30px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        min-height: 800px;
+    }
+    
+    .cv-iframe {
+        width: 100%;
+        height: 700px;
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    }
+    
+    .cv-sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+    
+    .cv-section {
+        background: white;
+        border-radius: 20px;
+        padding: 25px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    }
+    
+    .section-title {
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: #333;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+    }
+    
+    .section-icon {
+        margin-right: 10px;
+        color: #667eea;
+    }
+    
+    .cv-sections-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .cv-section-item {
+        display: flex;
+        align-items: center;
+        padding: 10px;
+        background: #f8f9fa;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .cv-section-item:hover {
+        background: #667eea;
+        color: white;
+    }
+    
+    .cv-section-item.active {
+        background: #667eea;
+        color: white;
+    }
+    
+    .section-checkbox {
+        margin-right: 10px;
+    }
+    
+    .export-options {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+    
+    .export-btn {
+        background: #f8f9fa;
+        border: 2px solid #e9ecef;
+        padding: 12px;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        font-weight: 600;
+    }
+    
+    .export-btn:hover {
+        background: #667eea;
+        color: white;
+        border-color: #667eea;
+    }
+    
+    .cv-analytics {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .analytics-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px;
+        background: #f8f9fa;
+        border-radius: 10px;
+    }
+    
+    .analytics-label {
+        font-weight: 600;
+        color: #333;
+    }
+    
+    .analytics-value {
+        color: #667eea;
+        font-weight: 700;
+    }
+    
+    .views-breakdown {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .view-item {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.9rem;
+    }
+    
+    .view-role {
+        color: #666;
+    }
+    
+    .view-count {
+        font-weight: 600;
+        color: #667eea;
+    }
+    
+    .cv-permissions {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .permission-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .permission-checkbox {
+        width: 18px;
+        height: 18px;
+    }
+    
+    .permission-label {
+        font-weight: 500;
+        color: #333;
+    }
+    
+    @media (max-width: 768px) {
+        .cv-content {
+            grid-template-columns: 1fr;
+        }
+        
+        .cv-controls {
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .export-options {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="cv-viewer-container">
+    <!-- Header del CV Viewer -->
+    <div class="cv-header">
+        <h1 class="cv-title">
+            <i class="fas fa-file-alt"></i>
+            Visualizador de CV
+        </h1>
+        <p class="cv-subtitle">
+            {{ cv_data.candidate_name }} - {{ cv_data.position }}
+        </p>
+        
+        <div class="cv-controls">
+            <div class="cv-info">
+                <div class="cv-version">v{{ cv_data.cv_version }}</div>
+                <div class="cv-status status-{{ cv_data.cv_status }}">
+                    {{ cv_data.cv_status|title }}
+                </div>
+                <div>Creado: {{ cv_data.cv_created_date }}</div>
+            </div>
+            
+            <div class="cv-actions">
+                <button class="cv-action-btn" onclick="downloadCV('pdf')">
+                    <i class="fas fa-download"></i>
+                    Descargar PDF
+                </button>
+                <button class="cv-action-btn" onclick="downloadCV('docx')">
+                    <i class="fas fa-file-word"></i>
+                    Exportar Word
+                </button>
+                <button class="cv-action-btn" onclick="shareCV()">
+                    <i class="fas fa-share"></i>
+                    Compartir
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Contenido Principal -->
+    <div class="cv-content">
+        <!-- Preview del CV -->
+        <div class="cv-preview">
+            <h3 class="section-title">
+                <i class="fas fa-eye section-icon"></i>
+                Vista Previa del CV
+            </h3>
+            <iframe 
+                src="{{ cv_data.cv_preview_url }}" 
+                class="cv-iframe"
+                title="CV Preview">
+            </iframe>
+        </div>
+        
+        <!-- Sidebar -->
+        <div class="cv-sidebar">
+            <!-- Secciones del CV -->
+            <div class="cv-section">
+                <h4 class="section-title">
+                    <i class="fas fa-list section-icon"></i>
+                    Secciones del CV
+                </h4>
+                <div class="cv-sections-list">
+                    {% for section in cv_data.cv_sections %}
+                    <div class="cv-section-item {% if section.visible %}active{% endif %}" 
+                         onclick="toggleSection({{ forloop.counter0 }})">
+                        <input type="checkbox" 
+                               class="section-checkbox" 
+                               {% if section.visible %}checked{% endif %}
+                               onchange="toggleSection({{ forloop.counter0 }})">
+                        {{ section.title }}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <!-- Opciones de Exportación -->
+            <div class="cv-section">
+                <h4 class="section-title">
+                    <i class="fas fa-download section-icon"></i>
+                    Opciones de Exportación
+                </h4>
+                <div class="export-options">
+                    {% for format, enabled in cv_data.export_options.items %}
+                    {% if enabled %}
+                    <button class="export-btn" onclick="downloadCV('{{ format }}')">
+                        <i class="fas fa-file-{{ format }}"></i>
+                        {{ format|upper }}
+                    </button>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <!-- Analytics del CV -->
+            <div class="cv-section">
+                <h4 class="section-title">
+                    <i class="fas fa-chart-line section-icon"></i>
+                    Analytics del CV
+                </h4>
+                <div class="cv-analytics">
+                    <div class="analytics-item">
+                        <span class="analytics-label">Total de Vistas</span>
+                        <span class="analytics-value">{{ cv_data.cv_analytics.total_views }}</span>
+                    </div>
+                    <div class="analytics-item">
+                        <span class="analytics-label">Descargas</span>
+                        <span class="analytics-value">{{ cv_data.cv_analytics.downloads }}</span>
+                    </div>
+                    <div class="analytics-item">
+                        <span class="analytics-label">Última Vista</span>
+                        <span class="analytics-value">{{ cv_data.cv_analytics.last_viewed }}</span>
+                    </div>
+                    
+                    <div class="views-breakdown">
+                        <h5 style="margin: 15px 0 10px 0; color: #333;">Vistas por Rol</h5>
+                        {% for role, count in cv_data.cv_analytics.views_by_role.items %}
+                        <div class="view-item">
+                            <span class="view-role">{{ role|title }}</span>
+                            <span class="view-count">{{ count }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Permisos de Vista -->
+            <div class="cv-section">
+                <h4 class="section-title">
+                    <i class="fas fa-shield-alt section-icon"></i>
+                    Permisos de Vista
+                </h4>
+                <div class="cv-permissions">
+                    {% for role, enabled in cv_data.cv_views.items %}
+                    <div class="permission-item">
+                        <input type="checkbox" 
+                               class="permission-checkbox" 
+                               {% if enabled %}checked{% endif %}
+                               onchange="updatePermission('{{ role }}', this.checked)">
+                        <span class="permission-label">{{ role|title }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Compartir CV -->
+<div class="modal fade" id="shareCVModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Compartir CV</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Email del Destinatario</label>
+                    <input type="email" class="form-control" id="shareEmail" placeholder="email@ejemplo.com">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Mensaje (Opcional)</label>
+                    <textarea class="form-control" id="shareMessage" rows="3" placeholder="Mensaje personalizado..."></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Formato</label>
+                    <select class="form-select" id="shareFormat">
+                        <option value="pdf">PDF</option>
+                        <option value="docx">Word</option>
+                        <option value="html">HTML</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="sendCV()">Enviar CV</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function downloadCV(format) {
+    // Simular descarga
+    const link = document.createElement('a');
+    link.href = `/dashboard/super-admin/candidate/{{ cv_data.candidate_id }}/cv/download/${format}/`;
+    link.download = `CV_{{ cv_data.candidate_name.replace(' ', '_') }}.${format}`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    showNotification(`CV descargado en formato ${format.toUpperCase()}`, 'success');
+}
+
+function shareCV() {
+    const modal = new bootstrap.Modal(document.getElementById('shareCVModal'));
+    modal.show();
+}
+
+function sendCV() {
+    const email = document.getElementById('shareEmail').value;
+    const message = document.getElementById('shareMessage').value;
+    const format = document.getElementById('shareFormat').value;
+    
+    if (!email) {
+        showNotification('Por favor ingresa un email válido', 'error');
+        return;
+    }
+    
+    // Simular envío
+    fetch('/dashboard/super-admin/candidate/{{ cv_data.candidate_id }}/cv/share/', {
+        method: 'POST',
+        body: JSON.stringify({
+            email: email,
+            message: message,
+            format: format
+        }),
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('CV enviado exitosamente', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('shareCVModal')).hide();
+        } else {
+            showNotification('Error al enviar CV: ' + data.error, 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('Error al enviar CV', 'error');
+    });
+}
+
+function toggleSection(sectionIndex) {
+    // Simular toggle de sección
+    const sectionItem = document.querySelectorAll('.cv-section-item')[sectionIndex];
+    const checkbox = sectionItem.querySelector('.section-checkbox');
+    
+    if (checkbox.checked) {
+        sectionItem.classList.add('active');
+    } else {
+        sectionItem.classList.remove('active');
+    }
+    
+    showNotification('Sección actualizada', 'success');
+}
+
+function updatePermission(role, enabled) {
+    // Simular actualización de permisos
+    fetch('/dashboard/super-admin/candidate/{{ cv_data.candidate_id }}/cv/permissions/', {
+        method: 'POST',
+        body: JSON.stringify({
+            role: role,
+            enabled: enabled
+        }),
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Permisos actualizados', 'success');
+        } else {
+            showNotification('Error al actualizar permisos', 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('Error al actualizar permisos', 'error');
+    });
+}
+
+function showNotification(message, type) {
+    // Implementar notificación
+    console.log(`${type}: ${message}`);
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %} 

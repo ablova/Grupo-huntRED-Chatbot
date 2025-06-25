@@ -1,3 +1,5 @@
-from app.ml.core.models.matchmaking.matchmaking import MatchmakingModel
+from .advanced_matching import AdvancedMatchingSystem
+from .matchmaking import MatchmakingModel
+from .factors import MatchmakingFactors
 
 __all__ = ['MatchmakingModel'] 

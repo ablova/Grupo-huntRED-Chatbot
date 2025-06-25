@@ -1,0 +1,456 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Dashboard Consultor - {{ consultant.name }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/aura.css' %}">
+<style>
+    .aura-section {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 20px;
+        color: white;
+        box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
+    }
+    
+    .aura-score {
+        font-size: 3rem;
+        font-weight: bold;
+        text-align: center;
+        margin: 20px 0;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+    
+    .aura-insight-card {
+        background: rgba(255,255,255,0.1);
+        border-radius: 10px;
+        padding: 15px;
+        margin: 10px 0;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255,255,255,0.2);
+    }
+    
+    .prediction-card {
+        background: rgba(255,255,255,0.15);
+        border-radius: 8px;
+        padding: 12px;
+        margin: 8px 0;
+        border-left: 4px solid #4CAF50;
+    }
+    
+    .confidence-indicator {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 8px;
+    }
+    
+    .confidence-high { background-color: #4CAF50; }
+    .confidence-medium { background-color: #FF9800; }
+    .confidence-low { background-color: #F44336; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Consultor</h5>
+                    <p class="card-text">{{ consultant.name }}</p>
+                    <p class="card-text"><small class="text-muted">{{ consultant.email }}</small></p>
+                    
+                    <!-- AURA Score -->
+                    <div class="aura-section">
+                        <h6>AURA Score</h6>
+                        <div class="aura-score" id="aura-score">--</div>
+                        <p class="text-center">Inteligencia Artificial</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="col-md-9">
+            <!-- AURA Insights Section -->
+            <div class="aura-section">
+                <h4><i class="fas fa-brain"></i> Insights de AURA</h4>
+                <div id="aura-insights-content">
+                    <div class="text-center">
+                        <div class="spinner-border text-light" role="status">
+                            <span class="sr-only">Cargando...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Predictive Analytics -->
+            <div class="aura-section">
+                <h4><i class="fas fa-chart-line"></i> Analytics Predictivo</h4>
+                <div id="predictive-analytics-content">
+                    <div class="text-center">
+                        <div class="spinner-border text-light" role="status">
+                            <span class="sr-only">Cargando...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Existing Dashboard Content -->
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Métricas de Rendimiento</h5>
+                        </div>
+                        <div class="card-body" id="performance-metrics">
+                            <!-- Content loaded via AJAX -->
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Insights de Mercado</h5>
+                        </div>
+                        <div class="card-body" id="market-insights">
+                            <!-- Content loaded via AJAX -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Actividades Recientes</h5>
+                        </div>
+                        <div class="card-body" id="recent-activities">
+                            <!-- Content loaded via AJAX -->
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Próximas Tareas</h5>
+                        </div>
+                        <div class="card-body" id="upcoming-tasks">
+                            <!-- Content loaded via AJAX -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para análisis detallado de candidatos -->
+<div class="modal fade" id="candidateAnalysisModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Análisis AURA - Candidato</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" id="candidate-analysis-content">
+                <!-- Content loaded via AJAX -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para análisis detallado de vacantes -->
+<div class="modal fade" id="vacancyAnalysisModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Análisis AURA - Vacante</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" id="vacancy-analysis-content">
+                <!-- Content loaded via AJAX -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    const consultantId = '{{ consultant.id }}';
+    
+    // Cargar datos del dashboard
+    loadDashboardData();
+    
+    function loadDashboardData() {
+        // Cargar insights de AURA
+        loadAuraInsights();
+        
+        // Cargar analytics predictivo
+        loadPredictiveAnalytics();
+        
+        // Cargar otros datos del dashboard
+        loadPerformanceMetrics();
+        loadMarketInsights();
+        loadRecentActivities();
+        loadUpcomingTasks();
+    }
+    
+    function loadAuraInsights() {
+        $.get(`/consultant/aura-insights/${consultantId}/`)
+            .done(function(data) {
+                if (data.success) {
+                    displayAuraInsights(data.aura_insights);
+                } else {
+                    $('#aura-insights-content').html('<p class="text-center">Error cargando insights de AURA</p>');
+                }
+            })
+            .fail(function() {
+                $('#aura-insights-content').html('<p class="text-center">Error de conexión</p>');
+            });
+    }
+    
+    function loadPredictiveAnalytics() {
+        $.get(`/consultant/aura-insights/${consultantId}/`)
+            .done(function(data) {
+                if (data.success) {
+                    displayPredictiveAnalytics(data.predictive_analytics);
+                } else {
+                    $('#predictive-analytics-content').html('<p class="text-center">Error cargando analytics predictivo</p>');
+                }
+            })
+            .fail(function() {
+                $('#predictive-analytics-content').html('<p class="text-center">Error de conexión</p>');
+            });
+    }
+    
+    function displayAuraInsights(insights) {
+        if (!insights || Object.keys(insights).length === 0) {
+            $('#aura-insights-content').html('<p class="text-center">No hay insights disponibles</p>');
+            return;
+        }
+        
+        let html = '';
+        
+        // AURA Score
+        if (insights.aura_score) {
+            $('#aura-score').text(insights.aura_score);
+        }
+        
+        // Network Analysis
+        if (insights.network_analysis) {
+            html += `
+                <div class="aura-insight-card">
+                    <h6><i class="fas fa-network-wired"></i> Análisis de Red</h6>
+                    <p>Fuerza de red: ${insights.network_analysis.network_strength || 'N/A'}</p>
+                    <p>Conexiones activas: ${insights.network_analysis.active_connections || 'N/A'}</p>
+                </div>
+            `;
+        }
+        
+        // Performance Predictions
+        if (insights.performance_predictions) {
+            html += `
+                <div class="aura-insight-card">
+                    <h6><i class="fas fa-trophy"></i> Predicciones de Rendimiento</h6>
+                    <p>Confianza: ${insights.performance_predictions.confidence || 'N/A'}%</p>
+                    <p>Próximo mes: ${insights.performance_predictions.next_month_prediction || 'N/A'}</p>
+                </div>
+            `;
+        }
+        
+        // Market Opportunities
+        if (insights.market_opportunities) {
+            html += `
+                <div class="aura-insight-card">
+                    <h6><i class="fas fa-lightbulb"></i> Oportunidades de Mercado</h6>
+                    <p>Oportunidades identificadas: ${insights.market_opportunities.count || 'N/A'}</p>
+                    <p>Potencial de crecimiento: ${insights.market_opportunities.growth_potential || 'N/A'}%</p>
+                </div>
+            `;
+        }
+        
+        // High Potential Candidates
+        if (insights.high_potential_candidates) {
+            html += `
+                <div class="aura-insight-card">
+                    <h6><i class="fas fa-star"></i> Candidatos de Alto Potencial</h6>
+                    <p>Identificados: ${insights.high_potential_candidates.count || 'N/A'}</p>
+                    <p>Score promedio: ${insights.high_potential_candidates.average_score || 'N/A'}</p>
+                </div>
+            `;
+        }
+        
+        $('#aura-insights-content').html(html);
+    }
+    
+    function displayPredictiveAnalytics(analytics) {
+        if (!analytics || Object.keys(analytics).length === 0) {
+            $('#predictive-analytics-content').html('<p class="text-center">No hay analytics disponibles</p>');
+            return;
+        }
+        
+        let html = '';
+        
+        // Conversion Predictions
+        if (analytics.conversion_predictions) {
+            const confidence = analytics.conversion_predictions.confidence || 0;
+            const confidenceClass = confidence > 70 ? 'confidence-high' : confidence > 40 ? 'confidence-medium' : 'confidence-low';
+            
+            html += `
+                <div class="prediction-card">
+                    <h6><span class="confidence-indicator ${confidenceClass}"></span>Predicción de Conversiones</h6>
+                    <p>Tasa esperada: ${analytics.conversion_predictions.expected_rate || 'N/A'}%</p>
+                    <p>Confianza: ${confidence}%</p>
+                </div>
+            `;
+        }
+        
+        // Time to Hire Predictions
+        if (analytics.time_to_hire_predictions) {
+            const confidence = analytics.time_to_hire_predictions.confidence || 0;
+            const confidenceClass = confidence > 70 ? 'confidence-high' : confidence > 40 ? 'confidence-medium' : 'confidence-low';
+            
+            html += `
+                <div class="prediction-card">
+                    <h6><span class="confidence-indicator ${confidenceClass}"></span>Tiempo de Contratación</h6>
+                    <p>Días esperados: ${analytics.time_to_hire_predictions.expected_days || 'N/A'}</p>
+                    <p>Confianza: ${confidence}%</p>
+                </div>
+            `;
+        }
+        
+        // Revenue Predictions
+        if (analytics.revenue_predictions) {
+            const confidence = analytics.revenue_predictions.confidence || 0;
+            const confidenceClass = confidence > 70 ? 'confidence-high' : confidence > 40 ? 'confidence-medium' : 'confidence-low';
+            
+            html += `
+                <div class="prediction-card">
+                    <h6><span class="confidence-indicator ${confidenceClass}"></span>Predicción de Ingresos</h6>
+                    <p>Ingresos esperados: $${analytics.revenue_predictions.expected_revenue || 'N/A'}</p>
+                    <p>Confianza: ${confidence}%</p>
+                </div>
+            `;
+        }
+        
+        // Risk Analysis
+        if (analytics.risk_analysis) {
+            html += `
+                <div class="prediction-card">
+                    <h6><i class="fas fa-exclamation-triangle"></i> Análisis de Riesgo</h6>
+                    <p>Nivel de riesgo: ${analytics.risk_analysis.risk_level || 'N/A'}</p>
+                    <p>Factores principales: ${analytics.risk_analysis.main_factors || 'N/A'}</p>
+                </div>
+            `;
+        }
+        
+        $('#predictive-analytics-content').html(html);
+    }
+    
+    // Funciones para cargar otros datos del dashboard
+    function loadPerformanceMetrics() {
+        $.get(`/consultant/metrics/${consultantId}/`)
+            .done(function(data) {
+                if (data.success) {
+                    $('#performance-metrics').html(formatPerformanceMetrics(data.metrics));
+                }
+            });
+    }
+    
+    function loadMarketInsights() {
+        $.get(`/consultant/market-insights/${consultantId}/`)
+            .done(function(data) {
+                if (data.success) {
+                    $('#market-insights').html(formatMarketInsights(data.insights));
+                }
+            });
+    }
+    
+    function loadRecentActivities() {
+        $.get(`/consultant/recent-activities/${consultantId}/`)
+            .done(function(data) {
+                if (data.success) {
+                    $('#recent-activities').html(formatRecentActivities(data.activities));
+                }
+            });
+    }
+    
+    function loadUpcomingTasks() {
+        $.get(`/consultant/upcoming-tasks/${consultantId}/`)
+            .done(function(data) {
+                if (data.success) {
+                    $('#upcoming-tasks').html(formatUpcomingTasks(data.tasks));
+                }
+            });
+    }
+    
+    // Funciones de formato (implementar según necesidades)
+    function formatPerformanceMetrics(metrics) {
+        // Implementar formato de métricas
+        return '<p>Métricas cargadas</p>';
+    }
+    
+    function formatMarketInsights(insights) {
+        // Implementar formato de insights
+        return '<p>Insights cargados</p>';
+    }
+    
+    function formatRecentActivities(activities) {
+        // Implementar formato de actividades
+        return '<p>Actividades cargadas</p>';
+    }
+    
+    function formatUpcomingTasks(tasks) {
+        // Implementar formato de tareas
+        return '<p>Tareas cargadas</p>';
+    }
+    
+    // Funciones para análisis detallado
+    window.showCandidateAnalysis = function(candidateId) {
+        $.get(`/consultant/aura-candidate-analysis/${consultantId}/${candidateId}/`)
+            .done(function(data) {
+                if (data.success) {
+                    $('#candidate-analysis-content').html(formatCandidateAnalysis(data.candidate_analysis));
+                    $('#candidateAnalysisModal').modal('show');
+                }
+            });
+    };
+    
+    window.showVacancyAnalysis = function(vacancyId) {
+        $.get(`/consultant/aura-vacancy-analysis/${consultantId}/${vacancyId}/`)
+            .done(function(data) {
+                if (data.success) {
+                    $('#vacancy-analysis-content').html(formatVacancyAnalysis(data.vacancy_analysis));
+                    $('#vacancyAnalysisModal').modal('show');
+                }
+            });
+    };
+    
+    function formatCandidateAnalysis(analysis) {
+        // Implementar formato de análisis de candidato
+        return '<p>Análisis de candidato cargado</p>';
+    }
+    
+    function formatVacancyAnalysis(analysis) {
+        // Implementar formato de análisis de vacante
+        return '<p>Análisis de vacante cargado</p>';
+    }
+});
+</script>
+{% endblock %} 

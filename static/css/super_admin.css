@@ -1,0 +1,381 @@
+/* 🚀 SUPER ADMIN CSS - BRUCE ALMIGHTY MODE 🚀 */
+
+/* Efectos especiales para Super Admin */
+.super-admin-glow {
+    box-shadow: 0 0 20px rgba(102, 126, 234, 0.6);
+    animation: superAdminGlow 3s ease-in-out infinite;
+}
+
+@keyframes superAdminGlow {
+    0%, 100% { box-shadow: 0 0 20px rgba(102, 126, 234, 0.6); }
+    50% { box-shadow: 0 0 40px rgba(102, 126, 234, 0.9); }
+}
+
+/* Indicadores de poder */
+.power-indicator {
+    position: relative;
+    overflow: hidden;
+}
+
+.power-indicator::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+    animation: powerSweep 2s infinite;
+}
+
+@keyframes powerSweep {
+    0% { left: -100%; }
+    100% { left: 100%; }
+}
+
+/* Efectos de partículas */
+.particle-effect {
+    position: relative;
+}
+
+.particle-effect::after {
+    content: '✨';
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 1.5rem;
+    animation: particleFloat 4s ease-in-out infinite;
+}
+
+@keyframes particleFloat {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50% { transform: translateY(-10px) rotate(180deg); }
+}
+
+/* Gradientes especiales */
+.god-gradient {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #f5576c 75%, #4facfe 100%);
+    background-size: 400% 400%;
+    animation: godGradientShift 8s ease infinite;
+}
+
+@keyframes godGradientShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+/* Efectos de texto */
+.god-text {
+    background: linear-gradient(45deg, #ff6b6b, #ffa500, #ffd700, #2ed573);
+    background-size: 300% 300%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: godTextShift 4s ease infinite;
+}
+
+@keyframes godTextShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+/* Botones de poder */
+.power-button {
+    background: linear-gradient(45deg, #ff6b6b, #ffa500);
+    border: none;
+    color: white;
+    padding: 15px 30px;
+    border-radius: 30px;
+    font-weight: bold;
+    font-size: 1.1rem;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 8px 25px rgba(255, 107, 107, 0.4);
+}
+
+.power-button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    transition: left 0.5s;
+}
+
+.power-button:hover::before {
+    left: 100%;
+}
+
+.power-button:hover {
+    transform: translateY(-3px) scale(1.05);
+    box-shadow: 0 15px 35px rgba(255, 107, 107, 0.6);
+}
+
+/* Efectos de hover especiales */
+.hover-glow:hover {
+    box-shadow: 0 0 30px rgba(102, 126, 234, 0.8);
+    transform: translateY(-5px);
+}
+
+.hover-scale:hover {
+    transform: scale(1.1);
+}
+
+.hover-rotate:hover {
+    transform: rotate(5deg);
+}
+
+/* Indicadores de estado */
+.status-indicator {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 8px;
+    position: relative;
+}
+
+.status-indicator::after {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    border-radius: 50%;
+    background: inherit;
+    opacity: 0.3;
+    animation: statusPulse 2s infinite;
+}
+
+@keyframes statusPulse {
+    0% { transform: scale(1); opacity: 0.3; }
+    50% { transform: scale(1.5); opacity: 0.1; }
+    100% { transform: scale(1); opacity: 0.3; }
+}
+
+.status-excellent { background-color: #2ed573; }
+.status-good { background-color: #ffa500; }
+.status-warning { background-color: #ff6b6b; }
+.status-critical { background-color: #ff4757; }
+
+/* Efectos de carga */
+.loading-god {
+    display: inline-block;
+    width: 40px;
+    height: 40px;
+    border: 4px solid rgba(102, 126, 234, 0.3);
+    border-radius: 50%;
+    border-top-color: #667eea;
+    animation: loadingGod 1s ease-in-out infinite;
+}
+
+@keyframes loadingGod {
+    to { transform: rotate(360deg); }
+}
+
+/* Efectos de notificación */
+.notification-god {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 15px 25px;
+    border-radius: 15px;
+    margin: 10px 0;
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+    animation: notificationSlide 0.5s ease-out;
+}
+
+@keyframes notificationSlide {
+    from {
+        transform: translateX(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Efectos de modal */
+.modal-god {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.95) 0%, rgba(118, 75, 162, 0.95) 100%);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Efectos de tabla */
+.table-god {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-radius: 15px;
+    overflow: hidden;
+}
+
+.table-god th {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 15px;
+}
+
+.table-god td {
+    border: none;
+    padding: 12px 15px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.table-god tr:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: scale(1.01);
+    transition: all 0.3s ease;
+}
+
+/* Efectos de gráficos */
+.chart-god {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+    border-radius: 15px;
+    padding: 20px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Efectos de scroll */
+.scroll-god::-webkit-scrollbar {
+    width: 8px;
+}
+
+.scroll-god::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+}
+
+.scroll-god::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 10px;
+}
+
+.scroll-god::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+}
+
+/* Efectos de responsive */
+@media (max-width: 768px) {
+    .bruce-almighty-title {
+        font-size: 2rem;
+    }
+    
+    .god-mode-indicator {
+        font-size: 0.8rem;
+        padding: 8px 15px;
+    }
+    
+    .power-button {
+        padding: 12px 20px;
+        font-size: 1rem;
+    }
+}
+
+/* Efectos de animación de entrada */
+.fade-in-god {
+    animation: fadeInGod 1s ease-out;
+}
+
+@keyframes fadeInGod {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Efectos de hover para elementos específicos */
+.consultant-card:hover {
+    transform: translateY(-5px) scale(1.02);
+    box-shadow: 0 15px 35px rgba(102, 126, 234, 0.3);
+}
+
+.client-card:hover {
+    transform: translateY(-5px) scale(1.02);
+    box-shadow: 0 15px 35px rgba(255, 107, 107, 0.3);
+}
+
+.candidate-card:hover {
+    transform: translateY(-5px) scale(1.02);
+    box-shadow: 0 15px 35px rgba(46, 213, 115, 0.3);
+}
+
+/* Efectos de estado especial */
+.emergency-mode {
+    background: linear-gradient(135deg, #ff4757 0%, #ff3742 100%);
+    animation: emergencyBlink 1s ease-in-out infinite;
+}
+
+@keyframes emergencyBlink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+.success-mode {
+    background: linear-gradient(135deg, #2ed573 0%, #1e90ff 100%);
+    animation: successPulse 2s ease-in-out infinite;
+}
+
+@keyframes successPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+/* Efectos de texto especial */
+.text-glow {
+    text-shadow: 0 0 10px rgba(102, 126, 234, 0.8);
+}
+
+.text-shimmer {
+    background: linear-gradient(90deg, #667eea, #764ba2, #667eea);
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: textShimmer 3s ease-in-out infinite;
+}
+
+@keyframes textShimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+/* Efectos de borde */
+.border-glow {
+    border: 2px solid transparent;
+    background: linear-gradient(45deg, #667eea, #764ba2, #f093fb, #f5576c);
+    background-clip: padding-box;
+    position: relative;
+}
+
+.border-glow::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(45deg, #667eea, #764ba2, #f093fb, #f5576c);
+    border-radius: inherit;
+    margin: -2px;
+    z-index: -1;
+    animation: borderRotate 4s linear infinite;
+}
+
+@keyframes borderRotate {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+} 

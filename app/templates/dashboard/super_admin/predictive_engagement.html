@@ -1,0 +1,1058 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ page_title }} - BRUCE ALMIGHTY MODE{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard/predictive_engagement.css' %}">
+<link rel="stylesheet" href="{% static 'css/components/metrics_cards.css' %}">
+<link rel="stylesheet" href="{% static 'css/components/charts.css' %}">
+<link rel="stylesheet" href="{% static 'css/components/user_profiles.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="predictive-engagement-dashboard">
+    <!-- Header del Dashboard -->
+    <div class="dashboard-header">
+        <div class="header-content">
+            <h1 class="dashboard-title">
+                <i class="fas fa-brain"></i>
+                Analytics Predictivos de Engagement
+            </h1>
+            <p class="dashboard-subtitle">
+                Sistema de predicción y optimización inteligente de engagement
+            </p>
+        </div>
+        <div class="header-actions">
+            <button class="btn btn-primary" onclick="openPredictionModal()">
+                <i class="fas fa-magic"></i>
+                Nueva Predicción
+            </button>
+            <button class="btn btn-success" onclick="retrainModels()">
+                <i class="fas fa-brain"></i>
+                Reentrenar Modelos
+            </button>
+        </div>
+    </div>
+
+    <!-- Métricas de Predicción -->
+    <div class="metrics-section">
+        <div class="metrics-grid">
+            <div class="metric-card primary">
+                <div class="metric-icon">
+                    <i class="fas fa-bullseye"></i>
+                </div>
+                <div class="metric-content">
+                    <h3 class="metric-value">{{ prediction_metrics.accuracy|floatformat:1 }}%</h3>
+                    <p class="metric-label">Precisión de Predicción</p>
+                    <div class="metric-trend positive">
+                        <i class="fas fa-arrow-up"></i>
+                        <span>+3%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="metric-card success">
+                <div class="metric-icon">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <div class="metric-content">
+                    <h3 class="metric-value">{{ engagement_insights.overall_engagement_rate|floatformat:1 }}%</h3>
+                    <p class="metric-label">Engagement General</p>
+                    <div class="metric-trend positive">
+                        <i class="fas fa-arrow-up"></i>
+                        <span>+8%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="metric-card warning">
+                <div class="metric-icon">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div class="metric-content">
+                    <h3 class="metric-value">{{ prediction_metrics.training_data_size }}</h3>
+                    <p class="metric-label">Datos de Entrenamiento</p>
+                    <div class="metric-trend positive">
+                        <i class="fas fa-arrow-up"></i>
+                        <span>+1,200</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="metric-card info">
+                <div class="metric-icon">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="metric-content">
+                    <h3 class="metric-value">{{ prediction_metrics.last_training|timesince }}</h3>
+                    <p class="metric-label">Último Entrenamiento</p>
+                    <div class="metric-trend neutral">
+                        <i class="fas fa-minus"></i>
+                        <span>Actualizado</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contenido Principal -->
+    <div class="dashboard-content">
+        <div class="content-grid">
+            <!-- Predicción en Tiempo Real -->
+            <div class="content-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-magic"></i> Predicción en Tiempo Real</h3>
+                </div>
+                <div class="card-body">
+                    <div class="prediction-form">
+                        <div class="form-group">
+                            <label for="userId">ID de Usuario</label>
+                            <input type="number" id="userId" class="form-control" placeholder="Ingresa el ID del usuario">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="notificationType">Tipo de Notificación</label>
+                            <select id="notificationType" class="form-control">
+                                <option value="urgent">Urgente</option>
+                                <option value="reminder">Recordatorio</option>
+                                <option value="update">Actualización</option>
+                                <option value="promotional">Promocional</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="content">Contenido</label>
+                            <textarea id="content" class="form-control" rows="3" placeholder="Ingresa el contenido de la notificación"></textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Canales</label>
+                            <div class="channel-checkboxes">
+                                <label class="checkbox-item">
+                                    <input type="checkbox" value="email" checked> Email
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" value="whatsapp" checked> WhatsApp
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" value="telegram"> Telegram
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" value="sms"> SMS
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <button class="btn btn-primary btn-block" onclick="predictEngagement()">
+                            <i class="fas fa-magic"></i>
+                            Predecir Engagement
+                        </button>
+                    </div>
+                    
+                    <div id="predictionResults" class="prediction-results" style="display: none;">
+                        <!-- Resultados de predicción -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Perfiles de Usuarios -->
+            <div class="content-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-user-chart"></i> Perfiles de Engagement</h3>
+                </div>
+                <div class="card-body">
+                    <div class="user-profiles">
+                        {% for profile in user_profiles %}
+                        <div class="user-profile-item">
+                            <div class="profile-header">
+                                <h4>Usuario {{ profile.user_id }}</h4>
+                                <span class="engagement-rate">{{ profile.avg_engagement_rate|floatformat:1 }}%</span>
+                            </div>
+                            
+                            <div class="profile-details">
+                                <div class="detail-item">
+                                    <span class="label">Canales Preferidos:</span>
+                                    <span class="value">{{ profile.preferred_channels|join:", " }}</span>
+                                </div>
+                                
+                                <div class="detail-item">
+                                    <span class="label">Mejores Horarios:</span>
+                                    <span class="value">{{ profile.best_hours|join:", " }}</span>
+                                </div>
+                                
+                                <div class="detail-item">
+                                    <span class="label">Tiempo de Respuesta:</span>
+                                    <span class="value">{{ profile.response_time_avg }} horas</span>
+                                </div>
+                            </div>
+                            
+                            <div class="profile-actions">
+                                <button class="btn btn-sm btn-info" onclick="viewUserProfile({{ profile.user_id }})">
+                                    Ver Detalles
+                                </button>
+                                <button class="btn btn-sm btn-primary" onclick="optimizeForUser({{ profile.user_id }})">
+                                    Optimizar
+                                </button>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="empty-state">
+                            <i class="fas fa-users"></i>
+                            <p>No hay perfiles de usuarios disponibles</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Segmentos de Usuarios -->
+            <div class="content-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-layer-group"></i> Segmentos de Usuarios</h3>
+                </div>
+                <div class="card-body">
+                    <div class="user-segments">
+                        {% for segment, data in user_segments.items %}
+                        <div class="segment-item">
+                            <div class="segment-header">
+                                <h4>{{ segment|title }}</h4>
+                                <span class="segment-count">{{ data.count }} usuarios</span>
+                            </div>
+                            
+                            <div class="segment-metrics">
+                                <div class="metric">
+                                    <span class="metric-label">Engagement Promedio:</span>
+                                    <span class="metric-value">{{ data.avg_rate|floatformat:1 }}%</span>
+                                </div>
+                            </div>
+                            
+                            <div class="segment-chart">
+                                <canvas id="segmentChart{{ forloop.counter }}" width="200" height="100"></canvas>
+                            </div>
+                            
+                            <div class="segment-actions">
+                                <button class="btn btn-sm btn-primary" onclick="analyzeSegment('{{ segment }}')">
+                                    Analizar
+                                </button>
+                                <button class="btn btn-sm btn-success" onclick="optimizeSegment('{{ segment }}')">
+                                    Optimizar
+                                </button>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="empty-state">
+                            <i class="fas fa-chart-pie"></i>
+                            <p>No hay segmentos disponibles</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Patrones de Timing -->
+            <div class="content-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-clock"></i> Patrones de Timing</h3>
+                </div>
+                <div class="card-body">
+                    <div class="timing-patterns">
+                        <div class="pattern-section">
+                            <h4>Mejores Horarios</h4>
+                            <div class="timing-grid">
+                                {% for hour in timing_patterns.best_hours %}
+                                <div class="timing-item best">
+                                    <span class="time">{{ hour }}</span>
+                                    <span class="performance">Alto</span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        
+                        <div class="pattern-section">
+                            <h4>Mejores Días</h4>
+                            <div class="timing-grid">
+                                {% for day in timing_patterns.best_days %}
+                                <div class="timing-item best">
+                                    <span class="day">{{ day }}</span>
+                                    <span class="performance">Alto</span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        
+                        <div class="pattern-section">
+                            <h4>Peores Horarios</h4>
+                            <div class="timing-grid">
+                                {% for hour in timing_patterns.worst_hours %}
+                                <div class="timing-item worst">
+                                    <span class="time">{{ hour }}</span>
+                                    <span class="performance">Bajo</span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráficos y Analytics -->
+    <div class="analytics-section">
+        <div class="analytics-grid">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-chart-line"></i> Tendencias de Engagement</h3>
+                </div>
+                <div class="card-body">
+                    <canvas id="engagementTrendsChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-chart-bar"></i> Rendimiento por Canal</h3>
+                </div>
+                <div class="card-body">
+                    <canvas id="channelPerformanceChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-chart-area"></i> Distribución de Segmentos</h3>
+                </div>
+                <div class="card-body">
+                    <canvas id="segmentsDistributionChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-chart-pie"></i> Patrones de Timing</h3>
+                </div>
+                <div class="card-body">
+                    <canvas id="timingPatternsChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Optimizaciones Recomendadas -->
+    <div class="recommendations-section">
+        <div class="content-card">
+            <div class="card-header">
+                <h3><i class="fas fa-lightbulb"></i> Optimizaciones Recomendadas</h3>
+            </div>
+            <div class="card-body">
+                <div class="optimization-recommendations">
+                    {% for recommendation in optimization_recommendations %}
+                    <div class="recommendation-item">
+                        <div class="recommendation-header">
+                            <h4>{{ recommendation.title }}</h4>
+                            <span class="impact-badge">{{ recommendation.impact }}</span>
+                        </div>
+                        <p>{{ recommendation.description }}</p>
+                        <div class="recommendation-actions">
+                            <button class="btn btn-sm btn-primary" onclick="applyRecommendation('{{ recommendation.type }}')">
+                                Aplicar
+                            </button>
+                            <button class="btn btn-sm btn-info" onclick="viewRecommendationDetails('{{ recommendation.type }}')">
+                                Detalles
+                            </button>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="empty-state">
+                        <i class="fas fa-check-circle"></i>
+                        <p>No hay optimizaciones pendientes</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Predicción -->
+<div id="predictionModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-magic"></i> Nueva Predicción de Engagement</h3>
+            <span class="close" onclick="closePredictionModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div class="prediction-form-modal">
+                <div class="form-group">
+                    <label for="modalUserId">ID de Usuario</label>
+                    <input type="number" id="modalUserId" class="form-control" placeholder="Ingresa el ID del usuario">
+                </div>
+                
+                <div class="form-group">
+                    <label for="modalNotificationType">Tipo de Notificación</label>
+                    <select id="modalNotificationType" class="form-control">
+                        <option value="urgent">Urgente</option>
+                        <option value="reminder">Recordatorio</option>
+                        <option value="update">Actualización</option>
+                        <option value="promotional">Promocional</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="modalContent">Contenido</label>
+                    <textarea id="modalContent" class="form-control" rows="4" placeholder="Ingresa el contenido de la notificación"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label>Canales</label>
+                    <div class="channel-checkboxes">
+                        <label class="checkbox-item">
+                            <input type="checkbox" value="email" checked> Email
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" value="whatsapp" checked> WhatsApp
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" value="telegram"> Telegram
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" value="sms"> SMS
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closePredictionModal()">Cancelar</button>
+            <button class="btn btn-primary" onclick="executePrediction()">Predecir Engagement</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Detalles de Usuario -->
+<div id="userProfileModal" class="modal">
+    <div class="modal-content large">
+        <div class="modal-header">
+            <h3><i class="fas fa-user-chart"></i> Perfil de Engagement del Usuario</h3>
+            <span class="close" onclick="closeUserProfileModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div id="userProfileContent">
+                <!-- Contenido dinámico -->
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeUserProfileModal()">Cerrar</button>
+            <button class="btn btn-primary" onclick="optimizeCurrentUser()">Optimizar para Usuario</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{% static 'js/dashboard/predictive_engagement.js' %}"></script>
+<script>
+// Variables globales
+let currentUserId = null;
+let charts = {};
+
+// Inicialización
+document.addEventListener('DOMContentLoaded', function() {
+    initializeCharts();
+    loadUserProfiles();
+});
+
+// Funciones de utilidad
+function openPredictionModal() {
+    document.getElementById('predictionModal').style.display = 'block';
+}
+
+function closePredictionModal() {
+    document.getElementById('predictionModal').style.display = 'none';
+}
+
+function openUserProfileModal() {
+    document.getElementById('userProfileModal').style.display = 'block';
+}
+
+function closeUserProfileModal() {
+    document.getElementById('userProfileModal').style.display = 'none';
+}
+
+// Funciones de API
+async function predictEngagement() {
+    try {
+        const userId = document.getElementById('userId').value;
+        const notificationType = document.getElementById('notificationType').value;
+        const content = document.getElementById('content').value;
+        const channels = Array.from(document.querySelectorAll('.channel-checkboxes input:checked')).map(cb => cb.value);
+        
+        if (!userId || !content) {
+            showNotification('Por favor completa todos los campos requeridos', 'warning');
+            return;
+        }
+        
+        showNotification('Prediciendo engagement...', 'info');
+        
+        const response = await fetch('{% url "omnichannel_automation:api_predict_engagement" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                user_id: parseInt(userId),
+                notification_type: notificationType,
+                content: content,
+                channels: channels
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.engagement_score !== undefined) {
+            displayPredictionResults(data);
+        } else {
+            showNotification('Error al predecir engagement', 'error');
+        }
+    } catch (error) {
+        console.error('Error predicting engagement:', error);
+        showNotification('Error al predecir engagement', 'error');
+    }
+}
+
+async function executePrediction() {
+    try {
+        const userId = document.getElementById('modalUserId').value;
+        const notificationType = document.getElementById('modalNotificationType').value;
+        const content = document.getElementById('modalContent').value;
+        const channels = Array.from(document.querySelectorAll('#predictionModal .channel-checkboxes input:checked')).map(cb => cb.value);
+        
+        if (!userId || !content) {
+            showNotification('Por favor completa todos los campos requeridos', 'warning');
+            return;
+        }
+        
+        showNotification('Prediciendo engagement...', 'info');
+        
+        const response = await fetch('{% url "omnichannel_automation:api_predict_engagement" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                user_id: parseInt(userId),
+                notification_type: notificationType,
+                content: content,
+                channels: channels
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.engagement_score !== undefined) {
+            displayPredictionResults(data);
+            closePredictionModal();
+        } else {
+            showNotification('Error al predecir engagement', 'error');
+        }
+    } catch (error) {
+        console.error('Error executing prediction:', error);
+        showNotification('Error al predecir engagement', 'error');
+    }
+}
+
+async function optimizeNotification() {
+    try {
+        const userId = document.getElementById('userId').value;
+        const notificationType = document.getElementById('notificationType').value;
+        const content = document.getElementById('content').value;
+        
+        if (!userId || !content) {
+            showNotification('Por favor completa todos los campos requeridos', 'warning');
+            return;
+        }
+        
+        showNotification('Optimizando notificación...', 'info');
+        
+        const response = await fetch('{% url "omnichannel_automation:api_optimize_notification" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                user_id: parseInt(userId),
+                notification_type: notificationType,
+                content: content
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.engagement_score !== undefined) {
+            displayOptimizationResults(data);
+        } else {
+            showNotification('Error al optimizar notificación', 'error');
+        }
+    } catch (error) {
+        console.error('Error optimizing notification:', error);
+        showNotification('Error al optimizar notificación', 'error');
+    }
+}
+
+async function viewUserProfile(userId) {
+    try {
+        currentUserId = userId;
+        
+        const response = await fetch(`{% url "omnichannel_automation:api_get_user_engagement_profile" %}?user_id=${userId}`);
+        const profile = await response.json();
+        
+        const profileContent = `
+            <div class="user-profile-details">
+                <div class="profile-section">
+                    <h4>Información General</h4>
+                    <div class="profile-metrics">
+                        <div class="metric">
+                            <span class="metric-label">Engagement Promedio:</span>
+                            <span class="metric-value">${(profile.avg_engagement_rate * 100).toFixed(1)}%</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Tiempo de Respuesta:</span>
+                            <span class="metric-value">${profile.response_time_avg} horas</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Total Notificaciones:</span>
+                            <span class="metric-value">${profile.total_notifications}</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="profile-section">
+                    <h4>Preferencias de Canal</h4>
+                    <div class="channel-preferences">
+                        ${Object.entries(profile.preferred_channels).map(([channel, rate]) => `
+                            <div class="channel-preference">
+                                <span class="channel-name">${channel}</span>
+                                <div class="channel-bar">
+                                    <div class="channel-fill" style="width: ${rate * 100}%"></div>
+                                </div>
+                                <span class="channel-rate">${(rate * 100).toFixed(1)}%</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                
+                <div class="profile-section">
+                    <h4>Mejores Horarios</h4>
+                    <div class="timing-preferences">
+                        ${Object.entries(profile.best_hours).map(([period, rate]) => `
+                            <div class="timing-preference">
+                                <span class="period-name">${period}</span>
+                                <span class="period-rate">${(rate * 100).toFixed(1)}%</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                
+                <div class="profile-section">
+                    <h4>Preferencias de Contenido</h4>
+                    <div class="content-preferences">
+                        <div class="preference-item">
+                            <span class="preference-label">Longitud Preferida:</span>
+                            <span class="preference-value">${profile.preferred_content_length}</span>
+                        </div>
+                        <div class="preference-item">
+                            <span class="preference-label">Tono Preferido:</span>
+                            <span class="preference-value">${profile.preferred_tone}</span>
+                        </div>
+                        <div class="preference-item">
+                            <span class="preference-label">Formalidad:</span>
+                            <span class="preference-value">${profile.preferred_formality}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('userProfileContent').innerHTML = profileContent;
+        openUserProfileModal();
+        
+    } catch (error) {
+        console.error('Error viewing user profile:', error);
+        showNotification('Error al cargar perfil del usuario', 'error');
+    }
+}
+
+async function optimizeForUser(userId) {
+    try {
+        showNotification(`Optimizando para usuario ${userId}...`, 'info');
+        
+        // Simular optimización
+        setTimeout(() => {
+            showNotification('Optimización aplicada exitosamente', 'success');
+        }, 2000);
+        
+    } catch (error) {
+        console.error('Error optimizing for user:', error);
+        showNotification('Error al optimizar para usuario', 'error');
+    }
+}
+
+async function analyzeSegment(segment) {
+    try {
+        showNotification(`Analizando segmento: ${segment}`, 'info');
+        
+        // Simular análisis
+        setTimeout(() => {
+            showNotification('Análisis completado', 'success');
+        }, 2000);
+        
+    } catch (error) {
+        console.error('Error analyzing segment:', error);
+        showNotification('Error al analizar segmento', 'error');
+    }
+}
+
+async function optimizeSegment(segment) {
+    try {
+        showNotification(`Optimizando segmento: ${segment}`, 'info');
+        
+        // Simular optimización
+        setTimeout(() => {
+            showNotification('Optimización de segmento completada', 'success');
+        }, 2000);
+        
+    } catch (error) {
+        console.error('Error optimizing segment:', error);
+        showNotification('Error al optimizar segmento', 'error');
+    }
+}
+
+async function retrainModels() {
+    try {
+        showNotification('Reentrenando modelos...', 'info');
+        
+        const response = await fetch('{% url "omnichannel_automation:api_retrain_models" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            showNotification('Modelos reentrenados exitosamente', 'success');
+        } else {
+            showNotification('Error al reentrenar modelos', 'error');
+        }
+    } catch (error) {
+        console.error('Error retraining models:', error);
+        showNotification('Error al reentrenar modelos', 'error');
+    }
+}
+
+async function applyRecommendation(type) {
+    try {
+        showNotification(`Aplicando recomendación: ${type}`, 'info');
+        
+        const response = await fetch('{% url "omnichannel_automation:api_apply_optimization" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                optimization_type: type,
+                parameters: {}
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            showNotification('Recomendación aplicada exitosamente', 'success');
+        } else {
+            showNotification('Error al aplicar recomendación', 'error');
+        }
+    } catch (error) {
+        console.error('Error applying recommendation:', error);
+        showNotification('Error al aplicar recomendación', 'error');
+    }
+}
+
+function viewRecommendationDetails(type) {
+    // Simular vista de detalles
+    showNotification(`Detalles de recomendación: ${type}`, 'info');
+}
+
+function optimizeCurrentUser() {
+    if (currentUserId) {
+        optimizeForUser(currentUserId);
+        closeUserProfileModal();
+    }
+}
+
+// Funciones de visualización
+function displayPredictionResults(data) {
+    const resultsDiv = document.getElementById('predictionResults');
+    
+    const resultsHtml = `
+        <div class="prediction-result">
+            <div class="result-header">
+                <h4>Resultados de Predicción</h4>
+                <span class="engagement-score ${getEngagementClass(data.engagement_score)}">
+                    ${(data.engagement_score * 100).toFixed(1)}%
+                </span>
+            </div>
+            
+            <div class="result-details">
+                <div class="detail-section">
+                    <h5>Optimización de Timing</h5>
+                    <p>Horarios óptimos: ${data.timing_optimization.optimal_times.join(', ')}</p>
+                    <p>Confianza: ${(data.timing_optimization.confidence * 100).toFixed(1)}%</p>
+                </div>
+                
+                <div class="detail-section">
+                    <h5>Canales Óptimos</h5>
+                    <p>Canales recomendados: ${data.optimal_channels.join(', ')}</p>
+                </div>
+                
+                <div class="detail-section">
+                    <h5>Optimización de Contenido</h5>
+                    <p>Contenido optimizado: ${data.content_optimization.optimized_content}</p>
+                    <p>Score de contenido: ${(data.content_optimization.content_score * 100).toFixed(1)}%</p>
+                </div>
+            </div>
+            
+            <div class="result-actions">
+                <button class="btn btn-primary" onclick="applyOptimization()">
+                    Aplicar Optimización
+                </button>
+                <button class="btn btn-secondary" onclick="clearPrediction()">
+                    Nueva Predicción
+                </button>
+            </div>
+        </div>
+    `;
+    
+    resultsDiv.innerHTML = resultsHtml;
+    resultsDiv.style.display = 'block';
+}
+
+function displayOptimizationResults(data) {
+    const resultsDiv = document.getElementById('predictionResults');
+    
+    const resultsHtml = `
+        <div class="optimization-result">
+            <div class="result-header">
+                <h4>Resultados de Optimización</h4>
+                <span class="engagement-score ${getEngagementClass(data.engagement_score)}">
+                    ${(data.engagement_score * 100).toFixed(1)}%
+                </span>
+            </div>
+            
+            <div class="result-details">
+                <div class="detail-section">
+                    <h5>Recomendaciones</h5>
+                    <ul>
+                        ${data.recommendations.map(rec => `
+                            <li>
+                                <strong>${rec.title}:</strong> ${rec.description}
+                                <span class="confidence">(${(rec.confidence * 100).toFixed(1)}% confianza)</span>
+                            </li>
+                        `).join('')}
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="result-actions">
+                <button class="btn btn-success" onclick="sendOptimizedNotification()">
+                    Enviar Notificación Optimizada
+                </button>
+                <button class="btn btn-secondary" onclick="clearPrediction()">
+                    Nueva Optimización
+                </button>
+            </div>
+        </div>
+    `;
+    
+    resultsDiv.innerHTML = resultsHtml;
+    resultsDiv.style.display = 'block';
+}
+
+function getEngagementClass(score) {
+    if (score >= 0.8) return 'excellent';
+    if (score >= 0.6) return 'good';
+    if (score >= 0.4) return 'fair';
+    return 'poor';
+}
+
+function clearPrediction() {
+    document.getElementById('predictionResults').style.display = 'none';
+    document.getElementById('userId').value = '';
+    document.getElementById('content').value = '';
+}
+
+function applyOptimization() {
+    showNotification('Optimización aplicada exitosamente', 'success');
+}
+
+function sendOptimizedNotification() {
+    showNotification('Notificación optimizada enviada', 'success');
+}
+
+function loadUserProfiles() {
+    // Cargar perfiles de usuarios
+    console.log('Perfiles de usuarios cargados');
+}
+
+// Inicialización de gráficos
+function initializeCharts() {
+    // Gráfico de Tendencias de Engagement
+    const engagementTrendsCtx = document.getElementById('engagementTrendsChart').getContext('2d');
+    charts.engagementTrends = new Chart(engagementTrendsCtx, {
+        type: 'line',
+        data: {
+            labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'],
+            datasets: [{
+                label: 'Engagement Real',
+                data: [65, 72, 78, 82, 85, 87],
+                borderColor: '#28a745',
+                backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                tension: 0.4
+            }, {
+                label: 'Engagement Predicho',
+                data: [68, 74, 79, 83, 86, 88],
+                borderColor: '#007bff',
+                backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                tension: 0.4,
+                borderDash: [5, 5]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100
+                }
+            }
+        }
+    });
+
+    // Gráfico de Rendimiento por Canal
+    const channelPerformanceCtx = document.getElementById('channelPerformanceChart').getContext('2d');
+    charts.channelPerformance = new Chart(channelPerformanceCtx, {
+        type: 'bar',
+        data: {
+            labels: ['WhatsApp', 'Email', 'Telegram', 'SMS'],
+            datasets: [{
+                label: 'Engagement Rate (%)',
+                data: [85, 72, 68, 45],
+                backgroundColor: ['#25D366', '#007bff', '#0088cc', '#ffc107']
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100
+                }
+            }
+        }
+    });
+
+    // Gráfico de Distribución de Segmentos
+    const segmentsDistributionCtx = document.getElementById('segmentsDistributionChart').getContext('2d');
+    charts.segmentsDistribution = new Chart(segmentsDistributionCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Alto Engagement', 'Medio Engagement', 'Bajo Engagement'],
+            datasets: [{
+                data: [150, 300, 100],
+                backgroundColor: ['#28a745', '#ffc107', '#dc3545']
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+
+    // Gráfico de Patrones de Timing
+    const timingPatternsCtx = document.getElementById('timingPatternsChart').getContext('2d');
+    charts.timingPatterns = new Chart(timingPatternsCtx, {
+        type: 'radar',
+        data: {
+            labels: ['9:00', '12:00', '15:00', '18:00', '21:00'],
+            datasets: [{
+                label: 'Engagement por Hora',
+                data: [70, 85, 90, 88, 75],
+                borderColor: '#007bff',
+                backgroundColor: 'rgba(0, 123, 255, 0.2)'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                r: {
+                    beginAtZero: true,
+                    max: 100
+                }
+            }
+        }
+    });
+}
+
+// Utilidades
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function showNotification(message, type = 'info') {
+    // Implementar sistema de notificaciones
+    console.log(`${type.toUpperCase()}: ${message}`);
+}
+</script>
+{% endblock %} 

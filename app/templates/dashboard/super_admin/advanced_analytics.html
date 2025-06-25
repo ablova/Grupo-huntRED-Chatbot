@@ -1,0 +1,513 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/analytics.css' %}">
+<style>
+    .advanced-analytics {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 20px;
+    }
+    
+    .analytics-header {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 25px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        backdrop-filter: blur(10px);
+    }
+    
+    .header-title {
+        font-size: 32px;
+        font-weight: bold;
+        color: #2c3e50;
+        margin-bottom: 10px;
+    }
+    
+    .header-subtitle {
+        color: #7f8c8d;
+        font-size: 18px;
+    }
+    
+    .analytics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 25px;
+        margin-bottom: 25px;
+    }
+    
+    .analytics-card {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        backdrop-filter: blur(10px);
+        transition: transform 0.3s ease;
+    }
+    
+    .analytics-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #ecf0f1;
+    }
+    
+    .card-title {
+        font-size: 20px;
+        font-weight: bold;
+        color: #2c3e50;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .card-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 18px;
+    }
+    
+    .metric-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 15px 0;
+        border-bottom: 1px solid #ecf0f1;
+    }
+    
+    .metric-item:last-child {
+        border-bottom: none;
+    }
+    
+    .metric-label {
+        color: #7f8c8d;
+        font-size: 14px;
+    }
+    
+    .metric-value {
+        font-size: 18px;
+        font-weight: bold;
+        color: #2c3e50;
+    }
+    
+    .metric-value.high { color: #27ae60; }
+    .metric-value.medium { color: #f39c12; }
+    .metric-value.low { color: #e74c3c; }
+    
+    .insight-item {
+        background: rgba(116, 185, 255, 0.1);
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 15px;
+    }
+    
+    .insight-title {
+        font-weight: bold;
+        color: #2c3e50;
+        margin-bottom: 5px;
+    }
+    
+    .insight-description {
+        color: #7f8c8d;
+        font-size: 14px;
+        margin-bottom: 10px;
+    }
+    
+    .insight-confidence {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 12px;
+    }
+    
+    .confidence-bar {
+        width: 100px;
+        height: 8px;
+        background: #ecf0f1;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    
+    .confidence-fill {
+        height: 100%;
+        background: linear-gradient(45deg, #27ae60, #2ecc71);
+        transition: width 0.3s ease;
+    }
+    
+    .recommendation-item {
+        border-left: 4px solid #667eea;
+        padding-left: 15px;
+        margin-bottom: 15px;
+    }
+    
+    .recommendation-title {
+        font-weight: bold;
+        color: #2c3e50;
+        margin-bottom: 5px;
+    }
+    
+    .recommendation-description {
+        color: #7f8c8d;
+        font-size: 14px;
+        margin-bottom: 5px;
+    }
+    
+    .recommendation-impact {
+        font-size: 12px;
+        color: #27ae60;
+        font-weight: bold;
+    }
+    
+    .quick-actions {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-top: 20px;
+    }
+    
+    .action-btn {
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        padding: 15px;
+        font-size: 14px;
+        font-weight: bold;
+        text-decoration: none;
+        text-align: center;
+        transition: transform 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+    }
+    
+    .action-btn:hover {
+        transform: translateY(-2px);
+        color: white;
+        text-decoration: none;
+    }
+    
+    .breadcrumb {
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 10px;
+        padding: 15px 20px;
+        margin-bottom: 20px;
+        backdrop-filter: blur(10px);
+    }
+    
+    .breadcrumb a {
+        color: #667eea;
+        text-decoration: none;
+    }
+    
+    .breadcrumb a:hover {
+        color: #764ba2;
+    }
+    
+    .chart-container {
+        height: 300px;
+        margin: 20px 0;
+    }
+    
+    @media (max-width: 768px) {
+        .analytics-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .quick-actions {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="advanced-analytics">
+    <!-- Breadcrumb -->
+    <div class="breadcrumb">
+        {% for breadcrumb in breadcrumbs %}
+            {% if forloop.last %}
+                <span>{{ breadcrumb.name }}</span>
+            {% else %}
+                <a href="{% url breadcrumb.url %}">{{ breadcrumb.name }}</a> / 
+            {% endif %}
+        {% endfor %}
+    </div>
+
+    <!-- Analytics Header -->
+    <div class="analytics-header">
+        <div class="header-title">
+            <i class="fas fa-chart-line"></i>
+            Analytics Avanzados
+        </div>
+        <div class="header-subtitle">
+            Sistema de matching automático al 100% con analytics en tiempo real
+        </div>
+    </div>
+
+    <!-- Analytics Grid -->
+    <div class="analytics-grid">
+        <!-- Matching Performance -->
+        <div class="analytics-card">
+            <div class="card-header">
+                <div class="card-title">
+                    <div class="card-icon" style="background: linear-gradient(45deg, #27ae60, #2ecc71);">
+                        <i class="fas fa-bullseye"></i>
+                    </div>
+                    Rendimiento de Matching
+                </div>
+            </div>
+            
+            {% if matching_analytics.matching_performance %}
+            <div class="metric-item">
+                <span class="metric-label">Score Promedio</span>
+                <span class="metric-value high">{{ matching_analytics.matching_performance.average_score|floatformat:2 }}</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-label">Matches Altos</span>
+                <span class="metric-value">{{ matching_analytics.matching_performance.high_matches }}</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-label">Total de Matches</span>
+                <span class="metric-value">{{ matching_analytics.matching_performance.total_matches }}</span>
+            </div>
+            {% else %}
+            <p style="color: #7f8c8d; text-align: center;">No hay datos disponibles</p>
+            {% endif %}
+        </div>
+
+        <!-- Cost Analysis -->
+        <div class="analytics-card">
+            <div class="card-header">
+                <div class="card-title">
+                    <div class="card-icon" style="background: linear-gradient(45deg, #e74c3c, #c0392b);">
+                        <i class="fas fa-dollar-sign"></i>
+                    </div>
+                    Análisis de Costos
+                </div>
+            </div>
+            
+            {% if cost_analytics.summary %}
+            <div class="metric-item">
+                <span class="metric-label">Costo Total</span>
+                <span class="metric-value">${{ cost_analytics.summary.total_cost|floatformat:0 }}</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-label">Procesos Activos</span>
+                <span class="metric-value">{{ cost_analytics.summary.total_processes }}</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-label">Costo Promedio</span>
+                <span class="metric-value">${{ cost_analytics.summary.average_cost_per_process|floatformat:0 }}</span>
+            </div>
+            {% else %}
+            <p style="color: #7f8c8d; text-align: center;">No hay datos disponibles</p>
+            {% endif %}
+        </div>
+
+        <!-- WhatsApp Stats -->
+        <div class="analytics-card">
+            <div class="card-header">
+                <div class="card-title">
+                    <div class="card-icon" style="background: linear-gradient(45deg, #25d366, #128c7e);">
+                        <i class="fab fa-whatsapp"></i>
+                    </div>
+                    WhatsApp Business API
+                </div>
+            </div>
+            
+            {% if whatsapp_stats %}
+            <div class="metric-item">
+                <span class="metric-label">Mensajes Enviados</span>
+                <span class="metric-value">{{ whatsapp_stats.messages_sent }}</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-label">Tasa de Entrega</span>
+                <span class="metric-value high">{{ whatsapp_stats.delivery_rate }}%</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-label">Tasa de Lectura</span>
+                <span class="metric-value medium">{{ whatsapp_stats.read_rate }}%</span>
+            </div>
+            {% else %}
+            <p style="color: #7f8c8d; text-align: center;">No hay datos disponibles</p>
+            {% endif %}
+        </div>
+
+        <!-- Pricing Recommendations -->
+        <div class="analytics-card">
+            <div class="card-header">
+                <div class="card-title">
+                    <div class="card-icon" style="background: linear-gradient(45deg, #f39c12, #e67e22);">
+                        <i class="fas fa-chart-bar"></i>
+                    </div>
+                    Recomendaciones de Pricing
+                </div>
+            </div>
+            
+            {% if pricing_recommendations.overall_recommendations %}
+            <div class="metric-item">
+                <span class="metric-label">Precio Recomendado</span>
+                <span class="metric-value">${{ pricing_recommendations.overall_recommendations.recommended_price|floatformat:0 }}</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-label">Margen Objetivo</span>
+                <span class="metric-value">{{ pricing_recommendations.overall_recommendations.target_margin_percentage }}%</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-label">Procesos Analizados</span>
+                <span class="metric-value">{{ pricing_recommendations.overall_recommendations.total_processes_analyzed }}</span>
+            </div>
+            {% else %}
+            <p style="color: #7f8c8d; text-align: center;">No hay datos disponibles</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Insights and Recommendations -->
+    <div class="analytics-grid">
+        <!-- Predictive Insights -->
+        <div class="analytics-card">
+            <div class="card-header">
+                <div class="card-title">
+                    <div class="card-icon" style="background: linear-gradient(45deg, #9b59b6, #8e44ad);">
+                        <i class="fas fa-crystal-ball"></i>
+                    </div>
+                    Insights Predictivos
+                </div>
+            </div>
+            
+            {% if matching_analytics.predictive_insights %}
+                {% for insight in matching_analytics.predictive_insights %}
+                <div class="insight-item">
+                    <div class="insight-title">{{ insight.title }}</div>
+                    <div class="insight-description">{{ insight.description }}</div>
+                    <div class="insight-confidence">
+                        <span>Confianza:</span>
+                        <div class="confidence-bar">
+                            <div class="confidence-fill" style="width: {{ insight.confidence|floatformat:0 }}%"></div>
+                        </div>
+                        <span>{{ insight.confidence|floatformat:0 }}%</span>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+            <p style="color: #7f8c8d; text-align: center;">No hay insights disponibles</p>
+            {% endif %}
+        </div>
+
+        <!-- System Recommendations -->
+        <div class="analytics-card">
+            <div class="card-header">
+                <div class="card-title">
+                    <div class="card-icon" style="background: linear-gradient(45deg, #3498db, #2980b9);">
+                        <i class="fas fa-lightbulb"></i>
+                    </div>
+                    Recomendaciones del Sistema
+                </div>
+            </div>
+            
+            {% if matching_analytics.recommendations %}
+                {% for recommendation in matching_analytics.recommendations %}
+                <div class="recommendation-item">
+                    <div class="recommendation-title">{{ recommendation.title }}</div>
+                    <div class="recommendation-description">{{ recommendation.description }}</div>
+                    <div class="recommendation-impact">{{ recommendation.expected_impact }}</div>
+                </div>
+                {% endfor %}
+            {% else %}
+            <p style="color: #7f8c8d; text-align: center;">No hay recomendaciones disponibles</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="analytics-card">
+        <div class="card-header">
+            <div class="card-title">
+                <div class="card-icon" style="background: linear-gradient(45deg, #00b894, #00a085);">
+                    <i class="fas fa-bolt"></i>
+                </div>
+                Acciones Rápidas
+            </div>
+        </div>
+        
+        <div class="quick-actions">
+            <a href="{% url 'advanced_analytics:matching_automation_dashboard' %}" class="action-btn">
+                <i class="fas fa-bullseye"></i>
+                Matching Automático
+            </a>
+            <a href="{% url 'advanced_analytics:cost_analytics_dashboard' %}" class="action-btn">
+                <i class="fas fa-dollar-sign"></i>
+                Analytics de Costos
+            </a>
+            <a href="{% url 'advanced_analytics:whatsapp_integration_dashboard' %}" class="action-btn">
+                <i class="fab fa-whatsapp"></i>
+                WhatsApp API
+            </a>
+            <a href="#" class="action-btn" onclick="exportReport()">
+                <i class="fas fa-download"></i>
+                Exportar Reporte
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Función para exportar reporte
+function exportReport() {
+    fetch('{% url "advanced_analytics:api_export_cost_report" "json" %}')
+        .then(response => response.json())
+        .then(data => {
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'analytics_report.json';
+            a.click();
+            window.URL.revokeObjectURL(url);
+        })
+        .catch(error => {
+            console.error('Error exportando reporte:', error);
+            alert('Error al exportar el reporte');
+        });
+}
+
+// Auto-refresh cada 5 minutos
+setInterval(function() {
+    location.reload();
+}, 300000);
+
+// Animaciones de confianza
+document.addEventListener('DOMContentLoaded', function() {
+    const confidenceBars = document.querySelectorAll('.confidence-fill');
+    confidenceBars.forEach(bar => {
+        const width = bar.style.width;
+        bar.style.width = '0%';
+        setTimeout(() => {
+            bar.style.width = width;
+        }, 500);
+    });
+});
+</script>
+{% endblock %} 

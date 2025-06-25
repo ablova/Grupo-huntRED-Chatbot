@@ -1,0 +1,921 @@
+{% extends 'dashboard/base.html' %}
+{% load static %}
+
+{% block title %}Dashboard Financiero Granular - BRUCE ALMIGHTY MODE{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard/super_admin.css' %}">
+<style>
+.financial-dashboard {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 2rem 0;
+}
+
+.dashboard-header {
+    text-align: center;
+    margin-bottom: 3rem;
+    color: white;
+}
+
+.dashboard-header h1 {
+    font-size: 3rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+.dashboard-header p {
+    font-size: 1.2rem;
+    opacity: 0.9;
+    margin-bottom: 2rem;
+}
+
+.filters-container {
+    background: rgba(255,255,255,0.95);
+    border-radius: 20px;
+    padding: 2rem;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+    backdrop-filter: blur(10px);
+    margin-bottom: 2rem;
+}
+
+.filters-row {
+    display: flex;
+    gap: 1.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.filter-label {
+    font-weight: 600;
+    color: #333;
+    font-size: 0.9rem;
+}
+
+.filter-select {
+    padding: 0.75rem 1rem;
+    border: 2px solid #e1e5e9;
+    border-radius: 10px;
+    background: white;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+}
+
+.filter-select:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    outline: none;
+}
+
+.apply-filters-btn {
+    padding: 0.75rem 2rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.apply-filters-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+}
+
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.metric-card {
+    background: white;
+    border-radius: 15px;
+    padding: 1.5rem;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+}
+
+.metric-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+}
+
+.metric-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.metric-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #333;
+}
+
+.metric-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    color: white;
+}
+
+.metric-icon.revenue {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+}
+
+.metric-icon.potential {
+    background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%);
+}
+
+.metric-icon.conversion {
+    background: linear-gradient(135deg, #007bff 0%, #6610f2 100%);
+}
+
+.metric-icon.deals {
+    background: linear-gradient(135deg, #dc3545 0%, #e83e8c 100%);
+}
+
+.metric-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #333;
+    margin-bottom: 0.5rem;
+}
+
+.metric-change {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.metric-change.positive {
+    color: #28a745;
+}
+
+.metric-change.negative {
+    color: #dc3545;
+}
+
+.metric-change.neutral {
+    color: #6c757d;
+}
+
+.charts-section {
+    background: white;
+    border-radius: 20px;
+    padding: 2rem;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    margin-bottom: 2rem;
+}
+
+.charts-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #f0f0f0;
+}
+
+.charts-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #333;
+}
+
+.chart-container {
+    background: #f8f9fa;
+    border-radius: 15px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    min-height: 300px;
+}
+
+.chart-title {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: #333;
+}
+
+.breakdown-section {
+    background: white;
+    border-radius: 20px;
+    padding: 2rem;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    margin-bottom: 2rem;
+}
+
+.breakdown-header {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 2rem;
+    color: #333;
+}
+
+.breakdown-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+}
+
+.breakdown-card {
+    background: #f8f9fa;
+    border-radius: 15px;
+    padding: 1.5rem;
+    border-left: 4px solid #667eea;
+}
+
+.breakdown-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: #333;
+}
+
+.breakdown-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.breakdown-item:last-child {
+    border-bottom: none;
+}
+
+.breakdown-label {
+    font-weight: 500;
+    color: #495057;
+}
+
+.breakdown-value {
+    font-weight: 600;
+    color: #333;
+}
+
+.breakdown-percentage {
+    font-size: 0.9rem;
+    color: #6c757d;
+}
+
+.insights-section {
+    background: white;
+    border-radius: 20px;
+    padding: 2rem;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+}
+
+.insights-header {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 2rem;
+    color: #333;
+}
+
+.insight-card {
+    background: #f8f9fa;
+    border-radius: 15px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    border-left: 4px solid;
+}
+
+.insight-card.positive {
+    border-left-color: #28a745;
+}
+
+.insight-card.warning {
+    border-left-color: #ffc107;
+}
+
+.insight-card.info {
+    border-left-color: #17a2b8;
+}
+
+.insight-card.opportunity {
+    border-left-color: #fd7e14;
+}
+
+.insight-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.insight-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #333;
+}
+
+.insight-confidence {
+    background: #e9ecef;
+    color: #495057;
+    padding: 0.25rem 0.75rem;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.insight-description {
+    color: #666;
+    margin-bottom: 1rem;
+}
+
+.insight-recommendation {
+    background: white;
+    padding: 1rem;
+    border-radius: 10px;
+    border-left: 3px solid #667eea;
+}
+
+.insight-recommendation-title {
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 0.5rem;
+}
+
+.insight-recommendation-text {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.projections-section {
+    background: white;
+    border-radius: 20px;
+    padding: 2rem;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    margin-bottom: 2rem;
+}
+
+.projections-header {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 2rem;
+    color: #333;
+}
+
+.projection-card {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 15px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.projection-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: #333;
+}
+
+.projection-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+}
+
+.projection-metric {
+    text-align: center;
+    background: white;
+    padding: 1rem;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.projection-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #667eea;
+    margin-bottom: 0.25rem;
+}
+
+.projection-label {
+    font-size: 0.9rem;
+    color: #666;
+}
+
+@media (max-width: 768px) {
+    .dashboard-header h1 {
+        font-size: 2rem;
+    }
+    
+    .filters-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .metrics-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .breakdown-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .projection-metrics {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="financial-dashboard">
+    <div class="container">
+        <!-- Header -->
+        <div class="dashboard-header">
+            <h1><i class="fas fa-chart-line"></i> Dashboard Financiero Granular</h1>
+            <p>Control total de ingresos, potencial y métricas por unidad de negocio y consultor</p>
+            <div class="ai-badges">
+                <span class="badge bg-success me-2"><i class="fas fa-dollar-sign"></i> Ingresos</span>
+                <span class="badge bg-warning me-2"><i class="fas fa-chart-bar"></i> Potencial</span>
+                <span class="badge bg-info"><i class="fas fa-brain"></i> AURA</span>
+            </div>
+        </div>
+
+        <!-- Filtros -->
+        <div class="filters-container">
+            <form method="GET" id="financial-filters-form">
+                <div class="filters-row">
+                    <div class="filter-group">
+                        <label class="filter-label">Período</label>
+                        <select name="period" class="filter-select">
+                            {% for period in options.periods %}
+                            <option value="{{ period }}" {% if filters.period == period %}selected{% endif %}>
+                                {{ period|title }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label class="filter-label">Unidad de Negocio</label>
+                        <select name="business_unit" class="filter-select">
+                            <option value="all" {% if filters.business_unit == 'all' %}selected{% endif %}>
+                                Todas las Unidades
+                            </option>
+                            {% for bu in options.business_units %}
+                            <option value="{{ bu }}" {% if filters.business_unit == bu %}selected{% endif %}>
+                                {{ bu }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label class="filter-label">Consultor</label>
+                        <select name="consultant" class="filter-select">
+                            <option value="all" {% if filters.consultant == 'all' %}selected{% endif %}>
+                                Todos los Consultores
+                            </option>
+                            {% for consultant in options.consultants %}
+                            <option value="{{ consultant }}" {% if filters.consultant == consultant %}selected{% endif %}>
+                                {{ consultant|title }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <button type="submit" class="apply-filters-btn">
+                        <i class="fas fa-filter"></i> Aplicar Filtros
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Métricas Principales -->
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-header">
+                    <div class="metric-title">Ingresos</div>
+                    <div class="metric-icon revenue">
+                        <i class="fas fa-dollar-sign"></i>
+                    </div>
+                </div>
+                <div class="metric-value">${{ financial_data.metrics.revenue.current|floatformat:0 }}</div>
+                <div class="metric-change {% if financial_data.metrics.revenue.change_percent > 0 %}positive{% elif financial_data.metrics.revenue.change_percent < 0 %}negative{% else %}neutral{% endif %}">
+                    <i class="fas fa-{% if financial_data.metrics.revenue.change_percent > 0 %}arrow-up{% elif financial_data.metrics.revenue.change_percent < 0 %}arrow-down{% else %}minus{% endif %}"></i>
+                    {{ financial_data.metrics.revenue.change_percent|floatformat:1 }}% vs período anterior
+                </div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-header">
+                    <div class="metric-title">Potencial</div>
+                    <div class="metric-icon potential">
+                        <i class="fas fa-chart-bar"></i>
+                    </div>
+                </div>
+                <div class="metric-value">${{ financial_data.metrics.potential.current|floatformat:0 }}</div>
+                <div class="metric-change {% if financial_data.metrics.potential.change_percent > 0 %}positive{% elif financial_data.metrics.potential.change_percent < 0 %}negative{% else %}neutral{% endif %}">
+                    <i class="fas fa-{% if financial_data.metrics.potential.change_percent > 0 %}arrow-up{% elif financial_data.metrics.potential.change_percent < 0 %}arrow-down{% else %}minus{% endif %}"></i>
+                    {{ financial_data.metrics.potential.change_percent|floatformat:1 }}% vs período anterior
+                </div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-header">
+                    <div class="metric-title">Tasa de Conversión</div>
+                    <div class="metric-icon conversion">
+                        <i class="fas fa-percentage"></i>
+                    </div>
+                </div>
+                <div class="metric-value">{{ financial_data.metrics.conversion_rate.current|floatformat:1 }}%</div>
+                <div class="metric-change {% if financial_data.metrics.conversion_rate.change_percent > 0 %}positive{% elif financial_data.metrics.conversion_rate.change_percent < 0 %}negative{% else %}neutral{% endif %}">
+                    <i class="fas fa-{% if financial_data.metrics.conversion_rate.change_percent > 0 %}arrow-up{% elif financial_data.metrics.conversion_rate.change_percent < 0 %}arrow-down{% else %}minus{% endif %}"></i>
+                    {{ financial_data.metrics.conversion_rate.change_percent|floatformat:1 }}% vs período anterior
+                </div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-header">
+                    <div class="metric-title">Deals</div>
+                    <div class="metric-icon deals">
+                        <i class="fas fa-handshake"></i>
+                    </div>
+                </div>
+                <div class="metric-value">{{ financial_data.metrics.deals_count.current }}</div>
+                <div class="metric-change {% if financial_data.metrics.deals_count.change_percent > 0 %}positive{% elif financial_data.metrics.deals_count.change_percent < 0 %}negative{% else %}neutral{% endif %}">
+                    <i class="fas fa-{% if financial_data.metrics.deals_count.change_percent > 0 %}arrow-up{% elif financial_data.metrics.deals_count.change_percent < 0 %}arrow-down{% else %}minus{% endif %}"></i>
+                    {{ financial_data.metrics.deals_count.change_percent|floatformat:1 }}% vs período anterior
+                </div>
+            </div>
+        </div>
+
+        <!-- Gráficos -->
+        <div class="charts-section">
+            <div class="charts-header">
+                <div class="charts-title">
+                    <i class="fas fa-chart-area"></i> Tendencias y Análisis
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="chart-container">
+                        <div class="chart-title">Tendencia de Ingresos</div>
+                        <canvas id="revenueChart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="chart-container">
+                        <div class="chart-title">Tendencia de Potencial</div>
+                        <canvas id="potentialChart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="chart-container">
+                        <div class="chart-title">Tasa de Conversión</div>
+                        <canvas id="conversionChart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="chart-container">
+                        <div class="chart-title">Distribución por Unidad de Negocio</div>
+                        <canvas id="buChart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Desgloses -->
+        <div class="breakdown-section">
+            <div class="breakdown-header">
+                <i class="fas fa-layer-group"></i> Desgloses Granulares
+            </div>
+            
+            <div class="breakdown-grid">
+                <!-- Por Unidad de Negocio -->
+                <div class="breakdown-card">
+                    <div class="breakdown-title">Por Unidad de Negocio</div>
+                    {% for bu, data in financial_data.breakdowns.by_business_unit.items %}
+                    <div class="breakdown-item">
+                        <div class="breakdown-label">{{ bu }}</div>
+                        <div class="breakdown-value">${{ data.revenue|floatformat:0 }}</div>
+                        <div class="breakdown-percentage">{{ data.conversion_rate|floatformat:1 }}%</div>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <!-- Por Consultor -->
+                <div class="breakdown-card">
+                    <div class="breakdown-title">Por Consultor</div>
+                    {% for consultant, data in financial_data.breakdowns.by_consultant.items %}
+                    <div class="breakdown-item">
+                        <div class="breakdown-label">{{ consultant|title }}</div>
+                        <div class="breakdown-value">${{ data.revenue|floatformat:0 }}</div>
+                        <div class="breakdown-percentage">{{ data.conversion_rate|floatformat:1 }}%</div>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <!-- Por Tipo de Servicio -->
+                <div class="breakdown-card">
+                    <div class="breakdown-title">Por Tipo de Servicio</div>
+                    {% for service, data in financial_data.breakdowns.by_service_type.items %}
+                    <div class="breakdown-item">
+                        <div class="breakdown-label">{{ service|title }}</div>
+                        <div class="breakdown-value">${{ data.revenue|floatformat:0 }}</div>
+                        <div class="breakdown-percentage">{{ data.conversion_rate|floatformat:1 }}%</div>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <!-- Por Industria -->
+                <div class="breakdown-card">
+                    <div class="breakdown-title">Por Industria</div>
+                    {% for industry, data in financial_data.breakdowns.by_industry.items %}
+                    <div class="breakdown-item">
+                        <div class="breakdown-label">{{ industry|title }}</div>
+                        <div class="breakdown-value">${{ data.revenue|floatformat:0 }}</div>
+                        <div class="breakdown-percentage">{{ data.conversion_rate|floatformat:1 }}%</div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Proyecciones -->
+        <div class="projections-section">
+            <div class="projections-header">
+                <i class="fas fa-crystal-ball"></i> Proyecciones y Forecast
+            </div>
+            
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="projection-card">
+                        <div class="projection-title">Próximo Mes</div>
+                        <div class="projection-metrics">
+                            <div class="projection-metric">
+                                <div class="projection-value">${{ financial_data.projections.general.next_month.revenue|floatformat:0 }}</div>
+                                <div class="projection-label">Ingresos</div>
+                            </div>
+                            <div class="projection-metric">
+                                <div class="projection-value">${{ financial_data.projections.general.next_month.potential|floatformat:0 }}</div>
+                                <div class="projection-label">Potencial</div>
+                            </div>
+                            <div class="projection-metric">
+                                <div class="projection-value">{{ financial_data.projections.general.next_month.confidence }}%</div>
+                                <div class="projection-label">Confianza</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="projection-card">
+                        <div class="projection-title">Próximo Trimestre</div>
+                        <div class="projection-metrics">
+                            <div class="projection-metric">
+                                <div class="projection-value">${{ financial_data.projections.general.next_quarter.revenue|floatformat:0 }}</div>
+                                <div class="projection-label">Ingresos</div>
+                            </div>
+                            <div class="projection-metric">
+                                <div class="projection-value">${{ financial_data.projections.general.next_quarter.potential|floatformat:0 }}</div>
+                                <div class="projection-label">Potencial</div>
+                            </div>
+                            <div class="projection-metric">
+                                <div class="projection-value">{{ financial_data.projections.general.next_quarter.confidence }}%</div>
+                                <div class="projection-label">Confianza</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="projection-card">
+                        <div class="projection-title">Próximo Año</div>
+                        <div class="projection-metrics">
+                            <div class="projection-metric">
+                                <div class="projection-value">${{ financial_data.projections.general.next_year.revenue|floatformat:0 }}</div>
+                                <div class="projection-label">Ingresos</div>
+                            </div>
+                            <div class="projection-metric">
+                                <div class="projection-value">${{ financial_data.projections.general.next_year.potential|floatformat:0 }}</div>
+                                <div class="projection-label">Potencial</div>
+                            </div>
+                            <div class="projection-metric">
+                                <div class="projection-value">{{ financial_data.projections.general.next_year.confidence }}%</div>
+                                <div class="projection-label">Confianza</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Insights de AURA -->
+        <div class="insights-section">
+            <div class="insights-header">
+                <i class="fas fa-brain"></i> Insights de AURA
+            </div>
+            
+            {% for insight in financial_data.insights %}
+            <div class="insight-card {{ insight.type }}">
+                <div class="insight-header">
+                    <div class="insight-title">{{ insight.title }}</div>
+                    <div class="insight-confidence">{{ insight.confidence }}% confianza</div>
+                </div>
+                <div class="insight-description">{{ insight.description }}</div>
+                <div class="insight-recommendation">
+                    <div class="insight-recommendation-title">Recomendación:</div>
+                    <div class="insight-recommendation-text">{{ insight.recommendation }}</div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{% static 'js/dashboard/super_admin.js' %}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Datos para los gráficos
+    const financialData = {{ financial_data|safe }};
+    
+    // Gráfico de tendencia de ingresos
+    const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+    new Chart(revenueCtx, {
+        type: 'line',
+        data: {
+            labels: financialData.trends.labels,
+            datasets: [{
+                label: 'Ingresos',
+                data: financialData.trends.revenue_trend,
+                borderColor: '#28a745',
+                backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value.toLocaleString();
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // Gráfico de tendencia de potencial
+    const potentialCtx = document.getElementById('potentialChart').getContext('2d');
+    new Chart(potentialCtx, {
+        type: 'line',
+        data: {
+            labels: financialData.trends.labels,
+            datasets: [{
+                label: 'Potencial',
+                data: financialData.trends.potential_trend,
+                borderColor: '#ffc107',
+                backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value.toLocaleString();
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // Gráfico de tasa de conversión
+    const conversionCtx = document.getElementById('conversionChart').getContext('2d');
+    new Chart(conversionCtx, {
+        type: 'line',
+        data: {
+            labels: financialData.trends.labels,
+            datasets: [{
+                label: 'Tasa de Conversión',
+                data: financialData.trends.conversion_trend,
+                borderColor: '#007bff',
+                backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // Gráfico de distribución por unidad de negocio
+    const buCtx = document.getElementById('buChart').getContext('2d');
+    const buData = financialData.breakdowns.by_business_unit;
+    new Chart(buCtx, {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(buData).map(bu => bu),
+            datasets: [{
+                data: Object.values(buData).map(data => data.revenue),
+                backgroundColor: [
+                    '#28a745',
+                    '#007bff',
+                    '#ffc107',
+                    '#dc3545'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+    
+    // Auto-refresh cada 5 minutos
+    setInterval(function() {
+        refreshFinancialData();
+    }, 300000);
+});
+
+function refreshFinancialData() {
+    const form = document.getElementById('financial-filters-form');
+    const formData = new FormData(form);
+    const params = new URLSearchParams(formData);
+    
+    fetch(`/dashboard/super-admin/financial-dashboard/api/?${params}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log('Datos financieros actualizados');
+                // Aquí podrías actualizar los gráficos con los nuevos datos
+            }
+        })
+        .catch(error => {
+            console.error('Error actualizando datos financieros:', error);
+        });
+}
+</script>
+{% endblock %} 

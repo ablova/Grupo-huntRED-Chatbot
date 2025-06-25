@@ -1,0 +1,986 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}🚀 Super Admin Dashboard - BRUCE ALMIGHTY MODE 🚀{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/aura.css' %}">
+<link rel="stylesheet" href="{% static 'css/super_admin.css' %}">
+<style>
+    /* BRUCE ALMIGHTY MODE STYLES 🚀 */
+    .bruce-almighty-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+        color: white;
+        padding: 30px;
+        border-radius: 20px;
+        margin-bottom: 30px;
+        text-align: center;
+        box-shadow: 0 15px 35px rgba(102, 126, 234, 0.4);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .bruce-almighty-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="white" opacity="0.1"/><circle cx="75" cy="75" r="1" fill="white" opacity="0.1"/><circle cx="50" cy="10" r="0.5" fill="white" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+        animation: grainMove 20s linear infinite;
+    }
+    
+    @keyframes grainMove {
+        0% { transform: translate(0, 0); }
+        100% { transform: translate(100px, 100px); }
+    }
+    
+    .bruce-almighty-title {
+        font-size: 3rem;
+        font-weight: bold;
+        margin-bottom: 10px;
+        text-shadow: 3px 3px 6px rgba(0,0,0,0.3);
+        position: relative;
+        z-index: 1;
+    }
+    
+    .bruce-almighty-subtitle {
+        font-size: 1.2rem;
+        opacity: 0.9;
+        position: relative;
+        z-index: 1;
+    }
+    
+    .god-mode-indicator {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: linear-gradient(45deg, #ff6b6b, #ffa500);
+        color: white;
+        padding: 10px 20px;
+        border-radius: 25px;
+        font-weight: bold;
+        box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4);
+        animation: godModePulse 2s ease-in-out infinite;
+        z-index: 1000;
+    }
+    
+    @keyframes godModePulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+    }
+    
+    .control-panel {
+        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 30px;
+        color: white;
+        box-shadow: 0 10px 30px rgba(30, 60, 114, 0.3);
+    }
+    
+    .control-button {
+        background: linear-gradient(45deg, #ff6b6b, #ffa500);
+        border: none;
+        color: white;
+        padding: 12px 25px;
+        border-radius: 25px;
+        font-weight: bold;
+        margin: 5px;
+        transition: all 0.3s ease;
+        box-shadow: 0 5px 15px rgba(255, 107, 107, 0.3);
+    }
+    
+    .control-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(255, 107, 107, 0.5);
+    }
+    
+    .emergency-button {
+        background: linear-gradient(45deg, #ff4757, #ff3742);
+        animation: emergencyPulse 1s ease-in-out infinite;
+    }
+    
+    @keyframes emergencyPulse {
+        0%, 100% { box-shadow: 0 5px 15px rgba(255, 71, 87, 0.3); }
+        50% { box-shadow: 0 5px 25px rgba(255, 71, 87, 0.6); }
+    }
+    
+    .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    
+    .metric-card {
+        background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+        border-radius: 15px;
+        padding: 20px;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255,255,255,0.2);
+        transition: all 0.3s ease;
+    }
+    
+    .metric-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+    }
+    
+    .metric-value {
+        font-size: 2.5rem;
+        font-weight: bold;
+        color: #ffd700;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+    
+    .metric-label {
+        font-size: 1rem;
+        opacity: 0.8;
+        margin-top: 5px;
+    }
+    
+    .system-health {
+        background: linear-gradient(135deg, #2ed573 0%, #1e90ff 100%);
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 30px;
+        color: white;
+    }
+    
+    .health-indicator {
+        display: inline-block;
+        width: 15px;
+        height: 15px;
+        border-radius: 50%;
+        margin-right: 10px;
+        animation: healthPulse 2s ease-in-out infinite;
+    }
+    
+    .health-excellent { background-color: #2ed573; }
+    .health-good { background-color: #ffa500; }
+    .health-warning { background-color: #ff6b6b; }
+    .health-critical { background-color: #ff4757; }
+    
+    @keyframes healthPulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+    
+    .ai-status-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 15px;
+        margin-bottom: 30px;
+    }
+    
+    .ai-status-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 12px;
+        padding: 20px;
+        color: white;
+        text-align: center;
+        transition: all 0.3s ease;
+    }
+    
+    .ai-status-card:hover {
+        transform: scale(1.05);
+        box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+    }
+    
+    .ai-name {
+        font-size: 1.5rem;
+        font-weight: bold;
+        margin-bottom: 10px;
+    }
+    
+    .ai-status {
+        font-size: 1.2rem;
+        margin-bottom: 15px;
+    }
+    
+    .ai-metrics {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+    
+    .ai-metric {
+        background: rgba(255,255,255,0.1);
+        border-radius: 8px;
+        padding: 10px;
+    }
+    
+    .ai-metric-value {
+        font-size: 1.1rem;
+        font-weight: bold;
+        color: #ffd700;
+    }
+    
+    .ai-metric-label {
+        font-size: 0.8rem;
+        opacity: 0.8;
+    }
+    
+    .real-time-monitor {
+        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 30px;
+        color: white;
+    }
+    
+    .monitor-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+    }
+    
+    .monitor-item {
+        background: rgba(255,255,255,0.1);
+        border-radius: 10px;
+        padding: 15px;
+        text-align: center;
+    }
+    
+    .monitor-value {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #ffd700;
+    }
+    
+    .monitor-label {
+        font-size: 0.9rem;
+        opacity: 0.8;
+    }
+    
+    .direct-message-panel {
+        background: linear-gradient(135deg, #ff6b6b 0%, #ffa500 100%);
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 30px;
+        color: white;
+    }
+    
+    .message-form {
+        display: grid;
+        gap: 15px;
+    }
+    
+    .message-input {
+        background: rgba(255,255,255,0.1);
+        border: 1px solid rgba(255,255,255,0.3);
+        border-radius: 8px;
+        padding: 12px;
+        color: white;
+    }
+    
+    .message-input::placeholder {
+        color: rgba(255,255,255,0.7);
+    }
+    
+    .send-button {
+        background: linear-gradient(45deg, #2ed573, #1e90ff);
+        border: none;
+        color: white;
+        padding: 12px 25px;
+        border-radius: 25px;
+        font-weight: bold;
+        transition: all 0.3s ease;
+    }
+    
+    .send-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(46, 213, 115, 0.4);
+    }
+    
+    .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+    }
+    
+    .loading-spinner {
+        width: 60px;
+        height: 60px;
+        border: 5px solid rgba(255,255,255,0.3);
+        border-top: 5px solid #ffd700;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- BRUCE ALMIGHTY MODE INDICATOR 🚀 -->
+<div class="god-mode-indicator">
+    🚀 BRUCE ALMIGHTY MODE ACTIVATED 🚀
+</div>
+
+<!-- HEADER ESPECTACULAR -->
+<div class="bruce-almighty-header">
+    <h1 class="bruce-almighty-title">🧠 SUPER ADMIN DASHBOARD</h1>
+    <p class="bruce-almighty-subtitle">Control Total del Sistema huntRED - ¡Eres el DIOS de la plataforma! 🚀</p>
+</div>
+
+<!-- PANEL DE CONTROL TOTAL -->
+<div class="control-panel">
+    <h3><i class="fas fa-crown"></i> Panel de Control Total</h3>
+    <div class="row">
+        <div class="col-md-3">
+            <button class="control-button" onclick="controlAura('restart')">
+                <i class="fas fa-sync"></i> Reiniciar AURA
+            </button>
+        </div>
+        <div class="col-md-3">
+            <button class="control-button" onclick="controlGenia('restart')">
+                <i class="fas fa-brain"></i> Reiniciar GenIA
+            </button>
+        </div>
+        <div class="col-md-3">
+            <button class="control-button" onclick="forceAnalysis()">
+                <i class="fas fa-chart-line"></i> Forzar Análisis
+            </button>
+        </div>
+        <div class="col-md-3">
+            <button class="emergency-button" onclick="emergencyAction('system_backup')">
+                <i class="fas fa-shield-alt"></i> Backup Sistema
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- MÉTRICAS GLOBALES -->
+<div class="metrics-grid">
+    <div class="metric-card">
+        <div class="metric-value" id="total-users">--</div>
+        <div class="metric-label">Total Usuarios</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-value" id="active-consultants">--</div>
+        <div class="metric-label">Consultores Activos</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-value" id="active-clients">--</div>
+        <div class="metric-label">Clientes Activos</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-value" id="total-candidates">--</div>
+        <div class="metric-label">Total Candidatos</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-value" id="conversion-rate">--</div>
+        <div class="metric-label">Tasa de Conversión</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-value" id="revenue-generated">--</div>
+        <div class="metric-label">Ingresos Generados</div>
+    </div>
+</div>
+
+<!-- SALUD DEL SISTEMA -->
+<div class="system-health">
+    <h3><i class="fas fa-heartbeat"></i> Salud del Sistema</h3>
+    <div class="row">
+        <div class="col-md-2">
+            <div class="health-indicator health-excellent"></div>
+            <strong>General: 95.5%</strong>
+        </div>
+        <div class="col-md-2">
+            <div class="health-indicator health-excellent"></div>
+            <strong>AURA: 98.2%</strong>
+        </div>
+        <div class="col-md-2">
+            <div class="health-indicator health-good"></div>
+            <strong>GenIA: 94.8%</strong>
+        </div>
+        <div class="col-md-2">
+            <div class="health-indicator health-excellent"></div>
+            <strong>ML: 96.3%</strong>
+        </div>
+        <div class="col-md-2">
+            <div class="health-indicator health-excellent"></div>
+            <strong>DB: 99.1%</strong>
+        </div>
+        <div class="col-md-2">
+            <div class="health-indicator health-excellent"></div>
+            <strong>API: 97.7%</strong>
+        </div>
+    </div>
+</div>
+
+<!-- ESTADO DE IA -->
+<div class="ai-status-grid">
+    <div class="ai-status-card">
+        <div class="ai-name">🧠 AURA</div>
+        <div class="ai-status">Operacional</div>
+        <div class="ai-metrics">
+            <div class="ai-metric">
+                <div class="ai-metric-value">99.9%</div>
+                <div class="ai-metric-label">Uptime</div>
+            </div>
+            <div class="ai-metric">
+                <div class="ai-metric-value">150ms</div>
+                <div class="ai-metric-label">Response</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="ai-status-card">
+        <div class="ai-name">🤖 GenIA</div>
+        <div class="ai-status">Operacional</div>
+        <div class="ai-metrics">
+            <div class="ai-metric">
+                <div class="ai-metric-value">99.7%</div>
+                <div class="ai-metric-label">Uptime</div>
+            </div>
+            <div class="ai-metric">
+                <div class="ai-metric-value">200ms</div>
+                <div class="ai-metric-label">Response</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="ai-status-card">
+        <div class="ai-name">📊 ML</div>
+        <div class="ai-status">Operacional</div>
+        <div class="ai-metrics">
+            <div class="ai-metric">
+                <div class="ai-metric-value">99.5%</div>
+                <div class="ai-metric-label">Uptime</div>
+            </div>
+            <div class="ai-metric">
+                <div class="ai-metric-value">100ms</div>
+                <div class="ai-metric-label">Response</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MONITOR EN TIEMPO REAL -->
+<div class="real-time-monitor">
+    <h3><i class="fas fa-tachometer-alt"></i> Monitor en Tiempo Real</h3>
+    <div class="monitor-grid">
+        <div class="monitor-item">
+            <div class="monitor-value" id="active-users">--</div>
+            <div class="monitor-label">Usuarios Activos</div>
+        </div>
+        <div class="monitor-item">
+            <div class="monitor-value" id="active-sessions">--</div>
+            <div class="monitor-label">Sesiones Activas</div>
+        </div>
+        <div class="monitor-item">
+            <div class="monitor-value" id="requests-per-minute">--</div>
+            <div class="monitor-label">Requests/min</div>
+        </div>
+        <div class="monitor-item">
+            <div class="monitor-value" id="avg-response-time">--</div>
+            <div class="monitor-label">Response Time</div>
+        </div>
+        <div class="monitor-item">
+            <div class="monitor-value" id="error-rate">--</div>
+            <div class="monitor-label">Error Rate</div>
+        </div>
+    </div>
+</div>
+
+<!-- PANEL DE MENSAJES DIRECTOS -->
+<div class="direct-message-panel">
+    <h3><i class="fas fa-comments"></i> Mensajes Directos (Control Total)</h3>
+    <form class="message-form" id="direct-message-form">
+        <div class="row">
+            <div class="col-md-3">
+                <select class="message-input" id="user-select" required>
+                    <option value="">Seleccionar Usuario</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select class="message-input" id="channel-select" required>
+                    <option value="whatsapp">WhatsApp</option>
+                    <option value="email">Email</option>
+                    <option value="sms">SMS</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <input type="text" class="message-input" id="message-input" placeholder="Tu mensaje divino..." required>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="send-button">
+                    <i class="fas fa-paper-plane"></i> Enviar
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- TABS PARA DIFERENTES SECCIONES -->
+<ul class="nav nav-tabs" id="superAdminTabs" role="tablist">
+    <li class="nav-item">
+        <a class="nav-link active" id="consultants-tab" data-toggle="tab" href="#consultants" role="tab">
+            <i class="fas fa-users"></i> Consultores
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" id="clients-tab" data-toggle="tab" href="#clients" role="tab">
+            <i class="fas fa-building"></i> Clientes
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" id="candidates-tab" data-toggle="tab" href="#candidates" role="tab">
+            <i class="fas fa-user-graduate"></i> Candidatos
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" id="processes-tab" data-toggle="tab" href="#processes" role="tab">
+            <i class="fas fa-cogs"></i> Procesos
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" id="aura-tab" data-toggle="tab" href="#aura" role="tab">
+            <i class="fas fa-brain"></i> AURA
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" id="genia-tab" data-toggle="tab" href="#genia" role="tab">
+            <i class="fas fa-robot"></i> GenIA
+        </a>
+    </li>
+</ul>
+
+<div class="tab-content" id="superAdminTabContent">
+    <div class="tab-pane fade show active" id="consultants" role="tabpanel">
+        <div class="card">
+            <div class="card-body">
+                <h5>Analytics de Consultores</h5>
+                <div id="consultants-content">
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="sr-only">Cargando...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="tab-pane fade" id="clients" role="tabpanel">
+        <div class="card">
+            <div class="card-body">
+                <h5>Analytics de Clientes</h5>
+                <div id="clients-content">
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="sr-only">Cargando...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="tab-pane fade" id="candidates" role="tabpanel">
+        <div class="card">
+            <div class="card-body">
+                <h5>Analytics de Candidatos</h5>
+                <div id="candidates-content">
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="sr-only">Cargando...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="tab-pane fade" id="processes" role="tabpanel">
+        <div class="card">
+            <div class="card-body">
+                <h5>Analytics de Procesos</h5>
+                <div id="processes-content">
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="sr-only">Cargando...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="tab-pane fade" id="aura" role="tabpanel">
+        <div class="card">
+            <div class="card-body">
+                <h5>Analytics de AURA</h5>
+                <div id="aura-content">
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="sr-only">Cargando...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="tab-pane fade" id="genia" role="tabpanel">
+        <div class="card">
+            <div class="card-body">
+                <h5>Analytics de GenIA</h5>
+                <div id="genia-content">
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="sr-only">Cargando...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- LOADING OVERLAY -->
+<div class="loading-overlay" id="loading-overlay" style="display: none;">
+    <div class="loading-spinner"></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Cargar datos iniciales
+    loadSystemOverview();
+    loadUsersForMessage();
+    
+    // Actualizar datos cada 30 segundos
+    setInterval(loadSystemOverview, 30000);
+    
+    // Manejar envío de mensajes directos
+    $('#direct-message-form').on('submit', function(e) {
+        e.preventDefault();
+        sendDirectMessage();
+    });
+    
+    // Cargar datos de tabs
+    $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
+        const target = $(e.target).attr("href");
+        switch(target) {
+            case '#consultants':
+                loadConsultantAnalytics();
+                break;
+            case '#clients':
+                loadClientAnalytics();
+                break;
+            case '#candidates':
+                loadCandidateAnalytics();
+                break;
+            case '#processes':
+                loadProcessAnalytics();
+                break;
+            case '#aura':
+                loadAuraAnalytics();
+                break;
+            case '#genia':
+                loadGeniaAnalytics();
+                break;
+        }
+    });
+});
+
+function showLoading() {
+    $('#loading-overlay').show();
+}
+
+function hideLoading() {
+    $('#loading-overlay').hide();
+}
+
+function loadSystemOverview() {
+    $.get('/super-admin/system-overview/')
+        .done(function(data) {
+            if (data.success) {
+                displaySystemOverview(data.overview);
+            }
+        })
+        .fail(function() {
+            console.error('Error cargando overview del sistema');
+        });
+}
+
+function displaySystemOverview(overview) {
+    const metrics = overview.global_metrics;
+    const realTime = overview.real_time_performance;
+    
+    $('#total-users').text(metrics.total_users);
+    $('#active-consultants').text(metrics.active_consultants);
+    $('#active-clients').text(metrics.active_clients);
+    $('#total-candidates').text(metrics.total_candidates);
+    $('#conversion-rate').text(metrics.conversion_rate.toFixed(1) + '%');
+    $('#revenue-generated').text('$' + metrics.revenue_generated.toLocaleString());
+    
+    $('#active-users').text(realTime.active_users);
+    $('#active-sessions').text(realTime.active_sessions);
+    $('#requests-per-minute').text(realTime.requests_per_minute);
+    $('#avg-response-time').text(realTime.average_response_time);
+    $('#error-rate').text(realTime.error_rate);
+}
+
+function loadUsersForMessage() {
+    $.get('/super-admin/user-management/')
+        .done(function(data) {
+            if (data.success) {
+                const select = $('#user-select');
+                data.users.forEach(user => {
+                    select.append(`<option value="${user.id}">${user.name} (${user.role})</option>`);
+                });
+            }
+        });
+}
+
+function sendDirectMessage() {
+    const userId = $('#user-select').val();
+    const message = $('#message-input').val();
+    const channel = $('#channel-select').val();
+    
+    if (!userId || !message) {
+        alert('Por favor completa todos los campos');
+        return;
+    }
+    
+    showLoading();
+    
+    $.ajax({
+        url: '/super-admin/direct-message/',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            user_id: userId,
+            message: message,
+            channel: channel
+        }),
+        success: function(data) {
+            hideLoading();
+            if (data.success) {
+                alert('¡Mensaje enviado con éxito!');
+                $('#message-input').val('');
+            } else {
+                alert('Error: ' + data.error);
+            }
+        },
+        error: function() {
+            hideLoading();
+            alert('Error enviando mensaje');
+        }
+    });
+}
+
+function controlAura(action) {
+    if (!confirm('¿Estás seguro de que quieres ' + action + ' AURA?')) return;
+    
+    showLoading();
+    
+    $.ajax({
+        url: '/super-admin/aura-control/',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            action: action,
+            parameters: {}
+        }),
+        success: function(data) {
+            hideLoading();
+            if (data.success) {
+                alert('¡AURA controlado con éxito!');
+                loadSystemOverview();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        },
+        error: function() {
+            hideLoading();
+            alert('Error controlando AURA');
+        }
+    });
+}
+
+function controlGenia(action) {
+    if (!confirm('¿Estás seguro de que quieres ' + action + ' GenIA?')) return;
+    
+    showLoading();
+    
+    $.ajax({
+        url: '/super-admin/genia-control/',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            action: action,
+            parameters: {}
+        }),
+        success: function(data) {
+            hideLoading();
+            if (data.success) {
+                alert('¡GenIA controlado con éxito!');
+                loadSystemOverview();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        },
+        error: function() {
+            hideLoading();
+            alert('Error controlando GenIA');
+        }
+    });
+}
+
+function forceAnalysis() {
+    if (!confirm('¿Forzar análisis global del sistema?')) return;
+    
+    showLoading();
+    
+    $.ajax({
+        url: '/super-admin/aura-control/',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            action: 'force_analysis',
+            parameters: {}
+        }),
+        success: function(data) {
+            hideLoading();
+            if (data.success) {
+                alert('¡Análisis forzado con éxito!');
+                loadSystemOverview();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        },
+        error: function() {
+            hideLoading();
+            alert('Error forzando análisis');
+        }
+    });
+}
+
+function emergencyAction(action) {
+    if (!confirm('¿ACCIONES DE EMERGENCIA - ¿Estás completamente seguro?')) return;
+    
+    showLoading();
+    
+    $.ajax({
+        url: '/super-admin/emergency-actions/',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            action: action,
+            parameters: {}
+        }),
+        success: function(data) {
+            hideLoading();
+            if (data.success) {
+                alert('¡Acción de emergencia ejecutada!');
+                loadSystemOverview();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        },
+        error: function() {
+            hideLoading();
+            alert('Error en acción de emergencia');
+        }
+    });
+}
+
+function loadConsultantAnalytics() {
+    $.get('/super-admin/consultant-analytics/')
+        .done(function(data) {
+            if (data.success) {
+                $('#consultants-content').html(formatConsultantAnalytics(data.analytics));
+            }
+        });
+}
+
+function loadClientAnalytics() {
+    $.get('/super-admin/client-analytics/')
+        .done(function(data) {
+            if (data.success) {
+                $('#clients-content').html(formatClientAnalytics(data.analytics));
+            }
+        });
+}
+
+function loadCandidateAnalytics() {
+    $.get('/super-admin/candidate-analytics/')
+        .done(function(data) {
+            if (data.success) {
+                $('#candidates-content').html(formatCandidateAnalytics(data.analytics));
+            }
+        });
+}
+
+function loadProcessAnalytics() {
+    $.get('/super-admin/process-analytics/')
+        .done(function(data) {
+            if (data.success) {
+                $('#processes-content').html(formatProcessAnalytics(data.analytics));
+            }
+        });
+}
+
+function loadAuraAnalytics() {
+    $.get('/super-admin/aura-analytics/')
+        .done(function(data) {
+            if (data.success) {
+                $('#aura-content').html(formatAuraAnalytics(data.analytics));
+            }
+        });
+}
+
+function loadGeniaAnalytics() {
+    $.get('/super-admin/genia-analytics/')
+        .done(function(data) {
+            if (data.success) {
+                $('#genia-content').html(formatGeniaAnalytics(data.analytics));
+            }
+        });
+}
+
+// Funciones de formato (implementar según necesidades)
+function formatConsultantAnalytics(analytics) {
+    return '<p>Analytics de consultores cargados</p>';
+}
+
+function formatClientAnalytics(analytics) {
+    return '<p>Analytics de clientes cargados</p>';
+}
+
+function formatCandidateAnalytics(analytics) {
+    return '<p>Analytics de candidatos cargados</p>';
+}
+
+function formatProcessAnalytics(analytics) {
+    return '<p>Analytics de procesos cargados</p>';
+}
+
+function formatAuraAnalytics(analytics) {
+    return '<p>Analytics de AURA cargados</p>';
+}
+
+function formatGeniaAnalytics(analytics) {
+    return '<p>Analytics de GenIA cargados</p>';
+}
+</script>
+{% endblock %} 

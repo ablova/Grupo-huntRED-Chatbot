@@ -1,0 +1,838 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}BRUCE ALMIGHTY MODE - Control Total del Sistema{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard/bruce_almighty.css' %}">
+<link rel="stylesheet" href="{% static 'css/components/metrics_cards.css' %}">
+<link rel="stylesheet" href="{% static 'css/components/charts.css' %}">
+<link rel="stylesheet" href="{% static 'css/components/control_panel.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="bruce-almighty-dashboard">
+    <!-- Header Épico -->
+    <div class="epic-header">
+        <div class="header-content">
+            <h1 class="dashboard-title">
+                <i class="fas fa-crown"></i>
+                BRUCE ALMIGHTY MODE
+            </h1>
+            <p class="dashboard-subtitle">
+                Control Total del Sistema - Poder Absoluto sobre el Reclutamiento
+            </p>
+            <div class="power-indicator">
+                <span class="power-level">PODER: 100%</span>
+                <div class="power-bar">
+                    <div class="power-fill" style="width: 100%"></div>
+                </div>
+            </div>
+        </div>
+        <div class="header-actions">
+            <button class="btn btn-epic" onclick="activateGodMode()">
+                <i class="fas fa-magic"></i>
+                ACTIVAR MODO DIOS
+            </button>
+            <button class="btn btn-danger" onclick="emergencyOverride()">
+                <i class="fas fa-exclamation-triangle"></i>
+                OVERRIDE DE EMERGENCIA
+            </button>
+        </div>
+    </div>
+
+    <!-- Métricas del Sistema -->
+    <div class="system-metrics">
+        <div class="metrics-grid">
+            <div class="metric-card epic">
+                <div class="metric-icon">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div class="metric-content">
+                    <h3 class="metric-value">{{ system_metrics.total_users }}</h3>
+                    <p class="metric-label">Usuarios Totales</p>
+                    <div class="metric-trend positive">
+                        <i class="fas fa-arrow-up"></i>
+                        <span>+15%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="metric-card success">
+                <div class="metric-icon">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <div class="metric-content">
+                    <h3 class="metric-value">{{ system_metrics.engagement_rate|floatformat:1 }}%</h3>
+                    <p class="metric-label">Tasa de Engagement</p>
+                    <div class="metric-trend positive">
+                        <i class="fas fa-arrow-up"></i>
+                        <span>+8%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="metric-card warning">
+                <div class="metric-icon">
+                    <i class="fas fa-cogs"></i>
+                </div>
+                <div class="metric-content">
+                    <h3 class="metric-value">{{ system_metrics.automation_rate|floatformat:1 }}%</h3>
+                    <p class="metric-label">Automatización</p>
+                    <div class="metric-trend positive">
+                        <i class="fas fa-arrow-up"></i>
+                        <span>+12%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="metric-card info">
+                <div class="metric-icon">
+                    <i class="fas fa-rocket"></i>
+                </div>
+                <div class="metric-content">
+                    <h3 class="metric-value">{{ system_metrics.performance_score|floatformat:1 }}%</h3>
+                    <p class="metric-label">Rendimiento del Sistema</p>
+                    <div class="metric-trend positive">
+                        <i class="fas fa-arrow-up"></i>
+                        <span>+5%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel de Control Principal -->
+    <div class="control-panel">
+        <div class="panel-grid">
+            <!-- Control de Usuarios -->
+            <div class="control-section">
+                <div class="section-header">
+                    <h3><i class="fas fa-users-cog"></i> Control de Usuarios</h3>
+                </div>
+                <div class="section-content">
+                    <div class="control-actions">
+                        <a href="{% url 'bruce_almighty:user_management' %}" class="control-action">
+                            <i class="fas fa-user-edit"></i>
+                            <span>Gestión de Usuarios</span>
+                        </a>
+                        <a href="{% url 'bruce_almighty:role_management' %}" class="control-action">
+                            <i class="fas fa-user-tag"></i>
+                            <span>Gestión de Roles</span>
+                        </a>
+                        <a href="{% url 'bruce_almighty:permissions' %}" class="control-action">
+                            <i class="fas fa-shield-alt"></i>
+                            <span>Permisos Granulares</span>
+                        </a>
+                        <a href="{% url 'bruce_almighty:user_analytics' %}" class="control-action">
+                            <i class="fas fa-chart-bar"></i>
+                            <span>Analytics de Usuarios</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Control de Sistema -->
+            <div class="control-section">
+                <div class="section-header">
+                    <h3><i class="fas fa-server"></i> Control de Sistema</h3>
+                </div>
+                <div class="section-content">
+                    <div class="control-actions">
+                        <a href="{% url 'bruce_almighty:system_monitoring' %}" class="control-action">
+                            <i class="fas fa-tachometer-alt"></i>
+                            <span>Monitoreo del Sistema</span>
+                        </a>
+                        <a href="{% url 'bruce_almighty:logs' %}" class="control-action">
+                            <i class="fas fa-file-alt"></i>
+                            <span>Logs del Sistema</span>
+                        </a>
+                        <a href="{% url 'bruce_almighty:backup' %}" class="control-action">
+                            <i class="fas fa-database"></i>
+                            <span>Backup y Restauración</span>
+                        </a>
+                        <a href="{% url 'bruce_almighty:system_config' %}" class="control-action">
+                            <i class="fas fa-cog"></i>
+                            <span>Configuración del Sistema</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Control de Procesos -->
+            <div class="control-section">
+                <div class="section-header">
+                    <h3><i class="fas fa-project-diagram"></i> Control de Procesos</h3>
+                </div>
+                <div class="section-content">
+                    <div class="control-actions">
+                        <a href="{% url 'bruce_almighty:kanban' %}" class="control-action">
+                            <i class="fas fa-columns"></i>
+                            <span>Kanban Avanzado</span>
+                        </a>
+                        <a href="{% url 'bruce_almighty:workflows' %}" class="control-action">
+                            <i class="fas fa-route"></i>
+                            <span>Workflows Inteligentes</span>
+                        </a>
+                        <a href="{% url 'bruce_almighty:cv_viewer' %}" class="control-action">
+                            <i class="fas fa-file-pdf"></i>
+                            <span>Visualizador de CV</span>
+                        </a>
+                        <a href="{% url 'bruce_almighty:bulk_actions' %}" class="control-action">
+                            <i class="fas fa-tasks"></i>
+                            <span>Acciones Masivas</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Control de Analytics -->
+            <div class="control-section">
+                <div class="section-header">
+                    <h3><i class="fas fa-brain"></i> Control de Analytics</h3>
+                </div>
+                <div class="section-content">
+                    <div class="control-actions">
+                        <a href="{% url 'bruce_almighty:advanced_analytics' %}" class="control-action">
+                            <i class="fas fa-chart-line"></i>
+                            <span>Analytics Avanzados</span>
+                        </a>
+                        <a href="{% url 'bruce_almighty:ml_insights' %}" class="control-action">
+                            <i class="fas fa-robot"></i>
+                            <span>Insights de ML</span>
+                        </a>
+                        <a href="{% url 'bruce_almighty:predictions' %}" class="control-action">
+                            <i class="fas fa-crystal-ball"></i>
+                            <span>Predicciones</span>
+                        </a>
+                        <a href="{% url 'bruce_almighty:reports' %}" class="control-action">
+                            <i class="fas fa-file-chart"></i>
+                            <span>Reportes Avanzados</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Control de Automatización Omnicanal -->
+            <div class="control-section epic">
+                <div class="section-header">
+                    <h3><i class="fas fa-magic"></i> Automatización Omnicanal</h3>
+                    <span class="epic-badge">ÉPICO</span>
+                </div>
+                <div class="section-content">
+                    <div class="control-actions">
+                        <a href="{% url 'omnichannel_automation:omnichannel_automation_dashboard' %}" class="control-action epic">
+                            <i class="fas fa-robot"></i>
+                            <span>Dashboard Omnicanal</span>
+                        </a>
+                        <a href="{% url 'omnichannel_automation:predictive_engagement_dashboard' %}" class="control-action epic">
+                            <i class="fas fa-brain"></i>
+                            <span>Engagement Predictivo</span>
+                        </a>
+                        <a href="{% url 'omnichannel_automation:intelligent_workflows_dashboard' %}" class="control-action epic">
+                            <i class="fas fa-project-diagram"></i>
+                            <span>Workflows Inteligentes</span>
+                        </a>
+                        <a href="{% url 'omnichannel_automation:automation_optimization_dashboard' %}" class="control-action epic">
+                            <i class="fas fa-magic"></i>
+                            <span>Optimización Automática</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Control de Integraciones -->
+            <div class="control-section">
+                <div class="section-header">
+                    <h3><i class="fas fa-plug"></i> Control de Integraciones</h3>
+                </div>
+                <div class="section-content">
+                    <div class="control-actions">
+                        <a href="{% url 'bruce_almighty:whatsapp_integration' %}" class="control-action">
+                            <i class="fab fa-whatsapp"></i>
+                            <span>WhatsApp Business API</span>
+                        </a>
+                        <a href="{% url 'bruce_almighty:calendar_integration' %}" class="control-action">
+                            <i class="fas fa-calendar-alt"></i>
+                            <span>Google Calendar</span>
+                        </a>
+                        <a href="{% url 'bruce_almighty:workday_integration' %}" class="control-action">
+                            <i class="fas fa-briefcase"></i>
+                            <span>Workday Integration</span>
+                        </a>
+                        <a href="{% url 'bruce_almighty:zapier_integration' %}" class="control-action">
+                            <i class="fas fa-link"></i>
+                            <span>Zapier</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Control de Notificaciones -->
+            <div class="control-section">
+                <div class="section-header">
+                    <h3><i class="fas fa-bell"></i> Control de Notificaciones</h3>
+                </div>
+                <div class="section-content">
+                    <div class="control-actions">
+                        <a href="{% url 'bruce_almighty:notification_center' %}" class="control-action">
+                            <i class="fas fa-bell"></i>
+                            <span>Centro de Notificaciones</span>
+                        </a>
+                        <a href="{% url 'bruce_almighty:notification_templates' %}" class="control-action">
+                            <i class="fas fa-envelope"></i>
+                            <span>Templates de Notificación</span>
+                        </a>
+                        <a href="{% url 'bruce_almighty:notification_analytics' %}" class="control-action">
+                            <i class="fas fa-chart-pie"></i>
+                            <span>Analytics de Notificaciones</span>
+                        </a>
+                        <a href="{% url 'bruce_almighty:notification_scheduling' %}" class="control-action">
+                            <i class="fas fa-clock"></i>
+                            <span>Programación Automática</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Control de IA y ML -->
+            <div class="control-section epic">
+                <div class="section-header">
+                    <h3><i class="fas fa-robot"></i> Control de IA y ML</h3>
+                    <span class="epic-badge">FUTURISTA</span>
+                </div>
+                <div class="section-content">
+                    <div class="control-actions">
+                        <a href="{% url 'bruce_almighty:aura_control' %}" class="control-action epic">
+                            <i class="fas fa-crown"></i>
+                            <span>Control de AURA</span>
+                        </a>
+                        <a href="{% url 'bruce_almighty:ml_models' %}" class="control-action epic">
+                            <i class="fas fa-brain"></i>
+                            <span>Modelos de ML</span>
+                        </a>
+                        <a href="{% url 'bruce_almighty:ai_chatbot' %}" class="control-action epic">
+                            <i class="fas fa-comments"></i>
+                            <span>Chatbot IA</span>
+                        </a>
+                        <a href="{% url 'bruce_almighty:predictive_analytics' %}" class="control-action epic">
+                            <i class="fas fa-crystal-ball"></i>
+                            <span>Analytics Predictivos</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Control de Gamificación -->
+            <div class="control-section">
+                <div class="section-header">
+                    <h3><i class="fas fa-gamepad"></i> Control de Gamificación</h3>
+                </div>
+                <div class="section-content">
+                    <div class="control-actions">
+                        <a href="{% url 'bruce_almighty:leaderboards' %}" class="control-action">
+                            <i class="fas fa-trophy"></i>
+                            <span>Leaderboards</span>
+                        </a>
+                        <a href="{% url 'bruce_almighty:achievements' %}" class="control-action">
+                            <i class="fas fa-medal"></i>
+                            <span>Logros y Badges</span>
+                        </a>
+                        <a href="{% url 'bruce_almighty:challenges' %}" class="control-action">
+                            <i class="fas fa-target"></i>
+                            <span>Desafíos</span>
+                        </a>
+                        <a href="{% url 'bruce_almighty:rewards' %}" class="control-action">
+                            <i class="fas fa-gift"></i>
+                            <span>Sistema de Recompensas</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Control de Marketplace -->
+            <div class="control-section">
+                <div class="section-header">
+                    <h3><i class="fas fa-store"></i> Control de Marketplace</h3>
+                </div>
+                <div class="section-content">
+                    <div class="control-actions">
+                        <a href="{% url 'bruce_almighty:marketplace_management' %}" class="control-action">
+                            <i class="fas fa-store"></i>
+                            <span>Gestión del Marketplace</span>
+                        </a>
+                        <a href="{% url 'bruce_almighty:talent_pool' %}" class="control-action">
+                            <i class="fas fa-users"></i>
+                            <span>Pool de Talento</span>
+                        </a>
+                        <a href="{% url 'bruce_almighty:transactions' %}" class="control-action">
+                            <i class="fas fa-credit-card"></i>
+                            <span>Transacciones</span>
+                        </a>
+                        <a href="{% url 'bruce_almighty:marketplace_analytics' %}" class="control-action">
+                            <i class="fas fa-chart-bar"></i>
+                            <span>Analytics del Marketplace</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Control de Seguridad -->
+            <div class="control-section warning">
+                <div class="section-header">
+                    <h3><i class="fas fa-shield-alt"></i> Control de Seguridad</h3>
+                </div>
+                <div class="section-content">
+                    <div class="control-actions">
+                        <a href="{% url 'bruce_almighty:security_monitoring' %}" class="control-action">
+                            <i class="fas fa-eye"></i>
+                            <span>Monitoreo de Seguridad</span>
+                        </a>
+                        <a href="{% url 'bruce_almighty:access_logs' %}" class="control-action">
+                            <i class="fas fa-key"></i>
+                            <span>Logs de Acceso</span>
+                        </a>
+                        <a href="{% url 'bruce_almighty:threat_detection' %}" class="control-action">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <span>Detección de Amenazas</span>
+                        </a>
+                        <a href="{% url 'bruce_almighty:security_settings' %}" class="control-action">
+                            <i class="fas fa-lock"></i>
+                            <span>Configuración de Seguridad</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Control de Emergencia -->
+            <div class="control-section danger">
+                <div class="section-header">
+                    <h3><i class="fas fa-exclamation-triangle"></i> Control de Emergencia</h3>
+                </div>
+                <div class="section-content">
+                    <div class="control-actions">
+                        <button class="control-action danger" onclick="emergencyShutdown()">
+                            <i class="fas fa-power-off"></i>
+                            <span>Shutdown de Emergencia</span>
+                        </button>
+                        <button class="control-action danger" onclick="lockdownSystem()">
+                            <i class="fas fa-lock"></i>
+                            <span>Lockdown del Sistema</span>
+                        </button>
+                        <button class="control-action danger" onclick="resetSystem()">
+                            <i class="fas fa-redo"></i>
+                            <span>Reset del Sistema</span>
+                        </button>
+                        <button class="control-action danger" onclick="emergencyBackup()">
+                            <i class="fas fa-database"></i>
+                            <span>Backup de Emergencia</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráficos del Sistema -->
+    <div class="system-analytics">
+        <div class="analytics-grid">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-chart-line"></i> Rendimiento del Sistema</h3>
+                </div>
+                <div class="card-body">
+                    <canvas id="systemPerformanceChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-chart-pie"></i> Distribución de Usuarios</h3>
+                </div>
+                <div class="card-body">
+                    <canvas id="userDistributionChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-chart-bar"></i> Actividad del Sistema</h3>
+                </div>
+                <div class="card-body">
+                    <canvas id="systemActivityChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-chart-area"></i> Métricas de Automatización</h3>
+                </div>
+                <div class="card-body">
+                    <canvas id="automationMetricsChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Estado del Sistema -->
+    <div class="system-status">
+        <div class="status-grid">
+            <div class="status-item online">
+                <i class="fas fa-server"></i>
+                <span>Servidor Principal</span>
+                <span class="status-badge">ONLINE</span>
+            </div>
+            <div class="status-item online">
+                <i class="fas fa-database"></i>
+                <span>Base de Datos</span>
+                <span class="status-badge">ONLINE</span>
+            </div>
+            <div class="status-item online">
+                <i class="fas fa-robot"></i>
+                <span>IA/ML Services</span>
+                <span class="status-badge">ONLINE</span>
+            </div>
+            <div class="status-item online">
+                <i class="fas fa-bell"></i>
+                <span>Notificaciones</span>
+                <span class="status-badge">ONLINE</span>
+            </div>
+            <div class="status-item online">
+                <i class="fas fa-plug"></i>
+                <span>Integraciones</span>
+                <span class="status-badge">ONLINE</span>
+            </div>
+            <div class="status-item online">
+                <i class="fas fa-shield-alt"></i>
+                <span>Seguridad</span>
+                <span class="status-badge">ONLINE</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Confirmación de Emergencia -->
+<div id="emergencyModal" class="modal">
+    <div class="modal-content danger">
+        <div class="modal-header">
+            <h3><i class="fas fa-exclamation-triangle"></i> Confirmación de Emergencia</h3>
+        </div>
+        <div class="modal-body">
+            <p>¿Estás seguro de que quieres ejecutar esta acción de emergencia?</p>
+            <p><strong>Esta acción no se puede deshacer.</strong></p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeEmergencyModal()">Cancelar</button>
+            <button class="btn btn-danger" onclick="confirmEmergencyAction()">Confirmar</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{% static 'js/dashboard/bruce_almighty.js' %}"></script>
+<script>
+// Variables globales
+let godModeActive = false;
+let charts = {};
+
+// Inicialización
+document.addEventListener('DOMContentLoaded', function() {
+    initializeCharts();
+    initializeSystemMonitoring();
+});
+
+// Funciones de control
+function activateGodMode() {
+    if (!godModeActive) {
+        godModeActive = true;
+        document.body.classList.add('god-mode');
+        showNotification('MODO DIOS ACTIVADO - Poder absoluto sobre el sistema', 'epic');
+        
+        // Efectos visuales épicos
+        createEpicEffects();
+    } else {
+        godModeActive = false;
+        document.body.classList.remove('god-mode');
+        showNotification('MODO DIOS DESACTIVADO', 'info');
+    }
+}
+
+function emergencyOverride() {
+    openEmergencyModal();
+}
+
+function emergencyShutdown() {
+    showEmergencyConfirmation('¿Estás seguro de que quieres apagar el sistema?', () => {
+        showNotification('SISTEMA APAGADO - Shutdown de emergencia ejecutado', 'danger');
+    });
+}
+
+function lockdownSystem() {
+    showEmergencyConfirmation('¿Estás seguro de que quieres hacer lockdown del sistema?', () => {
+        showNotification('SISTEMA EN LOCKDOWN - Acceso restringido', 'warning');
+    });
+}
+
+function resetSystem() {
+    showEmergencyConfirmation('¿Estás seguro de que quieres resetear el sistema?', () => {
+        showNotification('SISTEMA RESETEADO - Reiniciando todos los servicios', 'warning');
+    });
+}
+
+function emergencyBackup() {
+    showNotification('BACKUP DE EMERGENCIA INICIADO', 'info');
+    setTimeout(() => {
+        showNotification('Backup de emergencia completado exitosamente', 'success');
+    }, 3000);
+}
+
+function openEmergencyModal() {
+    document.getElementById('emergencyModal').style.display = 'block';
+}
+
+function closeEmergencyModal() {
+    document.getElementById('emergencyModal').style.display = 'none';
+}
+
+function confirmEmergencyAction() {
+    showNotification('ACCIÓN DE EMERGENCIA EJECUTADA', 'danger');
+    closeEmergencyModal();
+}
+
+function showEmergencyConfirmation(message, callback) {
+    if (confirm(message)) {
+        callback();
+    }
+}
+
+function createEpicEffects() {
+    // Crear efectos visuales épicos
+    const epicElements = document.querySelectorAll('.epic');
+    epicElements.forEach(element => {
+        element.style.animation = 'epicGlow 2s infinite';
+    });
+}
+
+// Inicialización de gráficos
+function initializeCharts() {
+    // Gráfico de Rendimiento del Sistema
+    const systemPerformanceCtx = document.getElementById('systemPerformanceChart').getContext('2d');
+    charts.systemPerformance = new Chart(systemPerformanceCtx, {
+        type: 'line',
+        data: {
+            labels: ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00'],
+            datasets: [{
+                label: 'CPU Usage',
+                data: [45, 52, 78, 85, 92, 88],
+                borderColor: '#007bff',
+                backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                tension: 0.4
+            }, {
+                label: 'Memory Usage',
+                data: [60, 65, 72, 78, 82, 79],
+                borderColor: '#28a745',
+                backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100
+                }
+            }
+        }
+    });
+
+    // Gráfico de Distribución de Usuarios
+    const userDistributionCtx = document.getElementById('userDistributionChart').getContext('2d');
+    charts.userDistribution = new Chart(userDistributionCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Consultores', 'Clientes', 'Candidatos', 'Admins'],
+            datasets: [{
+                data: [25, 30, 35, 10],
+                backgroundColor: ['#007bff', '#28a745', '#ffc107', '#dc3545']
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+
+    // Gráfico de Actividad del Sistema
+    const systemActivityCtx = document.getElementById('systemActivityChart').getContext('2d');
+    charts.systemActivity = new Chart(systemActivityCtx, {
+        type: 'bar',
+        data: {
+            labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'],
+            datasets: [{
+                label: 'Transacciones',
+                data: [1200, 1350, 1420, 1580, 1650, 1200, 800],
+                backgroundColor: '#17a2b8'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+
+    // Gráfico de Métricas de Automatización
+    const automationMetricsCtx = document.getElementById('automationMetricsChart').getContext('2d');
+    charts.automationMetrics = new Chart(automationMetricsCtx, {
+        type: 'line',
+        data: {
+            labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'],
+            datasets: [{
+                label: 'Automatización (%)',
+                data: [75, 78, 82, 85, 87, 89],
+                borderColor: '#6f42c1',
+                backgroundColor: 'rgba(111, 66, 193, 0.1)',
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100
+                }
+            }
+        }
+    });
+}
+
+function initializeSystemMonitoring() {
+    // Monitoreo en tiempo real del sistema
+    setInterval(() => {
+        updateSystemStatus();
+    }, 30000);
+}
+
+function updateSystemStatus() {
+    // Actualizar estado del sistema
+    console.log('Estado del sistema actualizado');
+}
+
+// Utilidades
+function showNotification(message, type = 'info') {
+    // Implementar sistema de notificaciones épico
+    console.log(`${type.toUpperCase()}: ${message}`);
+    
+    // Crear notificación visual
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.innerHTML = `
+        <i class="fas fa-${getNotificationIcon(type)}"></i>
+        <span>${message}</span>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Remover después de 5 segundos
+    setTimeout(() => {
+        notification.remove();
+    }, 5000);
+}
+
+function getNotificationIcon(type) {
+    const icons = {
+        'info': 'info-circle',
+        'success': 'check-circle',
+        'warning': 'exclamation-triangle',
+        'error': 'times-circle',
+        'danger': 'exclamation-triangle',
+        'epic': 'crown'
+    };
+    return icons[type] || 'info-circle';
+}
+</script>
+
+<style>
+/* Estilos épicos para BRUCE ALMIGHTY MODE */
+.god-mode {
+    background: linear-gradient(45deg, #1a1a1a, #2a2a2a);
+    color: #fff;
+}
+
+.god-mode .epic-header {
+    background: linear-gradient(45deg, #ffd700, #ffed4e);
+    color: #000;
+}
+
+.epic {
+    border: 2px solid #ffd700;
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+}
+
+.epic-badge {
+    background: linear-gradient(45deg, #ffd700, #ffed4e);
+    color: #000;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.8em;
+    font-weight: bold;
+}
+
+@keyframes epicGlow {
+    0%, 100% { box-shadow: 0 0 20px rgba(255, 215, 0, 0.3); }
+    50% { box-shadow: 0 0 40px rgba(255, 215, 0, 0.6); }
+}
+
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 15px 20px;
+    border-radius: 8px;
+    color: white;
+    font-weight: bold;
+    z-index: 10000;
+    animation: slideIn 0.3s ease-out;
+}
+
+.notification.epic {
+    background: linear-gradient(45deg, #ffd700, #ffed4e);
+    color: #000;
+}
+
+@keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+</style>
+{% endblock %} 

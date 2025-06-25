@@ -1,0 +1,404 @@
+/* AURA CSS - Estilos específicos para funcionalidades de AURA */
+
+/* Gradientes y efectos de AURA */
+.aura-gradient {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background-size: 200% 200%;
+    animation: auraPulse 3s ease-in-out infinite;
+}
+
+@keyframes auraPulse {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+/* Score de AURA */
+.aura-score-container {
+    text-align: center;
+    padding: 20px;
+    border-radius: 15px;
+    background: rgba(102, 126, 234, 0.1);
+    border: 2px solid rgba(102, 126, 234, 0.3);
+    margin: 15px 0;
+}
+
+.aura-score-value {
+    font-size: 4rem;
+    font-weight: bold;
+    color: #667eea;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+    margin: 10px 0;
+}
+
+.aura-score-label {
+    font-size: 0.9rem;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* Tarjetas de insights */
+.aura-insight-card {
+    background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+    border-radius: 12px;
+    padding: 20px;
+    margin: 15px 0;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.2);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+}
+
+.aura-insight-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+}
+
+.aura-insight-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.aura-insight-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 15px;
+    color: white;
+    font-size: 1.2rem;
+}
+
+.aura-insight-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #333;
+    margin: 0;
+}
+
+/* Indicadores de confianza */
+.confidence-indicator {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 8px;
+    position: relative;
+}
+
+.confidence-indicator::after {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    border-radius: 50%;
+    background: inherit;
+    opacity: 0.3;
+    animation: confidencePulse 2s infinite;
+}
+
+@keyframes confidencePulse {
+    0% { transform: scale(1); opacity: 0.3; }
+    50% { transform: scale(1.2); opacity: 0.1; }
+    100% { transform: scale(1); opacity: 0.3; }
+}
+
+.confidence-high { 
+    background-color: #4CAF50; 
+    box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+}
+
+.confidence-medium { 
+    background-color: #FF9800; 
+    box-shadow: 0 0 10px rgba(255, 152, 0, 0.5);
+}
+
+.confidence-low { 
+    background-color: #F44336; 
+    box-shadow: 0 0 10px rgba(244, 67, 54, 0.5);
+}
+
+/* Predicciones */
+.prediction-card {
+    background: rgba(255,255,255,0.95);
+    border-radius: 10px;
+    padding: 15px;
+    margin: 10px 0;
+    border-left: 4px solid #4CAF50;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+}
+
+.prediction-card:hover {
+    transform: translateX(5px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+}
+
+.prediction-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.prediction-title {
+    font-weight: 600;
+    color: #333;
+    margin: 0;
+}
+
+.prediction-value {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #667eea;
+    margin: 5px 0;
+}
+
+.prediction-confidence {
+    font-size: 0.9rem;
+    color: #666;
+}
+
+/* Análisis de red */
+.network-analysis {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 15px;
+    padding: 20px;
+    margin: 20px 0;
+}
+
+.network-strength {
+    font-size: 2rem;
+    font-weight: bold;
+    text-align: center;
+    margin: 15px 0;
+}
+
+.network-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.network-metric {
+    text-align: center;
+    padding: 15px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 10px;
+    backdrop-filter: blur(10px);
+}
+
+.network-metric-value {
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.network-metric-label {
+    font-size: 0.8rem;
+    opacity: 0.8;
+}
+
+/* Oportunidades de mercado */
+.opportunity-card {
+    background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+    color: white;
+    border-radius: 12px;
+    padding: 20px;
+    margin: 15px 0;
+    box-shadow: 0 8px 25px rgba(255, 215, 0, 0.3);
+}
+
+.opportunity-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.opportunity-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 15px;
+    font-size: 1.5rem;
+}
+
+.opportunity-title {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.opportunity-description {
+    margin: 10px 0;
+    opacity: 0.9;
+}
+
+.opportunity-potential {
+    font-size: 1.1rem;
+    font-weight: bold;
+    text-align: center;
+    margin: 15px 0;
+}
+
+/* Candidatos de alto potencial */
+.high-potential-card {
+    background: linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%);
+    color: white;
+    border-radius: 12px;
+    padding: 20px;
+    margin: 15px 0;
+    box-shadow: 0 8px 25px rgba(255, 107, 107, 0.3);
+}
+
+.potential-score {
+    font-size: 2.5rem;
+    font-weight: bold;
+    text-align: center;
+    margin: 15px 0;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+}
+
+/* Análisis de riesgo */
+.risk-analysis {
+    background: linear-gradient(135deg, #FF4757 0%, #FF3742 100%);
+    color: white;
+    border-radius: 12px;
+    padding: 20px;
+    margin: 15px 0;
+    box-shadow: 0 8px 25px rgba(255, 71, 87, 0.3);
+}
+
+.risk-level {
+    font-size: 1.5rem;
+    font-weight: bold;
+    text-align: center;
+    margin: 15px 0;
+}
+
+.risk-factors {
+    background: rgba(255,255,255,0.1);
+    border-radius: 8px;
+    padding: 15px;
+    margin: 15px 0;
+}
+
+.risk-factor {
+    display: flex;
+    align-items: center;
+    margin: 8px 0;
+    padding: 8px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 6px;
+}
+
+.risk-factor-icon {
+    margin-right: 10px;
+    color: #FFD700;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .aura-score-value {
+        font-size: 3rem;
+    }
+    
+    .network-metrics {
+        grid-template-columns: 1fr;
+    }
+    
+    .aura-insight-card {
+        padding: 15px;
+    }
+    
+    .prediction-card {
+        padding: 12px;
+    }
+}
+
+/* Animaciones de carga */
+.aura-loading {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(102, 126, 234, 0.3);
+    border-radius: 50%;
+    border-top-color: #667eea;
+    animation: auraSpin 1s ease-in-out infinite;
+}
+
+@keyframes auraSpin {
+    to { transform: rotate(360deg); }
+}
+
+/* Estados de error */
+.aura-error {
+    background: linear-gradient(135deg, #FF4757 0%, #FF3742 100%);
+    color: white;
+    border-radius: 10px;
+    padding: 15px;
+    margin: 15px 0;
+    text-align: center;
+}
+
+.aura-error-icon {
+    font-size: 2rem;
+    margin-bottom: 10px;
+}
+
+/* Estados de éxito */
+.aura-success {
+    background: linear-gradient(135deg, #2ED573 0%, #1E90FF 100%);
+    color: white;
+    border-radius: 10px;
+    padding: 15px;
+    margin: 15px 0;
+    text-align: center;
+}
+
+.aura-success-icon {
+    font-size: 2rem;
+    margin-bottom: 10px;
+}
+
+/* Tooltips personalizados */
+.aura-tooltip {
+    position: relative;
+    cursor: help;
+}
+
+.aura-tooltip::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.8);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    z-index: 1000;
+}
+
+.aura-tooltip:hover::after {
+    opacity: 1;
+    visibility: visible;
+    bottom: 120%;
+} 

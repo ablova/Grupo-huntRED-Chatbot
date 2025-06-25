@@ -1,0 +1,454 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Generador de JD con GPT - Bruce Almighty Mode{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard/super_admin.css' %}">
+<style>
+    .gpt-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 20px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }
+    
+    .form-section {
+        background: rgba(255,255,255,0.1);
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .form-control {
+        background: rgba(255,255,255,0.2);
+        border: 1px solid rgba(255,255,255,0.3);
+        color: white;
+        border-radius: 8px;
+    }
+    
+    .form-control:focus {
+        background: rgba(255,255,255,0.3);
+        border-color: rgba(255,255,255,0.5);
+        color: white;
+        box-shadow: 0 0 0 0.2rem rgba(255,255,255,0.25);
+    }
+    
+    .form-control::placeholder {
+        color: rgba(255,255,255,0.7);
+    }
+    
+    .form-label {
+        color: white;
+        font-weight: bold;
+        margin-bottom: 8px;
+    }
+    
+    .btn-generate {
+        background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+        border: none;
+        color: white;
+        padding: 15px 30px;
+        border-radius: 25px;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        transition: all 0.3s ease;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    }
+    
+    .btn-generate:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+        color: white;
+    }
+    
+    .template-card {
+        background: rgba(255,255,255,0.1);
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 15px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .template-card:hover {
+        background: rgba(255,255,255,0.2);
+        transform: translateY(-2px);
+    }
+    
+    .template-card.selected {
+        background: rgba(255,255,255,0.3);
+        border: 2px solid rgba(255,255,255,0.5);
+    }
+    
+    .template-name {
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+    
+    .template-stats {
+        font-size: 0.9rem;
+        opacity: 0.8;
+    }
+    
+    .generated-jd {
+        background: rgba(255,255,255,0.1);
+        border-radius: 10px;
+        padding: 20px;
+        margin-top: 20px;
+        white-space: pre-wrap;
+        font-family: 'Courier New', monospace;
+        line-height: 1.6;
+    }
+    
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .stat-item {
+        background: rgba(255,255,255,0.1);
+        border-radius: 10px;
+        padding: 15px;
+        text-align: center;
+    }
+    
+    .stat-value {
+        font-size: 2rem;
+        font-weight: bold;
+        margin: 5px 0;
+    }
+    
+    .stat-label {
+        font-size: 0.9rem;
+        opacity: 0.8;
+    }
+    
+    .example-item {
+        background: rgba(255,255,255,0.1);
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 15px;
+    }
+    
+    .example-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+    
+    .example-role {
+        font-weight: bold;
+    }
+    
+    .example-rating {
+        display: flex;
+        gap: 5px;
+    }
+    
+    .star {
+        color: #ffc107;
+    }
+    
+    .star.empty {
+        color: rgba(255,255,255,0.3);
+    }
+    
+    .loading-spinner {
+        display: none;
+        text-align: center;
+        padding: 20px;
+    }
+    
+    .quality-metrics {
+        background: rgba(255,255,255,0.1);
+        border-radius: 10px;
+        padding: 20px;
+        margin-top: 20px;
+    }
+    
+    .metric-bar {
+        background: rgba(255,255,255,0.2);
+        border-radius: 10px;
+        height: 20px;
+        margin: 10px 0;
+        overflow: hidden;
+    }
+    
+    .metric-fill {
+        height: 100%;
+        background: linear-gradient(45deg, #28a745, #20c997);
+        transition: width 1s ease;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- HEADER -->
+    <div class="gpt-card">
+        <h1><i class="fas fa-magic"></i> Generador de Job Descriptions con GPT</h1>
+        <p>Genera Job Descriptions profesionales y optimizadas usando Inteligencia Artificial</p>
+    </div>
+
+    <!-- ESTADÍSTICAS -->
+    <div class="gpt-card">
+        <h4><i class="fas fa-chart-bar"></i> Estadísticas del Generador</h4>
+        <div class="stats-grid">
+            <div class="stat-item">
+                <div class="stat-label">Total Generadas</div>
+                <div class="stat-value">{{ gpt_data.usage_stats.total_generated }}</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Este Mes</div>
+                <div class="stat-value">{{ gpt_data.usage_stats.generated_this_month }}</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Tiempo Promedio</div>
+                <div class="stat-value">{{ gpt_data.usage_stats.avg_generation_time }}s</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Satisfacción</div>
+                <div class="stat-value">{{ gpt_data.usage_stats.user_satisfaction }}/5</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- FORMULARIO DE GENERACIÓN -->
+        <div class="col-md-6">
+            <div class="gpt-card">
+                <h4><i class="fas fa-edit"></i> Generar Nueva Job Description</h4>
+                
+                <form id="jdGeneratorForm" method="POST">
+                    {% csrf_token %}
+                    
+                    <div class="form-section">
+                        <label class="form-label">Rol / Posición</label>
+                        <input type="text" class="form-control" name="role" placeholder="Ej: Desarrollador Full Stack Senior" required>
+                    </div>
+                    
+                    <div class="form-section">
+                        <label class="form-label">Experiencia Requerida</label>
+                        <textarea class="form-control" name="experience" rows="3" placeholder="Ej: 5+ años de experiencia en desarrollo web, conocimiento de React, Node.js, y bases de datos SQL"></textarea>
+                    </div>
+                    
+                    <div class="form-section">
+                        <label class="form-label">Habilidades Técnicas</label>
+                        <textarea class="form-control" name="skills" rows="3" placeholder="Ej: JavaScript, React, Node.js, Python, SQL, Git, AWS"></textarea>
+                    </div>
+                    
+                    <div class="form-section">
+                        <label class="form-label">Educación</label>
+                        <textarea class="form-control" name="education" rows="2" placeholder="Ej: Licenciatura en Ingeniería de Software o campo relacionado"></textarea>
+                    </div>
+                    
+                    <div class="form-section">
+                        <label class="form-label">Responsabilidades Principales</label>
+                        <textarea class="form-control" name="responsibilities" rows="4" placeholder="Ej: Desarrollar aplicaciones web escalables, colaborar con equipos cross-functional, participar en code reviews"></textarea>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-generate">
+                        <i class="fas fa-magic"></i> Generar Job Description
+                    </button>
+                </form>
+                
+                <div class="loading-spinner" id="loadingSpinner">
+                    <div class="spinner-border text-light" role="status">
+                        <span class="visually-hidden">Generando...</span>
+                    </div>
+                    <p class="mt-2">Generando Job Description con GPT...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- TEMPLATES DISPONIBLES -->
+        <div class="col-md-6">
+            <div class="gpt-card">
+                <h4><i class="fas fa-layer-group"></i> Templates Disponibles</h4>
+                
+                {% for template in gpt_data.templates %}
+                <div class="template-card" onclick="selectTemplate('{{ template.id }}')">
+                    <div class="template-name">{{ template.name }}</div>
+                    <div class="template-stats">
+                        <i class="fas fa-tag"></i> {{ template.category }} | 
+                        <i class="fas fa-users"></i> {{ template.usage_count }} usos | 
+                        <i class="fas fa-star"></i> {{ template.avg_rating }}/5
+                    </div>
+                </div>
+                {% endfor %}
+                
+                <div class="mt-3">
+                    <h6><i class="fas fa-star"></i> Templates Más Usados</h6>
+                    <ul class="list-unstyled">
+                        {% for template in gpt_data.usage_stats.most_used_templates %}
+                        <li><i class="fas fa-check text-success"></i> {{ template }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JD GENERADA -->
+    {% if request.session.generated_jd %}
+    <div class="gpt-card">
+        <h4><i class="fas fa-file-alt"></i> Job Description Generada</h4>
+        <div class="generated-jd">{{ request.session.generated_jd }}</div>
+        
+        <div class="mt-3">
+            <button class="btn btn-success me-2" onclick="copyToClipboard()">
+                <i class="fas fa-copy"></i> Copiar
+            </button>
+            <button class="btn btn-primary me-2" onclick="downloadJD()">
+                <i class="fas fa-download"></i> Descargar
+            </button>
+            <button class="btn btn-warning" onclick="regenerateJD()">
+                <i class="fas fa-redo"></i> Regenerar
+            </button>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- EJEMPLOS GENERADOS -->
+    <div class="gpt-card">
+        <h4><i class="fas fa-lightbulb"></i> Ejemplos Recientes</h4>
+        
+        {% for example in gpt_data.generated_examples %}
+        <div class="example-item">
+            <div class="example-header">
+                <div class="example-role">{{ example.role }}</div>
+                <div class="example-rating">
+                    {% for i in "12345" %}
+                        {% if forloop.counter <= example.user_rating %}
+                            <i class="fas fa-star star"></i>
+                        {% else %}
+                            <i class="fas fa-star star empty"></i>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            <small class="text-muted">
+                Template: {{ example.template_used }} | 
+                Generado: {{ example.generated_at|date:"d/m/Y H:i" }}
+            </small>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- MÉTRICAS DE CALIDAD -->
+    <div class="gpt-card">
+        <h4><i class="fas fa-chart-line"></i> Métricas de Calidad</h4>
+        
+        <div class="quality-metrics">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label>Completitud</label>
+                        <div class="metric-bar">
+                            <div class="metric-fill" style="width: {{ gpt_data.quality_metrics.avg_completeness }}%"></div>
+                        </div>
+                        <small>{{ gpt_data.quality_metrics.avg_completeness }}%</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label>Legibilidad</label>
+                        <div class="metric-bar">
+                            <div class="metric-fill" style="width: {{ gpt_data.quality_metrics.avg_readability }}%"></div>
+                        </div>
+                        <small>{{ gpt_data.quality_metrics.avg_readability }}%</small>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label>Engagement</label>
+                        <div class="metric-bar">
+                            <div class="metric-fill" style="width: {{ gpt_data.quality_metrics.avg_engagement }}%"></div>
+                        </div>
+                        <small>{{ gpt_data.quality_metrics.avg_engagement }}%</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <h6>Sugerencias de Mejora</h6>
+                        <ul class="list-unstyled">
+                            {% for suggestion in gpt_data.quality_metrics.improvement_suggestions %}
+                            <li><i class="fas fa-lightbulb text-warning"></i> {{ suggestion }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.getElementById('jdGeneratorForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // Mostrar spinner
+        document.getElementById('loadingSpinner').style.display = 'block';
+        
+        // Enviar formulario
+        this.submit();
+    });
+    
+    function selectTemplate(templateId) {
+        // Remover selección anterior
+        document.querySelectorAll('.template-card').forEach(card => {
+            card.classList.remove('selected');
+        });
+        
+        // Seleccionar template
+        event.target.closest('.template-card').classList.add('selected');
+        
+        // Aquí se podría cargar el template en el formulario
+        console.log('Template seleccionado:', templateId);
+    }
+    
+    function copyToClipboard() {
+        const jdText = document.querySelector('.generated-jd').textContent;
+        navigator.clipboard.writeText(jdText).then(() => {
+            alert('Job Description copiada al portapapeles');
+        });
+    }
+    
+    function downloadJD() {
+        const jdText = document.querySelector('.generated-jd').textContent;
+        const blob = new Blob([jdText], { type: 'text/plain' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'job_description.txt';
+        a.click();
+        window.URL.revokeObjectURL(url);
+    }
+    
+    function regenerateJD() {
+        if (confirm('¿Regenerar la Job Description?')) {
+            document.getElementById('jdGeneratorForm').submit();
+        }
+    }
+    
+    // Animaciones para las métricas
+    document.addEventListener('DOMContentLoaded', function() {
+        const metricFills = document.querySelectorAll('.metric-fill');
+        metricFills.forEach(fill => {
+            const width = fill.style.width;
+            fill.style.width = '0%';
+            setTimeout(() => {
+                fill.style.width = width;
+            }, 500);
+        });
+    });
+</script>
+{% endblock %} 

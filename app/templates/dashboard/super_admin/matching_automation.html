@@ -1,0 +1,557 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/analytics.css' %}">
+<style>
+    .matching-automation {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 20px;
+    }
+    
+    .matching-header {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 25px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        backdrop-filter: blur(10px);
+    }
+    
+    .header-title {
+        font-size: 32px;
+        font-weight: bold;
+        color: #2c3e50;
+        margin-bottom: 10px;
+    }
+    
+    .header-subtitle {
+        color: #7f8c8d;
+        font-size: 18px;
+    }
+    
+    .matching-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 25px;
+        margin-bottom: 25px;
+    }
+    
+    .matching-card {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        backdrop-filter: blur(10px);
+        transition: transform 0.3s ease;
+    }
+    
+    .matching-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #ecf0f1;
+    }
+    
+    .card-title {
+        font-size: 20px;
+        font-weight: bold;
+        color: #2c3e50;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .card-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 18px;
+    }
+    
+    .metric-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 15px 0;
+        border-bottom: 1px solid #ecf0f1;
+    }
+    
+    .metric-item:last-child {
+        border-bottom: none;
+    }
+    
+    .metric-label {
+        color: #7f8c8d;
+        font-size: 14px;
+    }
+    
+    .metric-value {
+        font-size: 18px;
+        font-weight: bold;
+        color: #2c3e50;
+    }
+    
+    .metric-value.high { color: #27ae60; }
+    .metric-value.medium { color: #f39c12; }
+    .metric-value.low { color: #e74c3c; }
+    
+    .conversion-chart {
+        height: 200px;
+        margin: 20px 0;
+    }
+    
+    .insight-item {
+        background: rgba(116, 185, 255, 0.1);
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 15px;
+    }
+    
+    .insight-title {
+        font-weight: bold;
+        color: #2c3e50;
+        margin-bottom: 5px;
+    }
+    
+    .insight-description {
+        color: #7f8c8d;
+        font-size: 14px;
+        margin-bottom: 10px;
+    }
+    
+    .insight-confidence {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 12px;
+    }
+    
+    .confidence-bar {
+        width: 100px;
+        height: 8px;
+        background: #ecf0f1;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    
+    .confidence-fill {
+        height: 100%;
+        background: linear-gradient(45deg, #27ae60, #2ecc71);
+        transition: width 0.3s ease;
+    }
+    
+    .recommendation-item {
+        border-left: 4px solid #667eea;
+        padding-left: 15px;
+        margin-bottom: 15px;
+    }
+    
+    .recommendation-title {
+        font-weight: bold;
+        color: #2c3e50;
+        margin-bottom: 5px;
+    }
+    
+    .recommendation-description {
+        color: #7f8c8d;
+        font-size: 14px;
+        margin-bottom: 5px;
+    }
+    
+    .recommendation-impact {
+        font-size: 12px;
+        color: #27ae60;
+        font-weight: bold;
+    }
+    
+    .matching-actions {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-top: 20px;
+    }
+    
+    .action-btn {
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        padding: 15px;
+        font-size: 14px;
+        font-weight: bold;
+        text-decoration: none;
+        text-align: center;
+        transition: transform 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+    }
+    
+    .action-btn:hover {
+        transform: translateY(-2px);
+        color: white;
+        text-decoration: none;
+    }
+    
+    .breadcrumb {
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 10px;
+        padding: 15px 20px;
+        margin-bottom: 20px;
+        backdrop-filter: blur(10px);
+    }
+    
+    .breadcrumb a {
+        color: #667eea;
+        text-decoration: none;
+    }
+    
+    .breadcrumb a:hover {
+        color: #764ba2;
+    }
+    
+    .score-display {
+        font-size: 48px;
+        font-weight: bold;
+        text-align: center;
+        margin: 20px 0;
+        background: linear-gradient(45deg, #27ae60, #2ecc71);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    
+    .progress-ring {
+        width: 120px;
+        height: 120px;
+        margin: 0 auto;
+    }
+    
+    .progress-ring circle {
+        fill: none;
+        stroke-width: 8;
+        stroke-linecap: round;
+    }
+    
+    .progress-ring .bg {
+        stroke: #ecf0f1;
+    }
+    
+    .progress-ring .progress {
+        stroke: url(#gradient);
+        stroke-dasharray: 283;
+        stroke-dashoffset: 283;
+        transition: stroke-dashoffset 0.5s ease;
+    }
+    
+    @media (max-width: 768px) {
+        .matching-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .matching-actions {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="matching-automation">
+    <!-- Breadcrumb -->
+    <div class="breadcrumb">
+        {% for breadcrumb in breadcrumbs %}
+            {% if forloop.last %}
+                <span>{{ breadcrumb.name }}</span>
+            {% else %}
+                <a href="{% url breadcrumb.url %}">{{ breadcrumb.name }}</a> / 
+            {% endif %}
+        {% endfor %}
+    </div>
+
+    <!-- Matching Header -->
+    <div class="matching-header">
+        <div class="header-title">
+            <i class="fas fa-bullseye"></i>
+            Matching Automático al 100%
+        </div>
+        <div class="header-subtitle">
+            Sistema inteligente de matching con analytics en tiempo real
+        </div>
+    </div>
+
+    <!-- Matching Grid -->
+    <div class="matching-grid">
+        <!-- Matching Performance -->
+        <div class="matching-card">
+            <div class="card-header">
+                <div class="card-title">
+                    <div class="card-icon" style="background: linear-gradient(45deg, #27ae60, #2ecc71);">
+                        <i class="fas fa-bullseye"></i>
+                    </div>
+                    Rendimiento de Matching
+                </div>
+            </div>
+            
+            {% if matching_performance %}
+            <div class="score-display">
+                {{ matching_performance.average_score|floatformat:1 }}%
+            </div>
+            
+            <div class="metric-item">
+                <span class="metric-label">Score Promedio</span>
+                <span class="metric-value high">{{ matching_performance.average_score|floatformat:2 }}</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-label">Matches Altos</span>
+                <span class="metric-value">{{ matching_performance.high_matches }}</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-label">Matches Medios</span>
+                <span class="metric-value">{{ matching_performance.medium_matches }}</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-label">Total de Matches</span>
+                <span class="metric-value">{{ matching_performance.total_matches }}</span>
+            </div>
+            {% else %}
+            <p style="color: #7f8c8d; text-align: center;">No hay datos disponibles</p>
+            {% endif %}
+        </div>
+
+        <!-- Conversion Metrics -->
+        <div class="matching-card">
+            <div class="card-header">
+                <div class="card-title">
+                    <div class="card-icon" style="background: linear-gradient(45deg, #e74c3c, #c0392b);">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    Métricas de Conversión
+                </div>
+            </div>
+            
+            {% if conversion_metrics %}
+            <div class="metric-item">
+                <span class="metric-label">Entrevista → Oferta</span>
+                <span class="metric-value high">{{ conversion_metrics.interview_to_offer|floatformat:1 }}%</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-label">Oferta → Contratación</span>
+                <span class="metric-value high">{{ conversion_metrics.offer_to_hire|floatformat:1 }}%</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-label">Retención 6 meses</span>
+                <span class="metric-value high">{{ conversion_metrics.hire_to_retention_6m|floatformat:1 }}%</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-label">Conversión Total</span>
+                <span class="metric-value medium">{{ conversion_metrics.overall_conversion|floatformat:1 }}%</span>
+            </div>
+            {% else %}
+            <p style="color: #7f8c8d; text-align: center;">No hay datos disponibles</p>
+            {% endif %}
+        </div>
+
+        <!-- Predictive Insights -->
+        <div class="matching-card">
+            <div class="card-header">
+                <div class="card-title">
+                    <div class="card-icon" style="background: linear-gradient(45deg, #9b59b6, #8e44ad);">
+                        <i class="fas fa-crystal-ball"></i>
+                    </div>
+                    Insights Predictivos
+                </div>
+            </div>
+            
+            {% if predictive_insights %}
+                {% for insight in predictive_insights %}
+                <div class="insight-item">
+                    <div class="insight-title">{{ insight.title }}</div>
+                    <div class="insight-description">{{ insight.description }}</div>
+                    <div class="insight-confidence">
+                        <span>Confianza:</span>
+                        <div class="confidence-bar">
+                            <div class="confidence-fill" style="width: {{ insight.confidence|floatformat:0 }}%"></div>
+                        </div>
+                        <span>{{ insight.confidence|floatformat:0 }}%</span>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+            <p style="color: #7f8c8d; text-align: center;">No hay insights disponibles</p>
+            {% endif %}
+        </div>
+
+        <!-- System Recommendations -->
+        <div class="matching-card">
+            <div class="card-header">
+                <div class="card-title">
+                    <div class="card-icon" style="background: linear-gradient(45deg, #3498db, #2980b9);">
+                        <i class="fas fa-lightbulb"></i>
+                    </div>
+                    Recomendaciones del Sistema
+                </div>
+            </div>
+            
+            {% if system_recommendations %}
+                {% for recommendation in system_recommendations %}
+                <div class="recommendation-item">
+                    <div class="recommendation-title">{{ recommendation.title }}</div>
+                    <div class="recommendation-description">{{ recommendation.description }}</div>
+                    <div class="recommendation-impact">{{ recommendation.expected_impact }}</div>
+                </div>
+                {% endfor %}
+            {% else %}
+            <p style="color: #7f8c8d; text-align: center;">No hay recomendaciones disponibles</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Matching Actions -->
+    <div class="matching-card">
+        <div class="card-header">
+            <div class="card-title">
+                <div class="card-icon" style="background: linear-gradient(45deg, #00b894, #00a085);">
+                    <i class="fas fa-bolt"></i>
+                </div>
+                Acciones de Matching
+            </div>
+        </div>
+        
+        <div class="matching-actions">
+            <a href="#" class="action-btn" onclick="runMatching()">
+                <i class="fas fa-play"></i>
+                Ejecutar Matching
+            </a>
+            <a href="#" class="action-btn" onclick="trainModels()">
+                <i class="fas fa-cogs"></i>
+                Entrenar Modelos
+            </a>
+            <a href="#" class="action-btn" onclick="exportMatchingData()">
+                <i class="fas fa-download"></i>
+                Exportar Datos
+            </a>
+            <a href="#" class="action-btn" onclick="viewAnalytics()">
+                <i class="fas fa-chart-bar"></i>
+                Ver Analytics
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Función para ejecutar matching
+function runMatching() {
+    fetch('{% url "advanced_analytics:api_matching_analytics" %}')
+        .then(response => response.json())
+        .then(data => {
+            console.log('Matching ejecutado:', data);
+            alert('Matching ejecutado exitosamente');
+            location.reload();
+        })
+        .catch(error => {
+            console.error('Error ejecutando matching:', error);
+            alert('Error al ejecutar matching');
+        });
+}
+
+// Función para entrenar modelos
+function trainModels() {
+    if (confirm('¿Deseas entrenar los modelos de matching? Esto puede tomar varios minutos.')) {
+        // Simulación de entrenamiento
+        alert('Entrenamiento iniciado. Los modelos se actualizarán automáticamente.');
+    }
+}
+
+// Función para exportar datos
+function exportMatchingData() {
+    const data = {
+        matching_performance: {{ matching_performance|safe }},
+        conversion_metrics: {{ conversion_metrics|safe }},
+        timestamp: new Date().toISOString()
+    };
+    
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'matching_data.json';
+    a.click();
+    window.URL.revokeObjectURL(url);
+}
+
+// Función para ver analytics
+function viewAnalytics() {
+    window.location.href = '{% url "advanced_analytics:advanced_analytics_dashboard" %}';
+}
+
+// Auto-refresh cada 3 minutos
+setInterval(function() {
+    location.reload();
+}, 180000);
+
+// Animaciones de confianza
+document.addEventListener('DOMContentLoaded', function() {
+    const confidenceBars = document.querySelectorAll('.confidence-fill');
+    confidenceBars.forEach(bar => {
+        const width = bar.style.width;
+        bar.style.width = '0%';
+        setTimeout(() => {
+            bar.style.width = width;
+        }, 500);
+    });
+});
+
+// Gráfico de conversión
+const ctx = document.createElement('canvas');
+ctx.className = 'conversion-chart';
+document.querySelector('.matching-card:nth-child(2)').appendChild(ctx);
+
+const conversionChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+        labels: ['Entrevista → Oferta', 'Oferta → Contratación', 'Retención 6m'],
+        datasets: [{
+            data: [
+                {{ conversion_metrics.interview_to_offer|default:35 }},
+                {{ conversion_metrics.offer_to_hire|default:85 }},
+                {{ conversion_metrics.hire_to_retention_6m|default:92 }}
+            ],
+            backgroundColor: [
+                '#27ae60',
+                '#3498db',
+                '#9b59b6'
+            ]
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom'
+            }
+        }
+    }
+});
+</script>
+{% endblock %} 

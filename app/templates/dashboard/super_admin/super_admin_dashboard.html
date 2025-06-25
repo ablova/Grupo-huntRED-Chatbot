@@ -1,0 +1,1844 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}🚀 Super Admin Dashboard - BRUCE ALMIGHTY MODE 🚀{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard/super_admin.css' %}">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+<style>
+    /* BRUCE ALMIGHTY MODE STYLES 🚀 */
+    .bruce-almighty-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+        color: white;
+        padding: 30px;
+        border-radius: 20px;
+        margin-bottom: 30px;
+        text-align: center;
+        box-shadow: 0 15px 35px rgba(102, 126, 234, 0.4);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .bruce-almighty-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="white" opacity="0.1"/><circle cx="75" cy="75" r="1" fill="white" opacity="0.1"/><circle cx="50" cy="10" r="0.5" fill="white" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+        animation: grainMove 20s linear infinite;
+    }
+    
+    @keyframes grainMove {
+        0% { transform: translate(0, 0); }
+        100% { transform: translate(100px, 100px); }
+    }
+    
+    .bruce-almighty-title {
+        font-size: 3rem;
+        font-weight: bold;
+        margin-bottom: 10px;
+        text-shadow: 3px 3px 6px rgba(0,0,0,0.3);
+        position: relative;
+        z-index: 1;
+    }
+    
+    .bruce-almighty-subtitle {
+        font-size: 1.2rem;
+        opacity: 0.9;
+        position: relative;
+        z-index: 1;
+    }
+    
+    .god-mode-indicator {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: linear-gradient(45deg, #ff6b6b, #ffa500);
+        color: white;
+        padding: 10px 20px;
+        border-radius: 25px;
+        font-weight: bold;
+        box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4);
+        animation: godModePulse 2s ease-in-out infinite;
+        z-index: 1000;
+    }
+    
+    @keyframes godModePulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+    }
+    
+    .nav-tabs {
+        background: rgba(255,255,255,0.1);
+        border-radius: 10px;
+        padding: 10px;
+        margin-bottom: 30px;
+        backdrop-filter: blur(10px);
+    }
+    
+    .nav-tabs .nav-link {
+        color: white;
+        border: none;
+        border-radius: 8px;
+        margin: 0 5px;
+        padding: 12px 20px;
+        transition: all 0.3s ease;
+        font-weight: bold;
+    }
+    
+    .nav-tabs .nav-link:hover {
+        background: rgba(255,255,255,0.2);
+        transform: translateY(-2px);
+    }
+    
+    .nav-tabs .nav-link.active {
+        background: rgba(255,255,255,0.3);
+        font-weight: bold;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+    
+    .control-panel {
+        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 30px;
+        color: white;
+        box-shadow: 0 10px 30px rgba(30, 60, 114, 0.3);
+    }
+    
+    .control-button {
+        background: linear-gradient(45deg, #ff6b6b, #ffa500);
+        border: none;
+        color: white;
+        padding: 12px 25px;
+        border-radius: 25px;
+        font-weight: bold;
+        margin: 5px;
+        transition: all 0.3s ease;
+        box-shadow: 0 5px 15px rgba(255, 107, 107, 0.3);
+    }
+    
+    .control-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(255, 107, 107, 0.5);
+    }
+    
+    .emergency-button {
+        background: linear-gradient(45deg, #ff4757, #ff3742);
+        animation: emergencyPulse 1s ease-in-out infinite;
+    }
+    
+    @keyframes emergencyPulse {
+        0%, 100% { box-shadow: 0 5px 15px rgba(255, 71, 87, 0.3); }
+        50% { box-shadow: 0 5px 25px rgba(255, 71, 87, 0.6); }
+    }
+    
+    .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    
+    .metric-card {
+        background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+        border-radius: 15px;
+        padding: 20px;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255,255,255,0.2);
+        transition: all 0.3s ease;
+    }
+    
+    .metric-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+    }
+    
+    .metric-value {
+        font-size: 2.5rem;
+        font-weight: bold;
+        color: #ffd700;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+    
+    .metric-label {
+        font-size: 1rem;
+        opacity: 0.8;
+        margin-top: 5px;
+    }
+    
+    .system-health {
+        background: linear-gradient(135deg, #2ed573 0%, #1e90ff 100%);
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 30px;
+        color: white;
+    }
+    
+    .health-indicator {
+        display: inline-block;
+        width: 15px;
+        height: 15px;
+        border-radius: 50%;
+        margin-right: 10px;
+        animation: healthPulse 2s ease-in-out infinite;
+    }
+    
+    .health-excellent { background-color: #2ed573; }
+    .health-good { background-color: #ffa500; }
+    .health-warning { background-color: #ff6b6b; }
+    .health-critical { background-color: #ff4757; }
+    
+    @keyframes healthPulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+    
+    .ai-status-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 15px;
+        margin-bottom: 30px;
+    }
+    
+    .ai-status-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 12px;
+        padding: 20px;
+        color: white;
+        text-align: center;
+        transition: all 0.3s ease;
+    }
+    
+    .ai-status-card:hover {
+        transform: scale(1.05);
+        box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+    }
+    
+    .ai-name {
+        font-size: 1.5rem;
+        font-weight: bold;
+        margin-bottom: 10px;
+    }
+    
+    .ai-status {
+        font-size: 1.2rem;
+        margin-bottom: 15px;
+    }
+    
+    .ai-metrics {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+    
+    .ai-metric {
+        background: rgba(255,255,255,0.1);
+        border-radius: 8px;
+        padding: 10px;
+    }
+    
+    .ai-metric-value {
+        font-size: 1.1rem;
+        font-weight: bold;
+        color: #ffd700;
+    }
+    
+    .ai-metric-label {
+        font-size: 0.8rem;
+        opacity: 0.8;
+    }
+    
+    .real-time-monitor {
+        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 30px;
+        color: white;
+    }
+    
+    .monitor-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+    }
+    
+    .monitor-item {
+        background: rgba(255,255,255,0.1);
+        border-radius: 10px;
+        padding: 15px;
+        text-align: center;
+    }
+    
+    .monitor-value {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #ffd700;
+    }
+    
+    .monitor-label {
+        font-size: 0.9rem;
+        opacity: 0.8;
+    }
+    
+    .direct-message-panel {
+        background: linear-gradient(135deg, #ff6b6b 0%, #ffa500 100%);
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 30px;
+        color: white;
+    }
+    
+    .message-form {
+        display: grid;
+        gap: 15px;
+    }
+    
+    .message-input {
+        background: rgba(255,255,255,0.1);
+        border: 1px solid rgba(255,255,255,0.3);
+        border-radius: 8px;
+        padding: 12px;
+        color: white;
+    }
+    
+    .message-input::placeholder {
+        color: rgba(255,255,255,0.7);
+    }
+    
+    .send-button {
+        background: linear-gradient(45deg, #2ed573, #1e90ff);
+        border: none;
+        color: white;
+        padding: 12px 25px;
+        border-radius: 25px;
+        font-weight: bold;
+        transition: all 0.3s ease;
+    }
+    
+    .send-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(46, 213, 115, 0.4);
+    }
+    
+    .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+    }
+    
+    .loading-spinner {
+        width: 60px;
+        height: 60px;
+        border: 5px solid rgba(255,255,255,0.3);
+        border-top: 5px solid #ffd700;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    .status-indicator {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 8px;
+    }
+    
+    .status-healthy { background: #28a745; }
+    .status-warning { background: #ffc107; }
+    .status-critical { background: #dc3545; }
+    
+    .action-buttons {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 20px;
+    }
+    
+    .btn-bruce {
+        background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+        border: none;
+        color: white;
+        padding: 12px 25px;
+        border-radius: 25px;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        transition: all 0.3s ease;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    }
+    
+    .btn-bruce:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+        color: white;
+    }
+    
+    .btn-emergency {
+        background: linear-gradient(45deg, #dc3545, #c82333);
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0% { box-shadow: 0 5px 15px rgba(220,53,69,0.4); }
+        50% { box-shadow: 0 5px 25px rgba(220,53,69,0.8); }
+        100% { box-shadow: 0 5px 15px rgba(220,53,69,0.4); }
+    }
+    
+    .real-time-updates {
+        background: rgba(0,0,0,0.3);
+        border-radius: 10px;
+        padding: 15px;
+        margin-top: 20px;
+    }
+    
+    .update-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 0;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .update-item:last-child {
+        border-bottom: none;
+    }
+    
+    .update-time {
+        font-size: 0.8rem;
+        opacity: 0.7;
+    }
+    
+    .tab-content {
+        background: rgba(255,255,255,0.05);
+        border-radius: 15px;
+        padding: 25px;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .automation-section {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 30px;
+        color: white;
+    }
+    
+    .automation-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+    }
+    
+    .automation-item {
+        background: rgba(255,255,255,0.1);
+        border-radius: 10px;
+        padding: 15px;
+        text-align: center;
+        transition: all 0.3s ease;
+    }
+    
+    .automation-item:hover {
+        transform: scale(1.05);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    }
+    
+    /* ESTILOS PARA NOTIFICACIONES DIRECTAS */
+    .notification-selector {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 30px;
+        color: white;
+    }
+    
+    .examples-section {
+        background: linear-gradient(135deg, #ff6b6b 0%, #ffa500 100%);
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 30px;
+        color: white;
+    }
+    
+    .examples-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+        margin-top: 20px;
+    }
+    
+    .example-card {
+        background: rgba(255,255,255,0.1);
+        border-radius: 10px;
+        padding: 20px;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255,255,255,0.2);
+    }
+    
+    .example-card h5 {
+        color: #ffd700;
+        margin-bottom: 10px;
+    }
+    
+    .message-editor {
+        background: linear-gradient(135deg, #2ed573 0%, #1e90ff 100%);
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 30px;
+        color: white;
+    }
+    
+    .message-templates {
+        margin-top: 20px;
+    }
+    
+    .message-templates button {
+        margin: 5px;
+        background: rgba(255,255,255,0.2);
+        border: 1px solid rgba(255,255,255,0.3);
+        color: white;
+    }
+    
+    .message-templates button:hover {
+        background: rgba(255,255,255,0.3);
+        color: white;
+    }
+    
+    .message-preview {
+        margin-bottom: 30px;
+    }
+    
+    .preview-box {
+        background: rgba(0,0,0,0.3);
+        border-radius: 8px;
+        padding: 15px;
+        min-height: 150px;
+        border: 1px solid rgba(255,255,255,0.2);
+    }
+    
+    .sending-options {
+        background: rgba(255,255,255,0.1);
+        border-radius: 10px;
+        padding: 20px;
+    }
+    
+    .sending-options .form-check {
+        margin-bottom: 10px;
+    }
+    
+    /* ESTILOS PARA DASHBOARDS INTEGRADOS */
+    .dashboards-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 25px;
+    }
+    
+    .dashboard-card {
+        background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+        border-radius: 15px;
+        padding: 25px;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255,255,255,0.2);
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+    }
+    
+    .dashboard-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+    }
+    
+    .dashboard-icon {
+        font-size: 2.5rem;
+        color: #ffd700;
+        min-width: 60px;
+        text-align: center;
+    }
+    
+    .dashboard-content {
+        flex: 1;
+    }
+    
+    .dashboard-content h4 {
+        color: #ffd700;
+        margin-bottom: 10px;
+        font-weight: bold;
+    }
+    
+    .dashboard-content p {
+        opacity: 0.8;
+        margin-bottom: 15px;
+    }
+    
+    .dashboard-actions {
+        display: flex;
+        gap: 10px;
+    }
+    
+    .dashboard-actions .btn {
+        padding: 8px 15px;
+        font-size: 0.9rem;
+    }
+    
+    /* RESPONSIVE DESIGN */
+    @media (max-width: 768px) {
+        .nav-tabs .nav-link {
+            padding: 8px 12px;
+            font-size: 0.8rem;
+        }
+        
+        .examples-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .dashboards-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .dashboard-card {
+            flex-direction: column;
+            text-align: center;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- BRUCE ALMIGHTY MODE INDICATOR 🚀 -->
+<div class="god-mode-indicator">
+    🚀 Bruce Almighty Mode Activated 🚀 <br>
+    🚀 Pablo Lelo de Larrea y de Haro 🚀
+</div>
+
+<!-- HEADER ESPECTACULAR -->
+<div class="bruce-almighty-header">
+    <h1 class="bruce-almighty-title">🧠 SUPER ADMIN DASHBOARD</h1>
+    <p class="bruce-almighty-subtitle">Control Total del Sistema huntRED - ¡Eres el DIOS de la plataforma! 🚀</p>
+</div>
+
+<!-- NAVEGACIÓN PRINCIPAL -->
+<ul class="nav nav-tabs" id="superAdminTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <a class="nav-link active" id="overview-tab" data-bs-toggle="tab" href="#overview" role="tab">
+            <i class="fas fa-tachometer-alt"></i> Overview
+        </a>
+    </li>
+    <li class="nav-item" role="presentation">
+        <a class="nav-link" id="consultants-tab" data-bs-toggle="tab" href="#consultants" role="tab">
+            <i class="fas fa-users"></i> Consultores
+        </a>
+    </li>
+    <li class="nav-item" role="presentation">
+        <a class="nav-link" id="clients-tab" data-bs-toggle="tab" href="#clients" role="tab">
+            <i class="fas fa-building"></i> Clientes
+        </a>
+    </li>
+    <li class="nav-item" role="presentation">
+        <a class="nav-link" id="candidates-tab" data-bs-toggle="tab" href="#candidates" role="tab">
+            <i class="fas fa-user-graduate"></i> Candidatos
+        </a>
+    </li>
+    <li class="nav-item" role="presentation">
+        <a class="nav-link" id="business-units-tab" data-bs-toggle="tab" href="#business-units" role="tab">
+            <i class="fas fa-sitemap"></i> Unidades de Negocio
+        </a>
+    </li>
+    <li class="nav-item" role="presentation">
+        <a class="nav-link" id="proposals-tab" data-bs-toggle="tab" href="#proposals" role="tab">
+            <i class="fas fa-file-contract"></i> Propuestas
+        </a>
+    </li>
+    <li class="nav-item" role="presentation">
+        <a class="nav-link" id="processes-tab" data-bs-toggle="tab" href="#processes" role="tab">
+            <i class="fas fa-cogs"></i> Procesos
+        </a>
+    </li>
+    <li class="nav-item" role="presentation">
+        <a class="nav-link" id="aura-tab" data-bs-toggle="tab" href="#aura" role="tab">
+            <i class="fas fa-crown"></i> AURA
+        </a>
+    </li>
+    <li class="nav-item" role="presentation">
+        <a class="nav-link" id="genia-tab" data-bs-toggle="tab" href="#genia" role="tab">
+            <i class="fas fa-brain"></i> GenIA
+        </a>
+    </li>
+    <li class="nav-item" role="presentation">
+        <a class="nav-link" id="automation-tab" data-bs-toggle="tab" href="#automation" role="tab">
+            <i class="fas fa-robot"></i> Automatización
+        </a>
+    </li>
+    <li class="nav-item" role="presentation">
+        <a class="nav-link" id="direct-notifications-tab" data-bs-toggle="tab" href="#direct-notifications" role="tab">
+            <i class="fas fa-bullhorn"></i> Notificaciones Directas
+        </a>
+    </li>
+    <li class="nav-item" role="presentation">
+        <a class="nav-link" id="integrated-dashboards-tab" data-bs-toggle="tab" href="#integrated-dashboards" role="tab">
+            <i class="fas fa-chart-line"></i> Dashboards Integrados
+        </a>
+    </li>
+</ul>
+
+<!-- CONTENIDO DE TABS -->
+<div class="tab-content" id="superAdminTabContent">
+    <!-- OVERVIEW TAB -->
+    <div class="tab-pane fade show active" id="overview" role="tabpanel">
+        <!-- PANEL DE CONTROL TOTAL -->
+        <div class="control-panel">
+            <h3><i class="fas fa-crown"></i> Panel de Control Total</h3>
+            <div class="row">
+                <div class="col-md-3">
+                    <button class="control-button" onclick="controlAura('restart')">
+                        <i class="fas fa-sync"></i> Reiniciar AURA
+                    </button>
+                </div>
+                <div class="col-md-3">
+                    <button class="control-button" onclick="controlGenia('restart')">
+                        <i class="fas fa-brain"></i> Reiniciar GenIA
+                    </button>
+                </div>
+                <div class="col-md-3">
+                    <button class="control-button" onclick="forceAnalysis()">
+                        <i class="fas fa-chart-line"></i> Forzar Análisis
+                    </button>
+                </div>
+                <div class="col-md-3">
+                    <button class="emergency-button" onclick="emergencyAction('system_backup')">
+                        <i class="fas fa-shield-alt"></i> Backup Sistema
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MÉTRICAS GLOBALES -->
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-value" id="total-users">--</div>
+                <div class="metric-label">Total Usuarios</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value" id="active-consultants">--</div>
+                <div class="metric-label">Consultores Activos</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value" id="active-clients">--</div>
+                <div class="metric-label">Clientes Activos</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value" id="total-candidates">--</div>
+                <div class="metric-label">Total Candidatos</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value" id="conversion-rate">--</div>
+                <div class="metric-label">Tasa de Conversión</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value" id="revenue-generated">--</div>
+                <div class="metric-label">Ingresos Generados</div>
+            </div>
+        </div>
+
+        <!-- SALUD DEL SISTEMA -->
+        <div class="system-health">
+            <h3><i class="fas fa-heartbeat"></i> Salud del Sistema</h3>
+            <div class="row">
+                <div class="col-md-2">
+                    <div class="health-indicator health-excellent"></div>
+                    <span>Servidor Principal</span>
+                </div>
+                <div class="col-md-2">
+                    <div class="health-indicator health-excellent"></div>
+                    <span>Base de Datos</span>
+                </div>
+                <div class="col-md-2">
+                    <div class="health-indicator health-excellent"></div>
+                    <span>IA/ML Services</span>
+                </div>
+                <div class="col-md-2">
+                    <div class="health-indicator health-excellent"></div>
+                    <span>Notificaciones</span>
+                </div>
+                <div class="col-md-2">
+                    <div class="health-indicator health-excellent"></div>
+                    <span>Integraciones</span>
+                </div>
+                <div class="col-md-2">
+                    <div class="health-indicator health-excellent"></div>
+                    <span>Seguridad</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ESTADO DE IA -->
+        <div class="ai-status-grid">
+            <div class="ai-status-card">
+                <div class="ai-name">AURA</div>
+                <div class="ai-status">🟢 ONLINE</div>
+                <div class="ai-metrics">
+                    <div class="ai-metric">
+                        <div class="ai-metric-value">98%</div>
+                        <div class="ai-metric-label">Precisión</div>
+                    </div>
+                    <div class="ai-metric">
+                        <div class="ai-metric-value">2.1s</div>
+                        <div class="ai-metric-label">Respuesta</div>
+                    </div>
+                </div>
+            </div>
+            <div class="ai-status-card">
+                <div class="ai-name">GenIA</div>
+                <div class="ai-status">🟢 ONLINE</div>
+                <div class="ai-metrics">
+                    <div class="ai-metric">
+                        <div class="ai-metric-value">95%</div>
+                        <div class="ai-metric-label">Precisión</div>
+                    </div>
+                    <div class="ai-metric">
+                        <div class="ai-metric-value">1.8s</div>
+                        <div class="ai-metric-label">Respuesta</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MONITOREO EN TIEMPO REAL -->
+        <div class="real-time-monitor">
+            <h3><i class="fas fa-clock"></i> Monitoreo en Tiempo Real</h3>
+            <div class="monitor-grid">
+                <div class="monitor-item">
+                    <div class="monitor-value" id="active-sessions">--</div>
+                    <div class="monitor-label">Sesiones Activas</div>
+                </div>
+                <div class="monitor-item">
+                    <div class="monitor-value" id="requests-per-minute">--</div>
+                    <div class="monitor-label">Requests/Min</div>
+                </div>
+                <div class="monitor-item">
+                    <div class="monitor-value" id="cpu-usage">--</div>
+                    <div class="monitor-label">CPU Usage</div>
+                </div>
+                <div class="monitor-item">
+                    <div class="monitor-value" id="memory-usage">--</div>
+                    <div class="monitor-label">Memory Usage</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PANEL DE MENSAJES DIRECTOS -->
+        <div class="direct-message-panel">
+            <h3><i class="fas fa-comments"></i> Mensaje Directo al Sistema</h3>
+            <div class="message-form">
+                <textarea class="message-input" id="system-message" rows="3" placeholder="Escribe tu mensaje directo al sistema..."></textarea>
+                <button class="send-button" onclick="sendSystemMessage()">
+                    <i class="fas fa-paper-plane"></i> Enviar Mensaje
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CONSULTORES TAB -->
+    <div class="tab-pane fade" id="consultants" role="tabpanel">
+        <h3><i class="fas fa-users"></i> Analytics de Consultores</h3>
+        <div id="consultants-content">
+            <p>Cargando analytics de consultores...</p>
+        </div>
+    </div>
+
+    <!-- CLIENTES TAB -->
+    <div class="tab-pane fade" id="clients" role="tabpanel">
+        <h3><i class="fas fa-building"></i> Analytics de Clientes</h3>
+        <div id="clients-content">
+            <p>Cargando analytics de clientes...</p>
+        </div>
+    </div>
+
+    <!-- CANDIDATOS TAB -->
+    <div class="tab-pane fade" id="candidates" role="tabpanel">
+        <h3><i class="fas fa-user-graduate"></i> Analytics de Candidatos</h3>
+        <div id="candidates-content">
+            <p>Cargando analytics de candidatos...</p>
+        </div>
+    </div>
+
+    <!-- UNIDADES DE NEGOCIO TAB -->
+    <div class="tab-pane fade" id="business-units" role="tabpanel">
+        <h3><i class="fas fa-sitemap"></i> Control por Unidad de Negocio</h3>
+        <div id="business-units-content">
+            <p>Cargando unidades de negocio...</p>
+        </div>
+    </div>
+
+    <!-- PROPUESTAS TAB -->
+    <div class="tab-pane fade" id="proposals" role="tabpanel">
+        <h3><i class="fas fa-file-contract"></i> Gestión de Propuestas</h3>
+        <div id="proposals-content">
+            <p>Cargando propuestas...</p>
+        </div>
+    </div>
+
+    <!-- PROCESOS TAB -->
+    <div class="tab-pane fade" id="processes" role="tabpanel">
+        <h3><i class="fas fa-cogs"></i> Gestión de Procesos</h3>
+        <div id="processes-content">
+            <p>Cargando procesos...</p>
+        </div>
+    </div>
+
+    <!-- AURA TAB -->
+    <div class="tab-pane fade" id="aura" role="tabpanel">
+        <h3><i class="fas fa-crown"></i> Control de AURA</h3>
+        <div id="aura-content">
+            <p>Cargando control de AURA...</p>
+        </div>
+    </div>
+
+    <!-- GENIA TAB -->
+    <div class="tab-pane fade" id="genia" role="tabpanel">
+        <h3><i class="fas fa-brain"></i> Control de GenIA</h3>
+        <div id="genia-content">
+            <p>Cargando control de GenIA...</p>
+        </div>
+    </div>
+
+    <!-- AUTOMATIZACIÓN TAB -->
+    <div class="tab-pane fade" id="automation" role="tabpanel">
+        <h3><i class="fas fa-robot"></i> Control de Automatización</h3>
+        <div class="automation-section">
+            <div class="automation-grid">
+                <div class="automation-item">
+                    <h4><i class="fas fa-magic"></i> Automatización Omnicanal</h4>
+                    <p>Control total de notificaciones y workflows</p>
+                    <a href="{% url 'omnichannel_automation:omnichannel_automation_dashboard' %}" class="btn btn-bruce">
+                        Acceder
+                    </a>
+                </div>
+                <div class="automation-item">
+                    <h4><i class="fas fa-brain"></i> Engagement Predictivo</h4>
+                    <p>Analytics predictivos de engagement</p>
+                    <a href="{% url 'omnichannel_automation:predictive_engagement_dashboard' %}" class="btn btn-bruce">
+                        Acceder
+                    </a>
+                </div>
+                <div class="automation-item">
+                    <h4><i class="fas fa-project-diagram"></i> Workflows Inteligentes</h4>
+                    <p>Automatización de procesos de reclutamiento</p>
+                    <a href="{% url 'omnichannel_automation:intelligent_workflows_dashboard' %}" class="btn btn-bruce">
+                        Acceder
+                    </a>
+                </div>
+                <div class="automation-item">
+                    <h4><i class="fas fa-magic"></i> Optimización Automática</h4>
+                    <p>Mejora continua del sistema</p>
+                    <a href="{% url 'omnichannel_automation:automation_optimization_dashboard' %}" class="btn btn-bruce">
+                        Acceder
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- NOTIFICACIONES DIRECTAS TAB -->
+    <div class="tab-pane fade" id="direct-notifications" role="tabpanel">
+        <h3><i class="fas fa-bullhorn"></i> Notificaciones Directas</h3>
+        
+        <!-- SELECTOR DE DESTINATARIO -->
+        <div class="notification-selector">
+            <div class="row">
+                <div class="col-md-4">
+                    <label for="notification-type">Tipo de Destinatario:</label>
+                    <select id="notification-type" class="form-control" onchange="loadRecipients()">
+                        <option value="">Seleccionar tipo...</option>
+                        <option value="candidate">Candidato Específico</option>
+                        <option value="process_responsible">Responsable de Proceso</option>
+                        <option value="process_candidates">Candidatos de Proceso</option>
+                        <option value="business_unit">Unidad de Negocio</option>
+                        <option value="consultant">Consultor</option>
+                        <option value="client">Cliente</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="recipient-selector">Destinatario:</label>
+                    <select id="recipient-selector" class="form-control" disabled>
+                        <option value="">Seleccionar destinatario...</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="channel-selector">Canal:</label>
+                    <select id="channel-selector" class="form-control">
+                        <option value="whatsapp">WhatsApp</option>
+                        <option value="email">Email</option>
+                        <option value="telegram">Telegram</option>
+                        <option value="sms">SMS</option>
+                        <option value="slack">Slack</option>
+                        <option value="discord">Discord</option>
+                        <option value="teams">Microsoft Teams</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- EJEMPLOS PRÁCTICOS -->
+        <div class="examples-section">
+            <h4><i class="fas fa-lightbulb"></i> Ejemplos de Uso:</h4>
+            <div class="examples-grid">
+                <div class="example-card">
+                    <h5>📞 WhatsApp a Responsable</h5>
+                    <p>Enviar notificación al Responsable del Proceso de Reclutamiento en Amigro sobre el proceso COMEX</p>
+                    <button class="btn btn-sm btn-primary" onclick="loadExample('process_responsible', 'amigro_comex', 'whatsapp')">
+                        Cargar Ejemplo
+                    </button>
+                </div>
+                <div class="example-card">
+                    <h5>👤 WhatsApp a Candidato</h5>
+                    <p>Enviar mensaje a JUAN PEREZ en etapa de Onboarding del proceso X</p>
+                    <button class="btn btn-sm btn-primary" onclick="loadExample('candidate', 'juan_perez_onboarding', 'whatsapp')">
+                        Cargar Ejemplo
+                    </button>
+                </div>
+                <div class="example-card">
+                    <h5>🏢 Notificación BU</h5>
+                    <p>Enviar notificación a toda la Unidad de Negocio de Amigro</p>
+                    <button class="btn btn-sm btn-primary" onclick="loadExample('business_unit', 'amigro', 'email')">
+                        Cargar Ejemplo
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- EDITOR DE MENSAJE -->
+        <div class="message-editor">
+            <h4><i class="fas fa-edit"></i> Editor de Mensaje:</h4>
+            <div class="row">
+                <div class="col-md-8">
+                    <label for="message-subject">Asunto:</label>
+                    <input type="text" id="message-subject" class="form-control" placeholder="Asunto del mensaje...">
+                    
+                    <label for="message-content">Mensaje:</label>
+                    <textarea id="message-content" class="form-control" rows="6" placeholder="Escribe tu mensaje aquí..."></textarea>
+                    
+                    <div class="message-templates">
+                        <h5>Plantillas Rápidas:</h5>
+                        <button class="btn btn-sm btn-outline-primary" onclick="loadTemplate('welcome')">Bienvenida</button>
+                        <button class="btn btn-sm btn-outline-primary" onclick="loadTemplate('interview')">Entrevista</button>
+                        <button class="btn btn-sm btn-outline-primary" onclick="loadTemplate('onboarding')">Onboarding</button>
+                        <button class="btn btn-sm btn-outline-primary" onclick="loadTemplate('urgent')">Urgente</button>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="message-preview">
+                        <h5>Vista Previa:</h5>
+                        <div id="message-preview-content" class="preview-box">
+                            <p class="text-muted">La vista previa aparecerá aquí...</p>
+                        </div>
+                    </div>
+                    
+                    <div class="sending-options">
+                        <h5>Opciones de Envío:</h5>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="schedule-message">
+                            <label class="form-check-label" for="schedule-message">
+                                Programar envío
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="track-delivery">
+                            <label class="form-check-label" for="track-delivery">
+                                Rastrear entrega
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="save-template">
+                            <label class="form-check-label" for="save-template">
+                                Guardar como plantilla
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="action-buttons">
+                <button class="btn btn-success btn-lg" onclick="sendDirectNotification()">
+                    <i class="fas fa-paper-plane"></i> Enviar Notificación
+                </button>
+                <button class="btn btn-info btn-lg" onclick="previewNotification()">
+                    <i class="fas fa-eye"></i> Vista Previa
+                </button>
+                <button class="btn btn-warning btn-lg" onclick="saveAsDraft()">
+                    <i class="fas fa-save"></i> Guardar Borrador
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- DASHBOARDS INTEGRADOS TAB -->
+    <div class="tab-pane fade" id="integrated-dashboards" role="tabpanel">
+        <h3><i class="fas fa-chart-line"></i> Dashboards Integrados</h3>
+        
+        <div class="dashboards-grid">
+            <!-- ANALYTICS AVANZADOS -->
+            <div class="dashboard-card">
+                <div class="dashboard-icon">
+                    <i class="fas fa-chart-bar"></i>
+                </div>
+                <div class="dashboard-content">
+                    <h4>Analytics Avanzados</h4>
+                    <p>Métricas detalladas y predicciones con IA</p>
+                    <div class="dashboard-actions">
+                        <a href="{% url 'advanced_analytics:advanced_analytics_dashboard' %}" class="btn btn-primary">
+                            <i class="fas fa-external-link-alt"></i> Abrir
+                        </a>
+                        <button class="btn btn-info" onclick="showDashboardPreview('advanced_analytics')">
+                            <i class="fas fa-eye"></i> Preview
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MATCHING AUTOMÁTICO -->
+            <div class="dashboard-card">
+                <div class="dashboard-icon">
+                    <i class="fas fa-magic"></i>
+                </div>
+                <div class="dashboard-content">
+                    <h4>Matching Automático</h4>
+                    <p>Sistema de matching al 100% con AURA</p>
+                    <div class="dashboard-actions">
+                        <a href="{% url 'advanced_analytics:matching_automation_dashboard' %}" class="btn btn-primary">
+                            <i class="fas fa-external-link-alt"></i> Abrir
+                        </a>
+                        <button class="btn btn-info" onclick="showDashboardPreview('matching_automation')">
+                            <i class="fas fa-eye"></i> Preview
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- WHATSAPP BUSINESS API -->
+            <div class="dashboard-card">
+                <div class="dashboard-icon">
+                    <i class="fab fa-whatsapp"></i>
+                </div>
+                <div class="dashboard-content">
+                    <h4>WhatsApp Business API</h4>
+                    <p>Integración completa con WhatsApp</p>
+                    <div class="dashboard-actions">
+                        <a href="{% url 'advanced_analytics:whatsapp_integration_dashboard' %}" class="btn btn-primary">
+                            <i class="fas fa-external-link-alt"></i> Abrir
+                        </a>
+                        <button class="btn btn-info" onclick="showDashboardPreview('whatsapp_integration')">
+                            <i class="fas fa-eye"></i> Preview
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- KANBAN AVANZADO -->
+            <div class="dashboard-card">
+                <div class="dashboard-icon">
+                    <i class="fas fa-columns"></i>
+                </div>
+                <div class="dashboard-content">
+                    <h4>Kanban Avanzado</h4>
+                    <p>Gestión visual de procesos con filtros</p>
+                    <div class="dashboard-actions">
+                        <a href="{% url 'super_admin:advanced_kanban' %}" class="btn btn-primary">
+                            <i class="fas fa-external-link-alt"></i> Abrir
+                        </a>
+                        <button class="btn btn-info" onclick="showDashboardPreview('advanced_kanban')">
+                            <i class="fas fa-eye"></i> Preview
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DASHBOARD FINANCIERO -->
+            <div class="dashboard-card">
+                <div class="dashboard-icon">
+                    <i class="fas fa-dollar-sign"></i>
+                </div>
+                <div class="dashboard-content">
+                    <h4>Dashboard Financiero</h4>
+                    <p>Métricas financieras por unidad de negocio</p>
+                    <div class="dashboard-actions">
+                        <a href="{% url 'super_admin:financial_dashboard' %}" class="btn btn-primary">
+                            <i class="fas fa-external-link-alt"></i> Abrir
+                        </a>
+                        <button class="btn btn-info" onclick="showDashboardPreview('financial_dashboard')">
+                            <i class="fas fa-eye"></i> Preview
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- BUSCADOR INTELIGENTE -->
+            <div class="dashboard-card">
+                <div class="dashboard-icon">
+                    <i class="fas fa-search"></i>
+                </div>
+                <div class="dashboard-content">
+                    <h4>Buscador Inteligente</h4>
+                    <p>Búsqueda avanzada con IA y ML</p>
+                    <div class="dashboard-actions">
+                        <a href="{% url 'super_admin:intelligent_search' %}" class="btn btn-primary">
+                            <i class="fas fa-external-link-alt"></i> Abrir
+                        </a>
+                        <button class="btn btn-info" onclick="showDashboardPreview('intelligent_search')">
+                            <i class="fas fa-eye"></i> Preview
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- COMPARADOR DE SALARIOS -->
+            <div class="dashboard-card">
+                <div class="dashboard-icon">
+                    <i class="fas fa-balance-scale"></i>
+                </div>
+                <div class="dashboard-content">
+                    <h4>Comparador de Salarios</h4>
+                    <p>Análisis salarial y benchmarking</p>
+                    <div class="dashboard-actions">
+                        <a href="{% url 'super_admin:salary_comparator' %}" class="btn btn-primary">
+                            <i class="fas fa-external-link-alt"></i> Abrir
+                        </a>
+                        <button class="btn btn-info" onclick="showDashboardPreview('salary_comparator')">
+                            <i class="fas fa-eye"></i> Preview
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- GESTIÓN DE PROCESOS -->
+            <div class="dashboard-card">
+                <div class="dashboard-icon">
+                    <i class="fas fa-cogs"></i>
+                </div>
+                <div class="dashboard-content">
+                    <h4>Gestión de Procesos</h4>
+                    <p>Control total de procesos de reclutamiento</p>
+                    <div class="dashboard-actions">
+                        <a href="{% url 'super_admin:process_management' %}" class="btn btn-primary">
+                            <i class="fas fa-external-link-alt"></i> Abrir
+                        </a>
+                        <button class="btn btn-info" onclick="showDashboardPreview('process_management')">
+                            <i class="fas fa-eye"></i> Preview
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- GENERADOR GPT JD -->
+            <div class="dashboard-card">
+                <div class="dashboard-icon">
+                    <i class="fas fa-file-alt"></i>
+                </div>
+                <div class="dashboard-content">
+                    <h4>Generador GPT JD</h4>
+                    <p>Generación automática de job descriptions</p>
+                    <div class="dashboard-actions">
+                        <a href="{% url 'super_admin:gpt_jd_generator' %}" class="btn btn-primary">
+                            <i class="fas fa-external-link-alt"></i> Abrir
+                        </a>
+                        <button class="btn btn-info" onclick="showDashboardPreview('gpt_jd_generator')">
+                            <i class="fas fa-eye"></i> Preview
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CONTROL UNIDADES DE NEGOCIO -->
+            <div class="dashboard-card">
+                <div class="dashboard-icon">
+                    <i class="fas fa-sitemap"></i>
+                </div>
+                <div class="dashboard-content">
+                    <h4>Control Unidades de Negocio</h4>
+                    <p>Gestión granular por unidad de negocio</p>
+                    <div class="dashboard-actions">
+                        <a href="{% url 'super_admin:business_unit_control' %}" class="btn btn-primary">
+                            <i class="fas fa-external-link-alt"></i> Abrir
+                        </a>
+                        <button class="btn btn-info" onclick="showDashboardPreview('business_unit_control')">
+                            <i class="fas fa-eye"></i> Preview
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- LOADING OVERLAY -->
+<div class="loading-overlay" id="loadingOverlay" style="display: none;">
+    <div class="loading-spinner"></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+$(document).ready(function() {
+    // Cargar datos iniciales
+    loadSystemOverview();
+    
+    // Actualizar datos cada 30 segundos
+    setInterval(loadSystemOverview, 30000);
+    
+    // Cargar contenido de tabs cuando se activan
+    $('#superAdminTabs a[data-bs-toggle="tab"]').on('shown.bs.tab', function (e) {
+        const target = $(e.target).attr('href');
+        
+        switch(target) {
+            case '#consultants':
+                loadConsultantAnalytics();
+                break;
+            case '#clients':
+                loadClientAnalytics();
+                break;
+            case '#candidates':
+                loadCandidateAnalytics();
+                break;
+            case '#processes':
+                loadProcessAnalytics();
+                break;
+            case '#aura':
+                loadAuraAnalytics();
+                break;
+            case '#genia':
+                loadGeniaAnalytics();
+                break;
+        }
+    });
+});
+
+function loadSystemOverview() {
+    // Simular carga de datos del sistema
+    $('#total-users').text('1,247');
+    $('#active-consultants').text('45');
+    $('#active-clients').text('89');
+    $('#total-candidates').text('2,341');
+    $('#conversion-rate').text('78.5%');
+    $('#revenue-generated').text('$2.4M');
+    
+    $('#active-sessions').text('156');
+    $('#requests-per-minute').text('1,234');
+    $('#cpu-usage').text('45%');
+    $('#memory-usage').text('67%');
+}
+
+function showLoading() {
+    $('#loadingOverlay').show();
+}
+
+function hideLoading() {
+    $('#loadingOverlay').hide();
+}
+
+function sendSystemMessage() {
+    const message = $('#system-message').val();
+    if (!message) {
+        alert('Por favor escribe un mensaje');
+        return;
+    }
+    
+    showLoading();
+    
+    // Simular envío de mensaje
+    setTimeout(() => {
+        hideLoading();
+        alert('Mensaje enviado al sistema: ' + message);
+        $('#system-message').val('');
+    }, 2000);
+}
+
+function controlAura(action) {
+    if (!confirm('¿Estás seguro de que quieres ' + action + ' AURA?')) return;
+    
+    showLoading();
+    
+    $.ajax({
+        url: '/super-admin/aura-control/',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            action: action,
+            parameters: {}
+        }),
+        success: function(data) {
+            hideLoading();
+            if (data.success) {
+                alert('¡AURA controlado con éxito!');
+                loadSystemOverview();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        },
+        error: function() {
+            hideLoading();
+            alert('Error controlando AURA');
+        }
+    });
+}
+
+function controlGenia(action) {
+    if (!confirm('¿Estás seguro de que quieres ' + action + ' GenIA?')) return;
+    
+    showLoading();
+    
+    $.ajax({
+        url: '/super-admin/genia-control/',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            action: action,
+            parameters: {}
+        }),
+        success: function(data) {
+            hideLoading();
+            if (data.success) {
+                alert('¡GenIA controlado con éxito!');
+                loadSystemOverview();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        },
+        error: function() {
+            hideLoading();
+            alert('Error controlando GenIA');
+        }
+    });
+}
+
+function forceAnalysis() {
+    if (!confirm('¿Forzar análisis global del sistema?')) return;
+    
+    showLoading();
+    
+    $.ajax({
+        url: '/super-admin/aura-control/',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            action: 'force_analysis',
+            parameters: {}
+        }),
+        success: function(data) {
+            hideLoading();
+            if (data.success) {
+                alert('¡Análisis forzado con éxito!');
+                loadSystemOverview();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        },
+        error: function() {
+            hideLoading();
+            alert('Error forzando análisis');
+        }
+    });
+}
+
+function emergencyAction(action) {
+    if (!confirm('¿ACCIONES DE EMERGENCIA - ¿Estás completamente seguro?')) return;
+    
+    showLoading();
+    
+    $.ajax({
+        url: '/super-admin/emergency-actions/',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            action: action,
+            parameters: {}
+        }),
+        success: function(data) {
+            hideLoading();
+            if (data.success) {
+                alert('¡Acción de emergencia ejecutada!');
+                loadSystemOverview();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        },
+        error: function() {
+            hideLoading();
+            alert('Error en acción de emergencia');
+        }
+    });
+}
+
+function loadConsultantAnalytics() {
+    $.get('/super-admin/consultant-analytics/')
+        .done(function(data) {
+            if (data.success) {
+                $('#consultants-content').html(formatConsultantAnalytics(data.analytics));
+            }
+        });
+}
+
+function loadClientAnalytics() {
+    $.get('/super-admin/client-analytics/')
+        .done(function(data) {
+            if (data.success) {
+                $('#clients-content').html(formatClientAnalytics(data.analytics));
+            }
+        });
+}
+
+function loadCandidateAnalytics() {
+    $.get('/super-admin/candidate-analytics/')
+        .done(function(data) {
+            if (data.success) {
+                $('#candidates-content').html(formatCandidateAnalytics(data.analytics));
+            }
+        });
+}
+
+function loadProcessAnalytics() {
+    $.get('/super-admin/process-analytics/')
+        .done(function(data) {
+            if (data.success) {
+                $('#processes-content').html(formatProcessAnalytics(data.analytics));
+            }
+        });
+}
+
+function loadAuraAnalytics() {
+    $.get('/super-admin/aura-analytics/')
+        .done(function(data) {
+            if (data.success) {
+                $('#aura-content').html(formatAuraAnalytics(data.analytics));
+            }
+        });
+}
+
+function loadGeniaAnalytics() {
+    $.get('/super-admin/genia-analytics/')
+        .done(function(data) {
+            if (data.success) {
+                $('#genia-content').html(formatGeniaAnalytics(data.analytics));
+            }
+        });
+}
+
+// Funciones de formato (implementar según necesidades)
+function formatConsultantAnalytics(analytics) {
+    return '<p>Analytics de consultores cargados</p>';
+}
+
+function formatClientAnalytics(analytics) {
+    return '<p>Analytics de clientes cargados</p>';
+}
+
+function formatCandidateAnalytics(analytics) {
+    return '<p>Analytics de candidatos cargados</p>';
+}
+
+function formatProcessAnalytics(analytics) {
+    return '<p>Analytics de procesos cargados</p>';
+}
+
+function formatAuraAnalytics(analytics) {
+    return '<p>Analytics de AURA cargados</p>';
+}
+
+function formatGeniaAnalytics(analytics) {
+    return '<p>Analytics de GenIA cargados</p>';
+}
+
+// FUNCIONES PARA NOTIFICACIONES DIRECTAS
+function loadRecipients() {
+    const notificationType = $('#notification-type').val();
+    const recipientSelector = $('#recipient-selector');
+    
+    if (!notificationType) {
+        recipientSelector.prop('disabled', true);
+        recipientSelector.html('<option value="">Seleccionar destinatario...</option>');
+        return;
+    }
+    
+    recipientSelector.prop('disabled', false);
+    
+    // Simular carga de destinatarios según el tipo
+    let options = '<option value="">Seleccionar destinatario...</option>';
+    
+    switch(notificationType) {
+        case 'candidate':
+            options += `
+                <option value="juan_perez">Juan Pérez - Onboarding</option>
+                <option value="maria_garcia">María García - Entrevista</option>
+                <option value="carlos_rodriguez">Carlos Rodríguez - Evaluación</option>
+            `;
+            break;
+        case 'process_responsible':
+            options += `
+                <option value="amigro_comex">Responsable COMEX - Amigro</option>
+                <option value="amigro_tech">Responsable Tech - Amigro</option>
+                <option value="huntred_sales">Responsable Sales - huntRED</option>
+            `;
+            break;
+        case 'process_candidates':
+            options += `
+                <option value="comex_candidates">Candidatos Proceso COMEX</option>
+                <option value="tech_candidates">Candidatos Proceso Tech</option>
+                <option value="sales_candidates">Candidatos Proceso Sales</option>
+            `;
+            break;
+        case 'business_unit':
+            options += `
+                <option value="amigro">Unidad de Negocio - Amigro</option>
+                <option value="huntred">Unidad de Negocio - huntRED</option>
+                <option value="sexsi">Unidad de Negocio - SEXSI</option>
+            `;
+            break;
+        case 'consultant':
+            options += `
+                <option value="consultant_1">Consultor Senior - Ana López</option>
+                <option value="consultant_2">Consultor - Pedro Martínez</option>
+                <option value="consultant_3">Consultor Junior - Laura Sánchez</option>
+            `;
+            break;
+        case 'client':
+            options += `
+                <option value="client_amigro">Cliente - Amigro</option>
+                <option value="client_techcorp">Cliente - TechCorp</option>
+                <option value="client_innovate">Cliente - InnovateLab</option>
+            `;
+            break;
+    }
+    
+    recipientSelector.html(options);
+}
+
+function loadExample(type, recipient, channel) {
+    $('#notification-type').val(type);
+    loadRecipients();
+    
+    setTimeout(() => {
+        $('#recipient-selector').val(recipient);
+        $('#channel-selector').val(channel);
+        
+        // Cargar mensaje de ejemplo
+        switch(recipient) {
+            case 'amigro_comex':
+                $('#message-subject').val('Actualización Proceso COMEX - Amigro');
+                $('#message-content').val('Hola, te informo que el proceso de reclutamiento para COMEX en Amigro ha avanzado a la siguiente etapa. Por favor revisa los candidatos en el dashboard.');
+                break;
+            case 'juan_perez_onboarding':
+                $('#message-subject').val('Bienvenido al Onboarding - huntRED');
+                $('#message-content').val('¡Hola Juan! Te damos la bienvenida al proceso de onboarding. Tu fecha de inicio será el próximo lunes. Te enviaremos más detalles por email.');
+                break;
+            case 'amigro':
+                $('#message-subject').val('Notificación General - Unidad Amigro');
+                $('#message-content').val('Estimados miembros de la unidad de negocio Amigro, les compartimos las métricas semanales y próximos objetivos.');
+                break;
+        }
+        
+        updateMessagePreview();
+    }, 100);
+}
+
+function loadTemplate(templateType) {
+    let subject = '';
+    let content = '';
+    
+    switch(templateType) {
+        case 'welcome':
+            subject = 'Bienvenido a huntRED';
+            content = '¡Hola! Te damos la bienvenida a huntRED. Estamos emocionados de tenerte en nuestro equipo.';
+            break;
+        case 'interview':
+            subject = 'Confirmación de Entrevista';
+            content = 'Tu entrevista ha sido confirmada para mañana a las 10:00 AM. Por favor confirma tu asistencia.';
+            break;
+        case 'onboarding':
+            subject = 'Proceso de Onboarding';
+            content = 'Te informamos que tu proceso de onboarding comenzará la próxima semana. Revisa tu email para más detalles.';
+            break;
+        case 'urgent':
+            subject = 'URGENTE - Acción Requerida';
+            content = 'Se requiere tu atención inmediata. Por favor revisa el dashboard y toma las acciones necesarias.';
+            break;
+    }
+    
+    $('#message-subject').val(subject);
+    $('#message-content').val(content);
+    updateMessagePreview();
+}
+
+function updateMessagePreview() {
+    const subject = $('#message-subject').val();
+    const content = $('#message-content').val();
+    const channel = $('#channel-selector').val();
+    
+    let preview = '';
+    if (subject) {
+        preview += `<strong>Asunto:</strong> ${subject}<br><br>`;
+    }
+    if (content) {
+        preview += `<strong>Mensaje:</strong><br>${content.replace(/\n/g, '<br>')}`;
+    }
+    if (channel) {
+        preview += `<br><br><em>Canal: ${channel.toUpperCase()}</em>`;
+    }
+    
+    if (preview) {
+        $('#message-preview-content').html(preview);
+    } else {
+        $('#message-preview-content').html('<p class="text-muted">La vista previa aparecerá aquí...</p>');
+    }
+}
+
+function sendDirectNotification() {
+    const type = $('#notification-type').val();
+    const recipient = $('#recipient-selector').val();
+    const channel = $('#channel-selector').val();
+    const subject = $('#message-subject').val();
+    const content = $('#message-content').val();
+    
+    if (!type || !recipient || !subject || !content) {
+        alert('Por favor completa todos los campos requeridos');
+        return;
+    }
+    
+    showLoading();
+    
+    // Simular envío de notificación
+    setTimeout(() => {
+        hideLoading();
+        alert(`✅ Notificación enviada exitosamente a ${recipient} por ${channel}`);
+        
+        // Limpiar formulario
+        $('#message-subject').val('');
+        $('#message-content').val('');
+        updateMessagePreview();
+    }, 2000);
+}
+
+function previewNotification() {
+    updateMessagePreview();
+    alert('Vista previa actualizada');
+}
+
+function saveAsDraft() {
+    const subject = $('#message-subject').val();
+    const content = $('#message-content').val();
+    
+    if (!subject && !content) {
+        alert('No hay contenido para guardar');
+        return;
+    }
+    
+    // Simular guardado
+    alert('Borrador guardado exitosamente');
+}
+
+// FUNCIONES PARA DASHBOARDS INTEGRADOS
+function showDashboardPreview(dashboardType) {
+    let title = '';
+    let description = '';
+    
+    switch(dashboardType) {
+        case 'advanced_analytics':
+            title = 'Analytics Avanzados';
+            description = 'Dashboard con métricas detalladas, predicciones con IA, y análisis de rendimiento del sistema.';
+            break;
+        case 'matching_automation':
+            title = 'Matching Automático';
+            description = 'Sistema de matching al 100% con AURA, analytics de matching, y optimización automática.';
+            break;
+        case 'whatsapp_integration':
+            title = 'WhatsApp Business API';
+            description = 'Integración completa con WhatsApp, métricas de envío, y gestión de conversaciones.';
+            break;
+        case 'advanced_kanban':
+            title = 'Kanban Avanzado';
+            description = 'Gestión visual de procesos con filtros avanzados, drag & drop, y analytics integrados.';
+            break;
+        case 'financial_dashboard':
+            title = 'Dashboard Financiero';
+            description = 'Métricas financieras por unidad de negocio, predicciones de ingresos, y análisis de costos.';
+            break;
+        case 'intelligent_search':
+            title = 'Buscador Inteligente';
+            description = 'Búsqueda avanzada con IA y ML, filtros inteligentes, y recomendaciones automáticas.';
+            break;
+        case 'salary_comparator':
+            title = 'Comparador de Salarios';
+            description = 'Análisis salarial y benchmarking, comparaciones de mercado, y recomendaciones de compensación.';
+            break;
+        case 'process_management':
+            title = 'Gestión de Procesos';
+            description = 'Control total de procesos de reclutamiento, workflows, y optimización de flujos.';
+            break;
+        case 'gpt_jd_generator':
+            title = 'Generador GPT JD';
+            description = 'Generación automática de job descriptions con GPT, templates personalizables, y optimización SEO.';
+            break;
+        case 'business_unit_control':
+            title = 'Control Unidades de Negocio';
+            description = 'Gestión granular por unidad de negocio, métricas específicas, y control de acceso.';
+            break;
+    }
+    
+    alert(`📊 ${title}\n\n${description}\n\nHaz clic en "Abrir" para acceder al dashboard completo.`);
+}
+
+// EVENT LISTENERS
+$(document).ready(function() {
+    // Actualizar vista previa cuando cambie el contenido
+    $('#message-subject, #message-content').on('input', updateMessagePreview);
+    
+    // Cargar datos iniciales
+    loadSystemOverview();
+    
+    // Actualizar datos cada 30 segundos
+    setInterval(loadSystemOverview, 30000);
+    
+    // Cargar contenido de tabs cuando se activan
+    $('#superAdminTabs a[data-bs-toggle="tab"]').on('shown.bs.tab', function (e) {
+        const target = $(e.target).attr('href');
+        
+        switch(target) {
+            case '#consultants':
+                loadConsultantAnalytics();
+                break;
+            case '#clients':
+                loadClientAnalytics();
+                break;
+            case '#candidates':
+                loadCandidateAnalytics();
+                break;
+            case '#processes':
+                loadProcessAnalytics();
+                break;
+            case '#aura':
+                loadAuraAnalytics();
+                break;
+            case '#genia':
+                loadGeniaAnalytics();
+                break;
+        }
+    });
+});
+</script>
+{% endblock %} 
