@@ -19,7 +19,7 @@ git clone https://github.com/ablova/Grupo-huntRED-Chatbot.git /home/pablo
 #Ejecutar desde el LOCAL MI COMPU
 git status &&
 git add . &&
-git commit -m "AI huntRED® 2.2 BIG IMPROVEMENTS ajustitos 3" &&
+git commit -m "AI huntRED® 3.0 BIG IMPROVEMENTS AURA ajustitos" &&
 git push origin main
 
 git config --global user.name "Pablo Lelo de Larrea"
