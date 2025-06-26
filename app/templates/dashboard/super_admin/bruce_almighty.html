@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="{% static 'css/components/metrics_cards.css' %}">
 <link rel="stylesheet" href="{% static 'css/components/charts.css' %}">
 <link rel="stylesheet" href="{% static 'css/components/control_panel.css' %}">
+<link rel="stylesheet" href="{% static 'css/admin-enhancements.css' %}">
 {% endblock %}
 
 {% block content %}
@@ -782,57 +783,5 @@ function getNotificationIcon(type) {
 }
 </script>
 
-<style>
-/* Estilos épicos para BRUCE ALMIGHTY MODE */
-.god-mode {
-    background: linear-gradient(45deg, #1a1a1a, #2a2a2a);
-    color: #fff;
-}
 
-.god-mode .epic-header {
-    background: linear-gradient(45deg, #ffd700, #ffed4e);
-    color: #000;
-}
-
-.epic {
-    border: 2px solid #ffd700;
-    box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
-}
-
-.epic-badge {
-    background: linear-gradient(45deg, #ffd700, #ffed4e);
-    color: #000;
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-size: 0.8em;
-    font-weight: bold;
-}
-
-@keyframes epicGlow {
-    0%, 100% { box-shadow: 0 0 20px rgba(255, 215, 0, 0.3); }
-    50% { box-shadow: 0 0 40px rgba(255, 215, 0, 0.6); }
-}
-
-.notification {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    padding: 15px 20px;
-    border-radius: 8px;
-    color: white;
-    font-weight: bold;
-    z-index: 10000;
-    animation: slideIn 0.3s ease-out;
-}
-
-.notification.epic {
-    background: linear-gradient(45deg, #ffd700, #ffed4e);
-    color: #000;
-}
-
-@keyframes slideIn {
-    from { transform: translateX(100%); opacity: 0; }
-    to { transform: translateX(0); opacity: 1; }
-}
-</style>
 {% endblock %} 

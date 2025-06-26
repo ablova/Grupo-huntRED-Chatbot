@@ -523,4 +523,38 @@ ML_CONFIG = {
             }
         }
     }
-} 
+}
+
+class MLConfig:
+    """
+    Clase de configuración para el sistema de Machine Learning.
+    """
+    
+    def __init__(self):
+        self.model_config = MODEL_CONFIG
+        self.business_unit_config = BUSINESS_UNIT_CONFIG
+        self.feature_config = FEATURE_CONFIG
+        self.evaluation_config = EVALUATION_CONFIG
+        self.cache_config = CACHE_CONFIG
+        self.logging_config = LOGGING_CONFIG
+        self.education_config = EDUCATION_CONFIG
+    
+    def get_model_config(self, model_type: str) -> dict:
+        """Obtiene la configuración de un modelo específico."""
+        return self.model_config.get(model_type, {})
+    
+    def get_business_unit_config(self, bu_name: str) -> dict:
+        """Obtiene la configuración de una unidad de negocio específica."""
+        return self.business_unit_config.get(bu_name, {})
+    
+    def get_feature_config(self, model_type: str) -> list:
+        """Obtiene la configuración de características para un modelo."""
+        return self.feature_config.get(model_type, [])
+    
+    def is_cache_enabled(self) -> bool:
+        """Verifica si el caché está habilitado."""
+        return self.cache_config.get('enabled', False)
+    
+    def get_cache_ttl(self) -> int:
+        """Obtiene el TTL del caché."""
+        return self.cache_config.get('ttl', 3600) 

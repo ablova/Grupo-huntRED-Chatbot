@@ -11,7 +11,7 @@ from rest_framework.test import APITestCase
 from rest_framework import status
 
 from app.aura.engine import AuraEngine
-from app.aura.graph_builder import GraphBuilder
+from app.aura.graph_builder import AuraGraphBuilder
 from app.aura.connectors.linkedin_connector import LinkedInConnector
 from app.aura.connectors.icloud_connector import iCloudConnector
 from app.aura.models.gnn.community_detection import CommunityDetectionModel
@@ -96,12 +96,12 @@ class AuraEngineTestCase(TestCase):
         mock_build.assert_called_once_with([1, 2, 3, 4, 5], True, 2)
 
 
-class GraphBuilderTestCase(TestCase):
+class AuraGraphBuilderTestCase(TestCase):
     """Tests para el constructor de grafos"""
     
     def setUp(self):
         """Configuración inicial"""
-        self.graph_builder = GraphBuilder()
+        self.graph_builder = AuraGraphBuilder()
     
     def test_graph_builder_initialization(self):
         """Test de inicialización del constructor de grafos"""
@@ -607,7 +607,7 @@ def sample_connections_data():
 @pytest.fixture
 def sample_network_graph(sample_people_data, sample_connections_data):
     """Grafo de red de ejemplo"""
-    graph_builder = GraphBuilder()
+    graph_builder = AuraGraphBuilder()
     return graph_builder.build_network_graph(sample_people_data, sample_connections_data)
 
 

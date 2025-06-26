@@ -3,7 +3,7 @@ from app.ats.integrations.notifications.core.base_service import BaseNotificatio
 from app.ats.integrations.notifications.core.config import NotificationType, NotificationSeverity
 from app.ats.market.models.trend import MarketTrend
 from app.ats.market.models.benchmark import MarketBenchmark
-from app.ats.models.business_unit import BusinessUnit
+from app.models import BusinessUnit
 from app.ml.analyzers.market.trend_analyzer import TrendAnalyzer
 from app.ml.analyzers.market.demand_analyzer import DemandAnalyzer
 

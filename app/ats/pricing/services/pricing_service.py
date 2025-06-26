@@ -1,7 +1,7 @@
 from typing import Dict, Any, List
 from decimal import Decimal
 from app.ats.pricing.models import PricingStrategy, PremiumAddon, DiscountRule, ReferralFee
-from app.ats.models.business_unit import BusinessUnit
+from app.models import BusinessUnit
 from app.ats.market.services.market_monitor import MarketMonitor
 
 class PricingService:

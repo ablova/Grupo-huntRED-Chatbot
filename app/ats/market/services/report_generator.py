@@ -2,7 +2,7 @@ from typing import Dict, Any, List
 from datetime import datetime
 from app.ats.market.models.trend import MarketTrend
 from app.ats.market.models.benchmark import MarketBenchmark
-from app.ats.models.business_unit import BusinessUnit
+from app.models import BusinessUnit
 from app.ats.integrations.notifications.process.market_notifications import MarketNotificationService
 
 class MarketReportGenerator:

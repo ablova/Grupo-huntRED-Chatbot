@@ -1,3 +1,4 @@
+# app/ml/aura/predictive/market_predictor.py 
 """
 AURA - Market Labor Predictor (FASE 1)
 Predicción avanzada de mercado laboral y tendencias

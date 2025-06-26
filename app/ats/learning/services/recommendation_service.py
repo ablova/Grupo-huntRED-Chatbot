@@ -2,8 +2,8 @@ from typing import Dict, Any, List
 from app.ats.learning.models.skill import Skill
 from app.ats.learning.models.course import Course
 from app.ats.learning.models.learning_path import LearningPath
-from app.ats.models.business_unit import BusinessUnit
-from app.ats.models.user import User
+from app.models import BusinessUnit
+from django.contrib.auth.models import User
 from app.ats.integrations.notifications.process.learning_notifications import LearningNotificationService
 from app.ml.analyzers.learning.skill_analyzer import SkillAnalyzer
 from app.ml.analyzers.learning.learning_path import LearningPathGenerator

@@ -30,7 +30,7 @@ from app.ats.pricing.models import (
 )
 from app.ats.pricing.talent_360_pricing import Talent360Pricing
 from app.ats.pricing.utils import calculate_pricing_opportunity, get_business_unit_pricing
-from app.ats.models.business_unit import BusinessUnit
+from app.models import BusinessUnit
 from app.ats.pricing.services.pricing_service import PricingService
 
 logger = logging.getLogger(__name__)

@@ -1,6 +1,6 @@
 from typing import Dict, Any, List
 from datetime import datetime, timedelta
-from app.ats.models.business_unit import BusinessUnit
+from app.models import BusinessUnit
 from app.ats.pricing.models.addons import PremiumAddon
 from app.ml.analyzers.market.salary_analyzer import SalaryAnalyzer
 from app.ml.analyzers.market.demand_analyzer import DemandAnalyzer

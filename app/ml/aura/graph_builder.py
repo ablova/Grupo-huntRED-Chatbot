@@ -1,8 +1,9 @@
+# app/ml/aura/graph_builder.py
 """
 Constructor de Grafos del Sistema Aura
 
-Este módulo implementa la construcción de la red de relaciones profesionales
 basada en coincidencias temporales y organizacionales.
+Este módulo implementa la construcción de la red de relaciones profesionales
 """
 
 import logging
@@ -708,4 +709,80 @@ class AuraGraphBuilder:
             return None
         except Exception as e:
             logger.error(f"Error obteniendo datos de persona: {str(e)}")
-            return None 
+            return None
+
+    def get_user_context(self, user_id: str) -> Dict[str, Any]:
+        """
+        Obtiene el contexto de red de un usuario.
+        Método requerido por PersonalizationEngine.
+        """
+        try:
+            # Convertir user_id a int si es necesario
+            person_id = int(user_id) if user_id.isdigit() else None
+            
+            if not person_id or person_id not in self.graph:
+                return {
+                    "influencer_score": 0.0,
+                    "suggested_connections": [],
+                    "network_size": 0,
+                    "hub_score": 0.0
+                }
+            
+            # Obtener datos del nodo
+            node_data = self.graph.nodes[person_id]
+            
+            # Calcular métricas de red
+            connections = list(self.graph.neighbors(person_id))
+            influence_score = node_data.get('influence_score', 0.0)
+            hub_score = node_data.get('hub_score', 0.0)
+            
+            # Sugerir conexiones (primeros 5 vecinos)
+            suggested_connections = connections[:5]
+            
+            return {
+                "influencer_score": influence_score,
+                "suggested_connections": suggested_connections,
+                "network_size": len(connections),
+                "hub_score": hub_score,
+                "degree_centrality": node_data.get('degree_centrality', 0.0),
+                "betweenness_centrality": node_data.get('betweenness_centrality', 0.0)
+            }
+            
+        except Exception as e:
+            logger.error(f"Error obteniendo contexto de usuario {user_id}: {str(e)}")
+            return {
+                "influencer_score": 0.0,
+                "suggested_connections": [],
+                "network_size": 0,
+                "hub_score": 0.0
+            }
+
+    def infer_segment(self, user_id: str) -> Optional[str]:
+        """
+        Infiere el segmento de un usuario basado en su contexto de red.
+        Método requerido por PersonalizationEngine.
+        """
+        try:
+            context = self.get_user_context(user_id)
+            
+            # Lógica de inferencia de segmento basada en métricas de red
+            influencer_score = context.get('influencer_score', 0.0)
+            hub_score = context.get('hub_score', 0.0)
+            network_size = context.get('network_size', 0)
+            
+            # Segmentación basada en métricas de red
+            if influencer_score > 0.8 or hub_score > 0.8:
+                return "executive"
+            elif network_size > 50:
+                return "recruiter"
+            elif network_size > 20:
+                return "junior"
+            else:
+                return "student"
+                
+        except Exception as e:
+            logger.error(f"Error infiriendo segmento para usuario {user_id}: {str(e)}")
+            return None
+
+# Alias global para mantener compatibilidad con código existente
+GNNManager = AuraGraphBuilder 

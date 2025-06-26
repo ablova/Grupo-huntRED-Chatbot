@@ -7,7 +7,7 @@ from app.ats.referrals.models import Referral
 from app.ats.proposals.models import Proposal
 from django.views.generic import TemplateView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from app.ats.models.business_unit import BusinessUnit
+from app.models import BusinessUnit
 from app.ats.pricing.models.addons import BusinessUnitAddon
 from app.ats.market.services.report_generator import MarketReportGenerator
 from app.ats.learning.services.recommendation_service import LearningRecommendationService

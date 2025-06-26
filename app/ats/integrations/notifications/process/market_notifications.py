@@ -3,8 +3,8 @@ from app.ats.integrations.notifications.core.base_service import BaseNotificatio
 from app.ats.integrations.notifications.core.config import NotificationType, NotificationSeverity
 from app.ats.market.models.trend import MarketTrend
 from app.ats.market.models.benchmark import MarketBenchmark
-from app.ats.models.business_unit import BusinessUnit
-from app.ats.models.user import User
+from app.models import BusinessUnit
+from django.contrib.auth.models import User
 
 class MarketNotificationService(BaseNotificationService):
     """Servicio de notificaciones para análisis de mercado"""

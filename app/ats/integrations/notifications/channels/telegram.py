@@ -6,7 +6,8 @@ from typing import Dict, Any, Optional
 from datetime import datetime
 
 from django.conf import settings
-from telegram import Bot, ParseMode
+from telegram import Bot
+from telegram.constants import ParseMode
 from telegram.error import TelegramError
 
 from app.models import BusinessUnit, TelegramAPI

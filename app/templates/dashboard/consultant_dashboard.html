@@ -6,53 +6,8 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
 <link rel="stylesheet" href="{% static 'css/aura.css' %}">
-<style>
-    .aura-section {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border-radius: 15px;
-        padding: 20px;
-        margin-bottom: 20px;
-        color: white;
-        box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
-    }
-    
-    .aura-score {
-        font-size: 3rem;
-        font-weight: bold;
-        text-align: center;
-        margin: 20px 0;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-    }
-    
-    .aura-insight-card {
-        background: rgba(255,255,255,0.1);
-        border-radius: 10px;
-        padding: 15px;
-        margin: 10px 0;
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255,255,255,0.2);
-    }
-    
-    .prediction-card {
-        background: rgba(255,255,255,0.15);
-        border-radius: 8px;
-        padding: 12px;
-        margin: 8px 0;
-        border-left: 4px solid #4CAF50;
-    }
-    
-    .confidence-indicator {
-        display: inline-block;
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
-        margin-right: 8px;
-    }
-    
-    .confidence-high { background-color: #4CAF50; }
-    .confidence-medium { background-color: #FF9800; }
-    .confidence-low { background-color: #F44336; }
-</style>
+<link rel="stylesheet" href="{% static 'css/admin-enhancements.css' %}">
+
 {% endblock %}
 
 {% block content %}

@@ -135,10 +135,10 @@ def get_logging_config() -> Dict:
         'disable_existing_loggers': False,
         'formatters': {
             'verbose': {
-                'format': '[%(asctime)s] [%(levelname)s] [%(module_name)s] [BU:%(bu_name)s] [%(pathname)s:%(lineno)d] - %(message)s'
+                'format': '[%(asctime)s] [%(levelname)s] [%(name)s] [%(pathname)s:%(lineno)d] - %(message)s'
             },
             'simple': {
-                'format': '[%(asctime)s] [%(levelname)s] [%(module_name)s] - %(message)s'
+                'format': '[%(asctime)s] [%(levelname)s] [%(name)s] - %(message)s'
             },
         },
         'filters': {

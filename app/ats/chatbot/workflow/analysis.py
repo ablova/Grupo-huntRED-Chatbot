@@ -5,9 +5,9 @@
 # Optimizado para bajo uso de CPU, escalabilidad, y robustez frente a fallos.
 
 from typing import Dict, Any, List
-from .evaluaciones.personality_evaluation import PersonalityEvaluation
-from .evaluaciones.talent_evaluation import TalentEvaluation
-from .evaluaciones.cultural_evaluation import CulturalEvaluation
+from .assessments.personality_evaluation import PersonalityEvaluation
+from .assessments.talent_evaluation import TalentEvaluation
+from .assessments.cultural_evaluation import CulturalEvaluation
 
 class EvaluationAnalysis:
     def __init__(self):

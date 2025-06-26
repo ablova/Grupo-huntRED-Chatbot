@@ -28,6 +28,7 @@ class CompatibilityDimension(Enum):
     WORK_STYLE = "work_style"
     LEADERSHIP = "leadership"
     INNOVATION = "innovation"
+    CREATIVITY = "creativity"
     COLLABORATION = "collaboration"
     ADAPTABILITY = "adaptability"
     GROWTH = "growth"

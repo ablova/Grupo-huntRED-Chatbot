@@ -107,8 +107,7 @@ class LoggingManager:
         if settings.DEBUG:
             # Formato detallado para desarrollo
             formatter = logging.Formatter(
-                '[%(asctime)s] [%(levelname)s] [%(module_name)s] [BU:%(bu_name)s] '
-                '[%(pathname)s:%(lineno)d] - %(message)s'
+                '[%(asctime)s] [%(levelname)s] [%(name)s] [%(pathname)s:%(lineno)d] - %(message)s'
             )
             
             # Asegurar handler de consola con el formatter

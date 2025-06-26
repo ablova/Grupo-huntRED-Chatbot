@@ -17,14 +17,14 @@ import asyncio
 
 from app.ml.aura.integration_layer import AuraIntegrationLayer
 from app.ml.aura.models.gnn_models import GNNAnalyzer
-from app.ml.aura.graph_builder import ProfessionalNetworkBuilder
+from app.ml.aura.graph_builder import AuraGraphBuilder
 
 logger = logging.getLogger(__name__)
 
 # Inicializar componentes de AURA
 aura_integration = AuraIntegrationLayer()
 gnn_analyzer = GNNAnalyzer()
-network_builder = ProfessionalNetworkBuilder()
+network_builder = AuraGraphBuilder()
 
 @csrf_exempt
 @require_http_methods(["GET"])

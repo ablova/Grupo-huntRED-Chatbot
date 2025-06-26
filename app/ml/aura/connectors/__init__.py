@@ -6,11 +6,11 @@ y enriquecer la red de relaciones profesionales.
 """
 
 from .linkedin_connector import LinkedInConnector
-from .icloud_connector import ICloudConnector
+from .icloud_connector import iCloudConnector
 from .contacts_connector import ContactsConnector
 
 __all__ = [
     'LinkedInConnector',
-    'ICloudConnector', 
+    'iCloudConnector', 
     'ContactsConnector'
 ] 

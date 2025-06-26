@@ -33,7 +33,7 @@ from .vibrational_matcher import VibrationalMatcher
 from .holistic_assessor import HolisticAssessor
 from .aura_metrics import AuraMetrics
 from .graph_builder import AuraGraphBuilder
-from .integration_layer import IntegrationLayer
+from .integration_layer import AuraIntegrationLayer
 
 # Personalization modules
 from .personalization.personalization_engine import PersonalizationEngine
@@ -52,7 +52,7 @@ from .networking.auto_introducer import AutoIntroducer
 from .networking.event_recommender import EventRecommender
 
 # Analytics modules
-from .analytics.executive_dashboard import ExecutiveDashboard
+from .analytics.executive_dashboard import ExecutiveAnalytics
 from .analytics.performance_metrics import PerformanceMetrics
 from .analytics.trend_analyzer import TrendAnalyzer
 
@@ -68,6 +68,9 @@ from .generative.auto_summarizer import AutoSummarizer
 
 # Organizational Analytics modules
 from .organizational.organizational_analytics import OrganizationalAnalytics
+from .organizational.reporting_engine import ReportingEngine
+from .organizational.network_analyzer import NetworkAnalyzer
+from .organizational.bu_insights import BUInsights
 
 # Security modules
 from .security.privacy_panel import PrivacyPanel
@@ -87,18 +90,18 @@ from .cache.intelligent_cache import IntelligentCache
 from .integration.aura_orchestrator import AuraOrchestrator
 
 # Conversational modules
-from .conversational.advanced_chatbot import AdvancedChatbot
+from .conversational.advanced_chatbot import AdvancedConversationalAI as AdvancedChatbot
 
 # Predictive modules
 from .predictive.sentiment_analyzer import SentimentAnalyzer
-from .predictive.market_predictor import MarketPredictor
-from .predictive.career_predictor import CareerPredictor
+from .predictive.market_predictor import MarketLaborPredictor as MarketPredictor
+from .predictive.career_predictor import CareerMovementPredictor as CareerPredictor
 
 # API modules
-from .api.endpoints import AuraAPIEndpoints
+# from .api.endpoints import AuraAPIEndpoints  # Comentado - no existe esta clase
 
 # Models modules
-from .models.gnn_models import GNNModels
+from .models.gnn_models import GNNModels, GNNAnalyzer
 
 # Connectors modules
 from .connectors.linkedin_connector import LinkedInConnector
@@ -114,7 +117,7 @@ __all__ = [
     'HolisticAssessor',
     'AuraMetrics',
     'AuraGraphBuilder',
-    'IntegrationLayer',
+    'AuraIntegrationLayer',
     
     # Personalization
     'PersonalizationEngine',
@@ -133,7 +136,7 @@ __all__ = [
     'EventRecommender',
     
     # Analytics
-    'ExecutiveDashboard',
+    'ExecutiveAnalytics',
     'PerformanceMetrics',
     'TrendAnalyzer',
     
@@ -149,6 +152,9 @@ __all__ = [
     
     # Organizational Analytics
     'OrganizationalAnalytics',
+    'ReportingEngine',
+    'NetworkAnalyzer',
+    'BUInsights',
     
     # Security
     'PrivacyPanel',
@@ -181,6 +187,7 @@ __all__ = [
     
     # Models
     'GNNModels',
+    'GNNAnalyzer',
     
     # Connectors
     'LinkedInConnector',

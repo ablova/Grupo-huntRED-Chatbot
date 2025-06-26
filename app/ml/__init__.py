@@ -44,8 +44,8 @@ from app.ml.aura import (
     VibrationalMatcher,
     HolisticAssessor,
     AuraMetrics,
-    GraphBuilder,
-    IntegrationLayer,
+    AuraGraphBuilder,
+    AuraIntegrationLayer,
     
     # Personalización Avanzada
     UserSegmenter,
@@ -58,12 +58,12 @@ from app.ml.aura import (
     MarketAlerts,
     
     # Networking Inteligente
-    Matchmaker,
-    AutoIntroductions,
+    NetworkMatchmaker,
+    AutoIntroducer,
     EventRecommender,
     
     # Analytics Ejecutivos
-    ExecutiveDashboard,
+    ExecutiveAnalytics,
     PerformanceMetrics,
     TrendAnalyzer,
     
@@ -78,6 +78,7 @@ from app.ml.aura import (
     AutoSummarizer,
     
     # Organizational Analytics
+    OrganizationalAnalytics,
     ReportingEngine,
     NetworkAnalyzer,
     BUInsights,
@@ -87,7 +88,8 @@ from app.ml.aura import (
     ExplainableAI,
     
     # Ecosystem
-    public_api,
+    PublicAPI,
+    ModuleMarketplace,
     module_marketplace,
     
     # Monitoring & Performance
@@ -103,9 +105,9 @@ from app.ml.aura import (
     MarketPredictor,
     CareerPredictor,
     
-    # API & Models
-    AuraAPIEndpoints,
+    # Models
     GNNModels,
+    GNNAnalyzer,
     
     # Connectors
     LinkedInConnector,
@@ -134,7 +136,7 @@ from app.ml.ml_opt import MLOptimizer
 # SPECIALIZED PROCESSORS - Procesadores especializados
 # ============================================================================
 from app.ml.onboarding_processor import OnboardingProcessor
-from app.ml.notification_analyzer import NotificationAnalyzer
+from app.ml.base_analyzer import NotificationAnalyzer
 
 # ============================================================================
 # MONITORING & VALIDATION - Monitoreo y validación
@@ -255,7 +257,6 @@ __all__ = [
     'MatchmakingModel', 
     'TransitionModel',
     'MarketAnalysisModel',
-    
     # AURA - Motor Revolucionario
     'AuraEngine',
     'CompatibilityEngine',
@@ -264,18 +265,18 @@ __all__ = [
     'VibrationalMatcher',
     'HolisticAssessor',
     'AuraMetrics',
-    'GraphBuilder',
-    'IntegrationLayer',
+    'AuraGraphBuilder',
+    'AuraIntegrationLayer',
     'UserSegmenter',
     'ContextAnalyzer',
     'AdaptiveEngine',
     'SkillGapAnalyzer',
     'CareerSimulator',
     'MarketAlerts',
-    'Matchmaker',
-    'AutoIntroductions',
+    'NetworkMatchmaker',
+    'AutoIntroducer',
     'EventRecommender',
-    'ExecutiveDashboard',
+    'ExecutiveAnalytics',
     'PerformanceMetrics',
     'TrendAnalyzer',
     'AchievementSystem',
@@ -284,12 +285,13 @@ __all__ = [
     'CVGenerator',
     'InterviewSimulator',
     'AutoSummarizer',
+    'OrganizationalAnalytics',
     'ReportingEngine',
     'NetworkAnalyzer',
     'BUInsights',
     'PrivacyPanel',
     'ExplainableAI',
-    'public_api',
+    'PublicAPI',
     'module_marketplace',
     'AuraMonitor',
     'IntelligentCache',
@@ -298,11 +300,10 @@ __all__ = [
     'SentimentAnalyzer',
     'MarketPredictor',
     'CareerPredictor',
-    'AuraAPIEndpoints',
     'GNNModels',
+    'GNNAnalyzer',
     'LinkedInConnector',
     'iCloudConnector',
-    
     # Analyzers
     'PersonalityAnalyzer',
     'CulturalAnalyzer',
@@ -310,27 +311,22 @@ __all__ = [
     'IntegratedAnalyzer',
     'TalentAnalyzer',
     'SalaryAnalyzer',
-    
-    # Core Utilities
+    # Utilities
     'DataCleaner',
     'AsyncProcessor',
     'MLConfig',
     'MLOptimizer',
-    
     # Specialized Processors
     'OnboardingProcessor',
     'NotificationAnalyzer',
-    
     # Monitoring & Validation
     'MLMonitor',
     'MLValidator',
     'FeedbackProcessor',
-    
     # Data & Training
     'DataManager',
     'ModelTrainer',
     'MetricsCalculator',
-    
     # Revolutionary System
     'RevolutionaryMLSystem'
 ]

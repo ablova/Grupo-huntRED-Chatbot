@@ -1,3 +1,4 @@
+# app/ml/aura/integration_layer.py
 """
 Capa de Integración de AURA con el Sistema Principal
 
@@ -11,7 +12,7 @@ from datetime import datetime, date
 import asyncio
 
 from app.models import Person, BusinessUnit
-from app.ats.models import Candidate, Job, Application
+from app.ats.models import Person as Candidate, Vacancy as Job, Application
 from app.ml.aura.core import AuraEngine
 from app.ml.aura.connectors.linkedin_connector import LinkedInConnector
 

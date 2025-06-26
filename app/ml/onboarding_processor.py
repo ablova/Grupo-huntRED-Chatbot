@@ -699,3 +699,10 @@ class OnboardingMLProcessor:
             })
         
         return risk_factors
+
+class OnboardingProcessor(OnboardingMLProcessor):
+    """
+    Wrapper para compatibilidad retroactiva y uso en el sistema.
+    Hereda de OnboardingMLProcessor.
+    """
+    pass
