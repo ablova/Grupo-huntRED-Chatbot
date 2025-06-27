@@ -1,0 +1,91 @@
+{% extends "emails/base_email.html" %}
+
+{% block titulo %}¡Nuevo Badge Desbloqueado! 🏆{% endblock %}
+
+{% block cuerpo %}
+<p>Hola {{ recipient_name }},</p>
+
+<div style="background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%); padding: 30px; border-radius: 15px; margin: 25px 0; text-align: center;">
+    <div style="font-size: 48px; margin-bottom: 15px;">{{ badge_icon|default:"🏆" }}</div>
+    <h1 style="color: #b8860b; margin: 0; font-size: 28px;">¡FELICITACIONES!</h1>
+    <h2 style="color: #b8860b; margin: 10px 0; font-size: 24px;">Has ganado el badge</h2>
+    <h3 style="color: #b8860b; margin: 0; font-size: 32px; font-weight: bold;">{{ badge_name }}</h3>
+</div>
+
+<div style="background-color: #f8f9fa; padding: 25px; border-radius: 10px; margin: 25px 0;">
+    <h3 style="color: #28a745; margin-top: 0;">🎯 ¿Qué significa este logro?</h3>
+    <p style="font-size: 16px; line-height: 1.6;">{{ badge_description }}</p>
+    
+    <div style="background: white; padding: 15px; border-radius: 8px; margin-top: 15px; border-left: 4px solid #28a745;">
+        <p style="margin: 0; font-weight: bold; color: #28a745;">Tipo de logro:</p>
+        <p style="margin: 5px 0 0 0;">{{ achievement_type|title }}</p>
+    </div>
+</div>
+
+<div style="background-color: #e3f2fd; padding: 25px; border-radius: 10px; margin: 25px 0;">
+    <h3 style="color: #1976d2; margin-top: 0;">📊 Tu Progreso</h3>
+    <div style="display: flex; justify-content: space-around; text-align: center; margin: 20px 0;">
+        <div>
+            <div style="font-size: 36px; font-weight: bold; color: #1976d2;">{{ total_badges }}</div>
+            <div style="font-size: 14px; color: #666;">Badges Totales</div>
+        </div>
+        <div>
+            <div style="font-size: 36px; font-weight: bold; color: #28a745;">{{ total_badges|add:"1" }}</div>
+            <div style="font-size: 14px; color: #666;">Nuevo Total</div>
+        </div>
+    </div>
+</div>
+
+{% if next_badge %}
+<div style="background-color: #fff3e0; padding: 25px; border-radius: 10px; margin: 25px 0;">
+    <h3 style="color: #f57c00; margin-top: 0;">🎯 Próximo Desafío</h3>
+    <p>Tu siguiente objetivo está a la vista:</p>
+    
+    <div style="background: white; padding: 20px; border-radius: 8px; margin-top: 15px; border: 2px solid #f57c00;">
+        <h4 style="color: #f57c00; margin: 0 0 10px 0;">{{ next_badge }}</h4>
+        <p style="margin: 0; color: #666;">{{ next_badge_description }}</p>
+    </div>
+</div>
+{% endif %}
+
+{% if celebration_coupon %}
+<div style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%); color: white; padding: 25px; border-radius: 10px; margin: 25px 0; text-align: center;">
+    <h3 style="margin: 0; color: white;">🎉 ¡Celebra tu Logro!</h3>
+    <p>Como premio por tu dedicación, te regalamos un cupón especial:</p>
+    
+    <div style="background: rgba(255,255,255,0.15); padding: 20px; border-radius: 8px; margin: 20px 0; border: 2px dashed rgba(255,255,255,0.3);">
+        <h4 style="margin: 0; color: white;">Cupón de Celebración</h4>
+        <div style="font-size: 24px; font-weight: bold; letter-spacing: 2px; margin: 15px 0; background: white; color: #ee5a24; padding: 10px; border-radius: 6px;">{{ celebration_coupon }}</div>
+        <div style="font-size: 20px; font-weight: bold;">{{ celebration_discount }}% de descuento</div>
+        <div style="font-size: 14px; opacity: 0.9; margin-top: 10px;">Válido en tu próxima evaluación</div>
+    </div>
+</div>
+{% endif %}
+
+<div style="background-color: #f0f8ff; padding: 25px; border-radius: 10px; margin: 25px 0;">
+    <h3 style="color: #1976d2; margin-top: 0;">🚀 ¿Qué sigue?</h3>
+    <p>Continúa tu crecimiento profesional con nuestras evaluaciones especializadas:</p>
+    <ul style="margin: 15px 0; padding-left: 20px;">
+        <li><strong>Cultural Fit:</strong> Descubre tu compatibilidad organizacional</li>
+        <li><strong>Professional DNA:</strong> Revela tu perfil profesional único</li>
+        <li><strong>Leadership Assessment:</strong> Evalúa tu potencial de liderazgo</li>
+        <li><strong>Team Dynamics:</strong> Optimiza tu trabajo en equipo</li>
+    </ul>
+</div>
+
+<p style="font-size: 18px; font-weight: bold; text-align: center; margin: 30px 0; color: #28a745;">
+    ¡Cada badge es un paso hacia tu mejor versión profesional!
+</p>
+
+<p>Mantén el impulso y sigue construyendo tu camino hacia el éxito con {{ business_unit }}.</p>
+{% endblock %}
+
+{% block cta_text %}{{ cta_text }}{% endblock %}
+{% block cta_url %}{{ settings.SITE_URL }}/assessments{% endblock %}
+
+{% block footer %}
+<p style="font-size: 12px; color: #666; margin-top: 30px;">
+    Este email fue enviado por {{ business_unit }}. 
+    Para ver todos tus badges, visita tu <a href="{{ settings.SITE_URL }}/profile/badges">perfil</a>
+</p>
+{% endblock %} 

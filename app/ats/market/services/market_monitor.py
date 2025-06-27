@@ -1,7 +1,7 @@
 from typing import Dict, Any, List
+from decimal import Decimal
 from datetime import datetime, timedelta
-from app.models import BusinessUnit
-from app.ats.pricing.models.addons import PremiumAddon
+from app.models import BusinessUnit, PremiumAddon
 from app.ml.analyzers.market.salary_analyzer import SalaryAnalyzer
 from app.ml.analyzers.market.demand_analyzer import DemandAnalyzer
 from app.ats.integrations.notifications.process.market_alerts import MarketAlertService

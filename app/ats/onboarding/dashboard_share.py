@@ -1,3 +1,4 @@
+# app/ats/onboarding/dashboard_share.py
 """
 Módulo para la gestión de dashboards compartidos con clientes.
 
@@ -20,7 +21,7 @@ from django.urls import reverse
 from django.contrib import messages
 from asgiref.sync import sync_to_async
 
-from app.models import Empresa, BusinessUnit
+from app.models import Company as Empresa, BusinessUnit
 from app.models import ClientDashboardShare, ClientDashboardAccessLog
 from app.ats.utilidades.auth_utils import has_bu_permission, get_user_business_units
 

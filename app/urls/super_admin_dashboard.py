@@ -12,7 +12,9 @@ from app.views.dashboard.super_admin_views import (
     SuperAdminAuraAnalyticsView, SuperAdminGeniaAnalyticsView,
     SuperAdminDirectMessageView, SuperAdminAuraControlView,
     SuperAdminGeniaControlView, SuperAdminEmergencyActionsView,
-    SuperAdminUserManagementView, SuperAdminSystemLogsView
+    SuperAdminUserManagementView, SuperAdminSystemLogsView,
+    SuperAdminFinancialDashboardView, SuperAdminFinancialDataView,
+    SuperAdminProviderValidationView
 )
 
 urlpatterns = [
@@ -30,13 +32,18 @@ urlpatterns = [
     path('super-admin/aura-analytics/', SuperAdminAuraAnalyticsView.as_view(), name='super_admin_aura_analytics'),
     path('super-admin/genia-analytics/', SuperAdminGeniaAnalyticsView.as_view(), name='super_admin_genia_analytics'),
     
+    # Dashboard Financiero y Pagos 🚀
+    path('super-admin/financial-dashboard/', SuperAdminFinancialDashboardView.as_view(), name='super_admin_financial_dashboard'),
+    path('super-admin/financial-data/', SuperAdminFinancialDataView.as_view(), name='super_admin_financial_data'),
+    path('super-admin/provider-validation/', SuperAdminProviderValidationView.as_view(), name='super_admin_provider_validation'),
+    
     # Control total del sistema (BRUCE ALMIGHTY MODE) 🚀
     path('super-admin/direct-message/', SuperAdminDirectMessageView.as_view(), name='super_admin_direct_message'),
     path('super-admin/aura-control/', SuperAdminAuraControlView.as_view(), name='super_admin_aura_control'),
     path('super-admin/genia-control/', SuperAdminGeniaControlView.as_view(), name='super_admin_genia_control'),
     path('super-admin/emergency-actions/', SuperAdminEmergencyActionsView.as_view(), name='super_admin_emergency_actions'),
     
-    # Gestión de usuarios y sistema
+    # Gestión de usuarios y logs
     path('super-admin/user-management/', SuperAdminUserManagementView.as_view(), name='super_admin_user_management'),
     path('super-admin/system-logs/', SuperAdminSystemLogsView.as_view(), name='super_admin_system_logs'),
 ] 

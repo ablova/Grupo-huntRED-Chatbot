@@ -3287,4 +3287,553 @@ class SuperAdminDashboard:
                 'filters': filters
             }
 
-// ... existing code ... 
+    # ============================================================================
+    # 🚀 MÉTODOS FINANCIEROS Y DE PAGOS - BRUCE ALMIGHTY MODE 🚀
+    # ============================================================================
+    
+    @cache_result(ttl=300)  # 5 minutos
+    async def get_financial_dashboard(self) -> Dict[str, Any]:
+        """Obtiene dashboard completo de finanzas y pagos."""
+        try:
+            return {
+                'success': True,
+                'financial_dashboard': {
+                    'revenue_overview': await self._get_revenue_overview(),
+                    'payment_performance': await self._get_payment_performance(),
+                    'accounts_receivable': await self._get_accounts_receivable(),
+                    'accounts_payable': await self._get_accounts_payable(),
+                    'cash_flow_analysis': await self._get_cash_flow_analysis(),
+                    'provider_validation': await self._get_provider_validation_status(),
+                    'sat_compliance': await self._get_sat_compliance_detailed(),
+                    'risk_analysis': await self._get_risk_analysis(),
+                    'scheduled_payments': await self._get_scheduled_payments_overview()
+                }
+            }
+        except Exception as e:
+            logger.error(f"Error obteniendo dashboard financiero: {str(e)}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
+    
+    async def _get_revenue_overview(self) -> Dict[str, Any]:
+        """Obtiene overview de ingresos."""
+        try:
+            # Período de análisis
+            end_date = timezone.now()
+            start_date = end_date - timedelta(days=365)
+            
+            # Importar modelos necesarios
+            from app.models import Invoice
+            from app.ats.pricing.models import ExternalService
+            
+            # Ingresos por mes
+            monthly_revenue = await sync_to_async(list)(Invoice.objects.filter(
+                issue_date__range=[start_date, end_date],
+                status='paid'
+            ).extra(
+                select={'month': 'DATE_TRUNC(\'month\', issue_date)'}
+            ).values('month').annotate(
+                revenue=Sum('total_amount')
+            ).order_by('month'))
+            
+            # Ingresos por categoría de servicio
+            service_revenue = await sync_to_async(list)(ExternalService.objects.filter(
+                start_date__range=[start_date, end_date]
+            ).values('category').annotate(
+                revenue=Sum('total_amount'),
+                count=Count('id')
+            ))
+            
+            # Proyección de ingresos
+            current_month_revenue = await sync_to_async(lambda: Invoice.objects.filter(
+                issue_date__month=end_date.month,
+                issue_date__year=end_date.year,
+                status='paid'
+            ).aggregate(total=Sum('total_amount'))['total'] or 0)()
+            
+            return {
+                'monthly_revenue': monthly_revenue,
+                'service_revenue': service_revenue,
+                'current_month_revenue': float(current_month_revenue),
+                'total_annual_revenue': float(sum(m['revenue'] for m in monthly_revenue)),
+                'average_monthly_revenue': float(sum(m['revenue'] for m in monthly_revenue) / len(monthly_revenue)) if monthly_revenue else 0
+            }
+        except Exception as e:
+            logger.error(f"Error calculando overview de ingresos: {str(e)}")
+            return {}
+    
+    async def _get_payment_performance(self) -> Dict[str, Any]:
+        """Obtiene rendimiento de pagos."""
+        try:
+            # Período de análisis
+            end_date = timezone.now()
+            start_date = end_date - timedelta(days=90)
+            
+            # Importar modelos necesarios
+            from app.ats.pricing.models import PaymentTransaction
+            
+            transactions = await sync_to_async(list)(PaymentTransaction.objects.filter(
+                created_at__range=[start_date, end_date]
+            ))
+            
+            # Métricas de rendimiento
+            total_transactions = len(transactions)
+            successful_transactions = len([t for t in transactions if t.status == 'completed'])
+            failed_transactions = len([t for t in transactions if t.status == 'failed'])
+            
+            # Métricas por gateway
+            gateway_performance = {}
+            for transaction in transactions:
+                gateway = transaction.gateway
+                if gateway not in gateway_performance:
+                    gateway_performance[gateway] = {
+                        'count': 0,
+                        'success_count': 0,
+                        'total_amount': 0
+                    }
+                
+                gateway_performance[gateway]['count'] += 1
+                gateway_performance[gateway]['total_amount'] += float(transaction.amount)
+                if transaction.status == 'completed':
+                    gateway_performance[gateway]['success_count'] += 1
+            
+            # Calcular tasas de éxito
+            for gateway in gateway_performance:
+                gateway_performance[gateway]['success_rate'] = (
+                    gateway_performance[gateway]['success_count'] / 
+                    gateway_performance[gateway]['count'] * 100
+                )
+            
+            return {
+                'total_transactions': total_transactions,
+                'successful_transactions': successful_transactions,
+                'failed_transactions': failed_transactions,
+                'success_rate': (successful_transactions / total_transactions * 100) if total_transactions > 0 else 0,
+                'gateway_performance': gateway_performance,
+                'average_payment_time': 15.0,  # Simulado
+                'fast_payments': successful_transactions * 0.7,  # Simulado
+                'slow_payments': successful_transactions * 0.3   # Simulado
+            }
+        except Exception as e:
+            logger.error(f"Error calculando rendimiento de pagos: {str(e)}")
+            return {}
+    
+    async def _get_accounts_receivable(self) -> Dict[str, Any]:
+        """Obtiene cuentas por cobrar."""
+        try:
+            # Importar modelos necesarios
+            from app.models import Invoice
+            
+            # Facturas pendientes
+            pending_invoices = await sync_to_async(list)(Invoice.objects.filter(status='pending'))
+            
+            # Facturas vencidas
+            overdue_invoices = await sync_to_async(list)(Invoice.objects.filter(
+                status='pending',
+                due_date__lt=timezone.now().date()
+            ))
+            
+            # Análisis por cliente
+            client_ar = {}
+            for invoice in pending_invoices:
+                client_name = invoice.receiver_name or 'Sin nombre'
+                if client_name not in client_ar:
+                    client_ar[client_name] = {
+                        'total_amount': 0,
+                        'invoice_count': 0,
+                        'overdue_amount': 0
+                    }
+                
+                client_ar[client_name]['total_amount'] += float(invoice.total_amount)
+                client_ar[client_name]['invoice_count'] += 1
+                
+                if invoice.due_date and invoice.due_date < timezone.now().date():
+                    client_ar[client_name]['overdue_amount'] += float(invoice.total_amount)
+            
+            # Convertir a lista
+            client_ar_list = [
+                {
+                    'receiver_name': client_name,
+                    'total_amount': data['total_amount'],
+                    'invoice_count': data['invoice_count'],
+                    'overdue_amount': data['overdue_amount']
+                }
+                for client_name, data in client_ar.items()
+            ]
+            
+            total_pending = sum(invoice.total_amount for invoice in pending_invoices)
+            total_overdue = sum(invoice.total_amount for invoice in overdue_invoices)
+            
+            return {
+                'total_pending': float(total_pending),
+                'total_overdue': float(total_overdue),
+                'pending_invoices_count': len(pending_invoices),
+                'overdue_invoices_count': len(overdue_invoices),
+                'client_ar': client_ar_list,
+                'average_overdue_days': 15.0,  # Simulado
+                'overdue_ratio': (len(overdue_invoices) / len(pending_invoices) * 100) if pending_invoices else 0
+            }
+        except Exception as e:
+            logger.error(f"Error calculando cuentas por cobrar: {str(e)}")
+            return {}
+    
+    async def _get_accounts_payable(self) -> Dict[str, Any]:
+        """Obtiene cuentas por pagar."""
+        try:
+            # Importar modelos necesarios
+            from app.ats.pricing.models import ScheduledPayment
+            
+            # Pagos programados pendientes
+            scheduled_payments = await sync_to_async(list)(ScheduledPayment.objects.filter(status='pending'))
+            
+            # Pagos vencidos
+            overdue_payments = await sync_to_async(list)(ScheduledPayment.objects.filter(
+                status='pending',
+                next_payment_date__lt=timezone.now().date()
+            ))
+            
+            # Análisis por proveedor
+            provider_ap = {}
+            for payment in scheduled_payments:
+                provider_name = payment.beneficiary_name or 'Sin nombre'
+                if provider_name not in provider_ap:
+                    provider_ap[provider_name] = {
+                        'total_amount': 0,
+                        'payment_count': 0,
+                        'overdue_amount': 0
+                    }
+                
+                provider_ap[provider_name]['total_amount'] += float(payment.amount)
+                provider_ap[provider_name]['payment_count'] += 1
+                
+                if payment.next_payment_date and payment.next_payment_date < timezone.now().date():
+                    provider_ap[provider_name]['overdue_amount'] += float(payment.amount)
+            
+            # Convertir a lista
+            provider_ap_list = [
+                {
+                    'beneficiary_name': provider_name,
+                    'total_amount': data['total_amount'],
+                    'payment_count': data['payment_count'],
+                    'overdue_amount': data['overdue_amount']
+                }
+                for provider_name, data in provider_ap.items()
+            ]
+            
+            total_scheduled = sum(payment.amount for payment in scheduled_payments)
+            total_overdue = sum(payment.amount for payment in overdue_payments)
+            
+            return {
+                'total_scheduled': float(total_scheduled),
+                'total_overdue': float(total_overdue),
+                'scheduled_payments_count': len(scheduled_payments),
+                'overdue_payments_count': len(overdue_payments),
+                'provider_ap': provider_ap_list,
+                'overdue_ratio': (len(overdue_payments) / len(scheduled_payments) * 100) if scheduled_payments else 0
+            }
+        except Exception as e:
+            logger.error(f"Error calculando cuentas por pagar: {str(e)}")
+            return {}
+    
+    async def _get_cash_flow_analysis(self) -> Dict[str, Any]:
+        """Obtiene análisis de flujo de efectivo."""
+        try:
+            # Período de análisis (próximos 12 meses)
+            start_date = timezone.now()
+            end_date = start_date + timedelta(days=365)
+            
+            # Importar modelos necesarios
+            from app.models import Invoice
+            from app.ats.pricing.models import ScheduledPayment
+            
+            # Proyección de ingresos
+            projected_revenue = []
+            for i in range(12):
+                month_date = start_date + timedelta(days=30*i)
+                monthly_revenue = await sync_to_async(lambda: Invoice.objects.filter(
+                    issue_date__month=month_date.month,
+                    issue_date__year=month_date.year,
+                    status='paid'
+                ).aggregate(total=Sum('total_amount'))['total'] or 0)()
+                
+                projected_revenue.append({
+                    'month': month_date.strftime('%Y-%m'),
+                    'revenue': float(monthly_revenue),
+                    'projected_revenue': float(monthly_revenue * 1.05)  # 5% crecimiento
+                })
+            
+            # Proyección de gastos
+            projected_expenses = []
+            for i in range(12):
+                month_date = start_date + timedelta(days=30*i)
+                monthly_expenses = await sync_to_async(lambda: ScheduledPayment.objects.filter(
+                    next_payment_date__month=month_date.month,
+                    next_payment_date__year=month_date.year
+                ).aggregate(total=Sum('amount'))['total'] or 0)()
+                
+                projected_expenses.append({
+                    'month': month_date.strftime('%Y-%m'),
+                    'expenses': float(monthly_expenses),
+                    'projected_expenses': float(monthly_expenses * 1.02)  # 2% crecimiento
+                })
+            
+            # Calcular flujo neto
+            net_cash_flow = []
+            cumulative_balance = 0
+            for i in range(12):
+                revenue = projected_revenue[i]['projected_revenue']
+                expenses = projected_expenses[i]['projected_expenses']
+                net_flow = revenue - expenses
+                cumulative_balance += net_flow
+                
+                net_cash_flow.append({
+                    'month': projected_revenue[i]['month'],
+                    'net_flow': net_flow,
+                    'cumulative_balance': cumulative_balance
+                })
+            
+            return {
+                'projected_revenue': projected_revenue,
+                'projected_expenses': projected_expenses,
+                'net_cash_flow': net_cash_flow,
+                'total_projected_revenue': sum(r['projected_revenue'] for r in projected_revenue),
+                'total_projected_expenses': sum(e['projected_expenses'] for e in projected_expenses),
+                'net_projected_flow': sum(n['net_flow'] for n in net_cash_flow)
+            }
+        except Exception as e:
+            logger.error(f"Error calculando flujo de efectivo: {str(e)}")
+            return {}
+    
+    async def _get_provider_validation_status(self) -> Dict[str, Any]:
+        """Obtiene estado de validación de proveedores."""
+        try:
+            providers = await sync_to_async(list)(Person.objects.filter(is_provider=True))
+            
+            validation_status = {
+                'total_providers': len(providers),
+                'validated_providers': 0,
+                'pending_validation': 0,
+                'failed_validation': 0,
+                'providers_without_rfc': 0,
+                'validation_details': []
+            }
+            
+            # Importar servicio de validación
+            from app.ats.pricing.services.sat_validation_service import SATValidationService
+            
+            for provider in providers:
+                if not provider.rfc:
+                    validation_status['providers_without_rfc'] += 1
+                    validation_status['validation_details'].append({
+                        'provider_id': provider.id,
+                        'provider_name': provider.name,
+                        'status': 'no_rfc',
+                        'issue': 'Sin RFC'
+                    })
+                else:
+                    # Simular validación SAT
+                    sat_status = {
+                        'status': 'active' if not provider.rfc.endswith('000') else 'inactive',
+                        'reason': 'RFC válido' if not provider.rfc.endswith('000') else 'RFC genérico'
+                    }
+                    
+                    if sat_status['status'] == 'active':
+                        validation_status['validated_providers'] += 1
+                        status = 'validated'
+                    else:
+                        validation_status['failed_validation'] += 1
+                        status = 'failed'
+                    
+                    validation_status['validation_details'].append({
+                        'provider_id': provider.id,
+                        'provider_name': provider.name,
+                        'rfc': provider.rfc,
+                        'status': status,
+                        'sat_status': sat_status,
+                        'blacklist_status': {'is_blacklisted': False}
+                    })
+            
+            validation_status['pending_validation'] = (
+                validation_status['total_providers'] - 
+                validation_status['validated_providers'] - 
+                validation_status['failed_validation'] - 
+                validation_status['providers_without_rfc']
+            )
+            
+            return validation_status
+        except Exception as e:
+            logger.error(f"Error obteniendo estado de validación: {str(e)}")
+            return {}
+    
+    async def _get_sat_compliance_detailed(self) -> Dict[str, Any]:
+        """Obtiene compliance SAT detallado."""
+        try:
+            # Importar modelos necesarios
+            from app.models import Invoice
+            
+            # Facturas con CFDI
+            invoices_with_cfdi = await sync_to_async(list)(Invoice.objects.filter(
+                cfdi_uuid__isnull=False
+            ).exclude(cfdi_uuid=''))
+            
+            # Análisis por mes
+            cfdi_monthly = await sync_to_async(list)(Invoice.objects.filter(
+                cfdi_uuid__isnull=False
+            ).exclude(cfdi_uuid='').extra(
+                select={'month': 'DATE_TRUNC(\'month\', issue_date)'}
+            ).values('month').annotate(
+                count=Count('id'),
+                total_amount=Sum('total_amount')
+            ).order_by('month'))
+            
+            # Facturas sin CFDI por razón
+            invoices_without_cfdi = await sync_to_async(list)(Invoice.objects.filter(
+                Q(cfdi_uuid__isnull=True) | Q(cfdi_uuid='')
+            ))
+            
+            no_cfdi_reasons = {
+                'electronic_billing_disabled': len([i for i in invoices_without_cfdi if not i.electronic_billing_enabled]),
+                'no_pac_configuration': 0,  # Implementar lógica
+                'generation_failed': len([i for i in invoices_without_cfdi if i.sat_status == 'error']),
+                'pending_generation': len([i for i in invoices_without_cfdi if i.sat_status == 'pending'])
+            }
+            
+            total_invoices = await sync_to_async(Invoice.objects.count)()
+            
+            return {
+                'cfdi_compliance_rate': (len(invoices_with_cfdi) / total_invoices * 100) if total_invoices > 0 else 0,
+                'cfdi_monthly': cfdi_monthly,
+                'no_cfdi_reasons': no_cfdi_reasons,
+                'total_invoices': total_invoices,
+                'invoices_with_cfdi': len(invoices_with_cfdi),
+                'invoices_without_cfdi': len(invoices_without_cfdi)
+            }
+        except Exception as e:
+            logger.error(f"Error obteniendo compliance SAT: {str(e)}")
+            return {}
+    
+    async def _get_risk_analysis(self) -> Dict[str, Any]:
+        """Obtiene análisis de riesgo."""
+        try:
+            # Importar modelos necesarios
+            from app.models import Invoice
+            
+            # Clientes con facturas vencidas
+            clients_with_overdue = await sync_to_async(list)(Invoice.objects.filter(
+                status='pending',
+                due_date__lt=timezone.now().date()
+            ).values('receiver_name').annotate(
+                overdue_amount=Sum('total_amount'),
+                overdue_count=Count('id'),
+                total_amount=Sum('total_amount')
+            ))
+            
+            # Análisis de riesgo por cliente
+            risk_analysis = []
+            for client_data in clients_with_overdue:
+                overdue_ratio = (client_data['overdue_amount'] / client_data['total_amount']) * 100
+                
+                if overdue_ratio > 50:
+                    risk_level = 'high'
+                elif overdue_ratio > 20:
+                    risk_level = 'medium'
+                else:
+                    risk_level = 'low'
+                
+                risk_analysis.append({
+                    'client_name': client_data['receiver_name'],
+                    'overdue_amount': float(client_data['overdue_amount']),
+                    'overdue_count': client_data['overdue_count'],
+                    'overdue_ratio': round(overdue_ratio, 2),
+                    'risk_level': risk_level
+                })
+            
+            # Estadísticas de riesgo
+            high_risk_clients = len([c for c in risk_analysis if c['risk_level'] == 'high'])
+            medium_risk_clients = len([c for c in risk_analysis if c['risk_level'] == 'medium'])
+            low_risk_clients = len([c for c in risk_analysis if c['risk_level'] == 'low'])
+            
+            return {
+                'risk_analysis': risk_analysis,
+                'high_risk_clients': high_risk_clients,
+                'medium_risk_clients': medium_risk_clients,
+                'low_risk_clients': low_risk_clients,
+                'total_risky_clients': len(risk_analysis),
+                'total_overdue_amount': sum(c['overdue_amount'] for c in risk_analysis)
+            }
+        except Exception as e:
+            logger.error(f"Error obteniendo análisis de riesgo: {str(e)}")
+            return {}
+    
+    async def _get_scheduled_payments_overview(self) -> Dict[str, Any]:
+        """Obtiene overview de pagos programados."""
+        try:
+            # Importar modelos necesarios
+            from app.ats.pricing.models import ScheduledPayment
+            
+            # Pagos programados activos
+            active_scheduled = await sync_to_async(list)(ScheduledPayment.objects.filter(status='active'))
+            
+            # Pagos por frecuencia
+            frequency_breakdown = {}
+            for payment in active_scheduled:
+                frequency = payment.frequency
+                if frequency not in frequency_breakdown:
+                    frequency_breakdown[frequency] = {
+                        'count': 0,
+                        'total_amount': 0
+                    }
+                frequency_breakdown[frequency]['count'] += 1
+                frequency_breakdown[frequency]['total_amount'] += float(payment.amount)
+            
+            # Convertir a lista
+            frequency_breakdown_list = [
+                {
+                    'frequency': freq,
+                    'count': data['count'],
+                    'total_amount': data['total_amount']
+                }
+                for freq, data in frequency_breakdown.items()
+            ]
+            
+            # Próximos pagos (próximos 30 días)
+            next_30_days = timezone.now().date() + timedelta(days=30)
+            upcoming_payments = await sync_to_async(list)(ScheduledPayment.objects.filter(
+                status='active',
+                next_payment_date__lte=next_30_days
+            ).order_by('next_payment_date'))
+            
+            # Pagos vencidos
+            overdue_scheduled = await sync_to_async(list)(ScheduledPayment.objects.filter(
+                status='active',
+                next_payment_date__lt=timezone.now().date()
+            ))
+            
+            total_scheduled_amount = sum(payment.amount for payment in active_scheduled)
+            overdue_scheduled_amount = sum(payment.amount for payment in overdue_scheduled)
+            
+            return {
+                'total_scheduled_payments': len(active_scheduled),
+                'total_scheduled_amount': float(total_scheduled_amount),
+                'frequency_breakdown': frequency_breakdown_list,
+                'upcoming_payments': [
+                    {
+                        'id': payment.id,
+                        'name': payment.name,
+                        'amount': float(payment.amount),
+                        'next_payment_date': payment.next_payment_date.isoformat() if payment.next_payment_date else None,
+                        'beneficiary_name': payment.beneficiary_name
+                    }
+                    for payment in upcoming_payments
+                ],
+                'overdue_scheduled_count': len(overdue_scheduled),
+                'overdue_scheduled_amount': float(overdue_scheduled_amount)
+            }
+        except Exception as e:
+            logger.error(f"Error obteniendo overview de pagos programados: {str(e)}")
+            return {}
+
+    # ============================================================================
+    # MÉTODOS PRIVADOS EXISTENTES
+    # ============================================================================

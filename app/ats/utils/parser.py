@@ -18,7 +18,7 @@ from tempfile import NamedTemporaryFile
 import unicodedata
 from bs4 import BeautifulSoup
 import trafilatura
-from app.ats.utils.scraping_utils import PlaywrightAntiDeteccion
+from app.ats.utils.scraping.scraping_utils import PlaywrightAntiDeteccion
 import fitz  # PyMuPDF
 import pytesseract
 from PIL import Image
@@ -27,6 +27,11 @@ from spacy.tokens import Doc
 import psutil
 import gc
 from app.tasks import process_message
+from django.conf import settings
+from django.core.exceptions import ValidationError
+from dataclasses import dataclass
+from app.ats.utils.text_processing import TextProcessor
+from app.ats.utils.validation import DocumentValidator
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -347,6 +352,8 @@ class IMAPCVProcessor:
         )
 
 class CVParser:
+    """Parser especializado para CVs."""
+    
     def __init__(self, business_unit: BusinessUnit, max_workers: int = None):
         self.business_unit = business_unit
         self.max_workers = max_workers or MAX_WORKERS
@@ -356,6 +363,9 @@ class CVParser:
         self._init_skill_patterns()
         self._init_legacy()
         self._init_business_unit_skills()
+        self.text_processor = TextProcessor()
+        self.validator = DocumentValidator()
+        self.scraping_utils = PlaywrightAntiDeteccion()
 
     def _init_skill_patterns(self):
         if not self.matcher:

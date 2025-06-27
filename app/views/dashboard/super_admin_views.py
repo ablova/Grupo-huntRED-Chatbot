@@ -1286,4 +1286,101 @@ def schedule_report_view(request):
         
     except Exception as e:
         logger.error(f"Error en programación de reporte: {str(e)}")
-        return JsonResponse({'success': False, 'error': str(e)}) 
+        return JsonResponse({'success': False, 'error': str(e)})
+
+@method_decorator(csrf_exempt, name='dispatch')
+class SuperAdminFinancialDashboardView(View):
+    """Vista para el dashboard financiero del Super Admin."""
+    
+    async def get(self, request):
+        """Renderiza el dashboard financiero."""
+        if not is_super_admin(request.user):
+            return JsonResponse({'error': 'Acceso denegado'}, status=403)
+        
+        try:
+            dashboard = SuperAdminDashboard()
+            financial_data = await dashboard.get_financial_dashboard()
+            
+            return render(request, 'dashboard/super_admin_financial_dashboard.html', {
+                'user': request.user,
+                'financial_data': financial_data,
+                'bruce_almighty_mode': True  # 🚀
+            })
+            
+        except Exception as e:
+            logger.error(f"Error obteniendo dashboard financiero: {str(e)}")
+            return JsonResponse({
+                'success': False,
+                'error': 'Error interno del servidor'
+            }, status=500)
+
+@method_decorator(csrf_exempt, name='dispatch')
+class SuperAdminFinancialDataView(View):
+    """Vista para obtener datos financieros en formato JSON."""
+    
+    async def get(self, request):
+        """Obtiene datos financieros."""
+        if not is_super_admin(request.user):
+            return JsonResponse({'error': 'Acceso denegado'}, status=403)
+        
+        try:
+            dashboard = SuperAdminDashboard()
+            financial_data = await dashboard.get_financial_dashboard()
+            
+            return JsonResponse({
+                'success': True,
+                'financial_data': financial_data
+            })
+            
+        except Exception as e:
+            logger.error(f"Error obteniendo datos financieros: {str(e)}")
+            return JsonResponse({
+                'success': False,
+                'error': 'Error interno del servidor'
+            }, status=500)
+
+@method_decorator(csrf_exempt, name='dispatch')
+class SuperAdminProviderValidationView(View):
+    """Vista para validación de proveedores."""
+    
+    async def post(self, request):
+        """Valida un proveedor con SAT."""
+        if not is_super_admin(request.user):
+            return JsonResponse({'error': 'Acceso denegado'}, status=403)
+        
+        try:
+            data = json.loads(request.body)
+            provider_id = data.get('provider_id')
+            
+            if not provider_id:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'ID de proveedor requerido'
+                }, status=400)
+            
+            # Importar servicio de validación
+            from app.ats.pricing.services.sat_validation_service import SATValidationService
+            from app.models import Person, BusinessUnit
+            
+            provider = await sync_to_async(Person.objects.get)(id=provider_id)
+            business_unit = provider.business_unit or await sync_to_async(BusinessUnit.objects.first)()
+            
+            sat_service = SATValidationService(business_unit)
+            validation_result = sat_service.validate_provider(provider)
+            
+            return JsonResponse({
+                'success': True,
+                'validation_result': validation_result
+            })
+            
+        except Person.DoesNotExist:
+            return JsonResponse({
+                'success': False,
+                'error': 'Proveedor no encontrado'
+            }, status=404)
+        except Exception as e:
+            logger.error(f"Error validando proveedor: {str(e)}")
+            return JsonResponse({
+                'success': False,
+                'error': 'Error interno del servidor'
+            }, status=500) 

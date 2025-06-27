@@ -106,8 +106,8 @@ from app.ml.aura import (
     CareerPredictor,
     
     # Models
-    GNNModels,
-    GNNAnalyzer,
+    # GNNModels,  # Comentado temporalmente - requiere PyTorch
+    # GNNAnalyzer,  # Comentado temporalmente - requiere PyTorch
     
     # Connectors
     LinkedInConnector,
@@ -300,8 +300,7 @@ __all__ = [
     'SentimentAnalyzer',
     'MarketPredictor',
     'CareerPredictor',
-    'GNNModels',
-    'GNNAnalyzer',
+    # Connectors
     'LinkedInConnector',
     'iCloudConnector',
     # Analyzers

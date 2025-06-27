@@ -1,0 +1,84 @@
+{% extends "emails/base_email.html" %}
+
+{% block titulo %}¡Evaluación NOM 35 Completada! 🎉{% endblock %}
+
+{% block cuerpo %}
+<p>Hola {{ recipient_name }},</p>
+
+<p>¡Felicitaciones! Has completado exitosamente tu evaluación NOM 35. Tu compromiso con el bienestar laboral es fundamental para crear un ambiente de trabajo saludable.</p>
+
+<div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+    <h3 style="color: #28a745; margin-top: 0;">📊 Resultados de tu Evaluación</h3>
+    <ul style="margin: 0; padding-left: 20px;">
+        <li><strong>Fecha de evaluación:</strong> {{ assessment_date }}</li>
+        <li><strong>Nivel de riesgo:</strong> 
+            <span style="color: {% if risk_level == 'bajo' %}#28a745{% elif risk_level == 'medio' %}#ffc107{% else %}#dc3545{% endif %}; font-weight: bold;">
+                {{ risk_level|title }}
+            </span>
+        </li>
+        <li><strong>Puntuación total:</strong> {{ score }} puntos</li>
+    </ul>
+</div>
+
+{% if recommendations %}
+<div style="background-color: #e3f2fd; padding: 20px; border-radius: 8px; margin: 20px 0;">
+    <h3 style="color: #1976d2; margin-top: 0;">💡 Recomendaciones Personalizadas</h3>
+    <ul style="margin: 0; padding-left: 20px;">
+        {% for recommendation in recommendations %}
+        <li>{{ recommendation }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+{% if badges %}
+<div style="background-color: #fff3e0; padding: 20px; border-radius: 8px; margin: 20px 0;">
+    <h3 style="color: #f57c00; margin-top: 0;">🏆 Tus Logros</h3>
+    <p>Has ganado los siguientes badges por tu participación:</p>
+    <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+        {% for badge in badges %}
+        <div style="background: white; padding: 10px; border-radius: 6px; border: 1px solid #ddd; text-align: center; min-width: 80px;">
+            <div style="font-size: 24px;">{{ badge.icon|default:"🏅" }}</div>
+            <div style="font-size: 12px; font-weight: bold;">{{ badge.name }}</div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% if coupon_code %}
+<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">
+    <h3 style="margin-top: 0; color: white;">🎁 ¡Oferta Especial para tu Equipo!</h3>
+    <p>Como has completado tu evaluación NOM 35, te ofrecemos un descuento especial para que tu empresa pueda implementar evaluaciones para todo el equipo.</p>
+    
+    <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 6px; margin: 15px 0;">
+        <h4 style="margin: 0; color: white;">Cupón de Descuento</h4>
+        <div style="font-size: 24px; font-weight: bold; letter-spacing: 2px; margin: 10px 0;">{{ coupon_code }}</div>
+        <div style="font-size: 18px;">{{ coupon_discount }}% de descuento</div>
+        <div style="font-size: 12px; opacity: 0.8;">Válido por 30 días</div>
+    </div>
+</div>
+{% endif %}
+
+<p><strong>¿Quieres llevar el bienestar laboral al siguiente nivel?</strong></p>
+
+<p>Nuestras evaluaciones complementarias te ayudarán a:</p>
+<ul>
+    <li>Identificar líderes potenciales en tu equipo</li>
+    <li>Mejorar la cultura organizacional</li>
+    <li>Reducir la rotación de personal</li>
+    <li>Aumentar la productividad y satisfacción</li>
+</ul>
+
+<p>¡Gracias por confiar en {{ business_unit }} para cuidar la salud mental de tu organización!</p>
+{% endblock %}
+
+{% block cta_text %}{{ cta_text }}{% endblock %}
+{% block cta_url %}{{ upsell_url }}{% endblock %}
+
+{% block footer %}
+<p style="font-size: 12px; color: #666; margin-top: 30px;">
+    Este email fue enviado por {{ business_unit }}. 
+    Si tienes preguntas, contáctanos en <a href="mailto:support@huntred.com">support@huntred.com</a>
+</p>
+{% endblock %} 

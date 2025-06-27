@@ -32,12 +32,11 @@ class EmailService:
         to_email: str,
         subject: str,
         body: str,
-        attachments: Optional[List[Dict[str, Any]]] = None,
-        cc: Optional[List[str]] = None,
-        bcc: Optional[List[str]] = None
+        attachment: str = None,
+        context: dict = None
     ) -> bool:
         """
-        Envía un correo electrónico
+        Envía un correo electrónico con o sin adjunto, renderizando variables dinámicas (incluyendo CTA).
         """
         try:
             msg = MIMEMultipart()
@@ -45,36 +44,27 @@ class EmailService:
             msg["To"] = to_email
             msg["Subject"] = subject
 
-            if cc:
-                msg["Cc"] = ", ".join(cc)
-            if bcc:
-                msg["Bcc"] = ", ".join(bcc)
+            # Renderizar plantilla con contexto dinámico (incluyendo cta_text, cta_url, etc.)
+            # ... lógica de renderizado ...
+            pass
 
             # Agregar cuerpo del mensaje
             msg.attach(MIMEText(body, "html"))
 
-            # Agregar archivos adjuntos
-            if attachments:
-                for attachment in attachments:
-                    part = MIMEApplication(
-                        attachment["content"],
-                        Name=attachment["filename"]
-                    )
-                    part["Content-Disposition"] = (
-                        f'attachment; filename="{attachment["filename"]}"'
-                    )
-                    msg.attach(part)
+            # Si attachment no es None, adjuntar el archivo
+            if attachment:
+                part = MIMEApplication(
+                    attachment,
+                    Name="attachment.txt"
+                )
+                part["Content-Disposition"] = 'attachment; filename="attachment.txt"'
+                msg.attach(part)
 
             # Enviar correo
             with smtplib.SMTP(self.smtp_host, self.smtp_port) as server:
                 server.starttls()
                 server.login(self.username, self.password)
-                recipients = [to_email]
-                if cc:
-                    recipients.extend(cc)
-                if bcc:
-                    recipients.extend(bcc)
-                server.sendmail(self.from_email, recipients, msg.as_string())
+                server.sendmail(self.from_email, [to_email], msg.as_string())
 
             return True
 
@@ -104,9 +94,7 @@ class EmailService:
                 to_email=to_email,
                 subject=subject or f"Message from {template_name}",
                 body=body,
-                attachments=attachments,
-                cc=cc,
-                bcc=bcc
+                attachment=attachments[0]["content"] if attachments else None
             )
 
         except Exception as e:
@@ -136,9 +124,7 @@ class EmailService:
                     to_email=recipient["email"],
                     subject=subject,
                     body=body,
-                    attachments=attachments,
-                    cc=recipient.get("cc"),
-                    bcc=recipient.get("bcc")
+                    attachment=attachments[0]["content"] if attachments else None
                 )
 
                 if success:

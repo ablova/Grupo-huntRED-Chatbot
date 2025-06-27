@@ -1,0 +1,11 @@
+{% extends "emails/base_email.html" %}
+{% block titulo %}Reporte de Cumplimiento NOM 35{% endblock %}
+{% block cuerpo %}
+<p>Hola {{ nombre_cliente }},</p>
+<p>Te informamos que hemos agendado/completado la evaluación NOM 35 para tu colaborador <b>{{ nombre_colaborador }}</b>.</p>
+<p>Adjuntamos el reporte correspondiente para tu cumplimiento legal.</p>
+<p>¿Quieres aplicar la NOM 35 o evaluaciones de clima, cultura o liderazgo a todo tu equipo? <b>Contáctanos o haz clic aquí para más información.</b></p>
+<p>¡Gracias por confiar en huntRED!</p>
+{% endblock %}
+{% block cta_text %}Solicita una demo de evaluaciones para tu equipo{% endblock %}
+{% block cta_url %}{{ upsell_url }}{% endblock %} 

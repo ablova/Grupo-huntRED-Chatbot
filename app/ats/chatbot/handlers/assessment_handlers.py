@@ -12,6 +12,8 @@ from app.models import BusinessUnit, Person
 from app.ats.chatbot.workflow.assessments.cultural.cultural_fit_workflow import CulturalFitWorkflow
 from app.ats.chatbot.workflow.assessments.professional_dna.workflow import ProfessionalDNAWorkflow
 from app.ats.chatbot.workflow.assessments.personality.workflow import PersonalityWorkflow
+from app.ats.chatbot.workflow.assessments.nom35.nom35_questions import NOM35_GUIA_II, NOM35_GUIA_III, NOM35_OPTIONS, NOM35_OPTIONS_WHATSAPP
+from app.ats.chatbot.workflow.assessments.nom35.nom35_evaluation import NOM35EvaluationWorkflow
 
 logger = logging.getLogger(__name__)
 
@@ -119,20 +121,134 @@ class CulturalFitHandler(AssessmentHandler):
         pass
 
 
+class NOM35AssessmentHandler:
+    """Handler para la evaluación NOM 35 con experiencia optimizada."""
+    def __init__(self, user_id: str, business_unit: BusinessUnit, context: Dict[str, Any] = None):
+        self.user_id = user_id
+        self.business_unit = business_unit
+        self.context = context or {}
+        self.profile = self.context.get("profile", "employee")  # 'employee' o 'leader'
+        self.channel = self.context.get("channel", "web")  # 'web' o 'whatsapp'
+        self.guide = NOM35_GUIA_III if self.profile == "leader" else NOM35_GUIA_II
+        self.options = NOM35_OPTIONS_WHATSAPP if self.channel == "whatsapp" else NOM35_OPTIONS
+        self.total_questions = sum(len(section["questions"]) for section in self.guide)
+        self.answers = []
+        self.current_section = 0
+        self.current_question = 0
+        self.completed = False
+
+    async def start(self):
+        msg = (
+            "Esta evaluación es obligatoria por la NOM-035 para cuidar tu salud mental y la de tu empresa. "
+            "Debes completarla para obtener tu certificado. ¡Responde con sinceridad!"
+        )
+        return await self._next_question(intro=msg)
+
+    async def process_response(self, user_input: str):
+        # Convertir respuesta de texto a valor numérico
+        value = self._parse_response(user_input)
+        if value is None:
+            return {"error": "Respuesta no válida. Por favor selecciona una opción válida."}
+        
+        # Guardar respuesta
+        self.answers.append(value)
+        # Avanzar pregunta
+        self.current_question += 1
+        # Si termina sección, avanzar sección
+        if self.current_question >= len(self.guide[self.current_section]["questions"]):
+            self.current_section += 1
+            self.current_question = 0
+        # Si termina todo
+        if self.current_section >= len(self.guide):
+            self.completed = True
+            return await self._finish()
+        # Siguiente pregunta
+        return await self._next_question()
+
+    def _parse_response(self, user_input: str) -> Optional[int]:
+        """Convierte la respuesta del usuario a valor numérico"""
+        user_input = user_input.lower().strip()
+        
+        # Buscar coincidencia en las opciones
+        for option in self.options:
+            if user_input in option["label"].lower() or str(option["value"]) == user_input:
+                return option["value"]
+        
+        return None
+
+    async def _next_question(self, intro: Optional[str] = None):
+        section = self.guide[self.current_section]
+        question = section["questions"][self.current_question]
+        progress = int(100 * (len(self.answers) / self.total_questions))
+        msg = f"{intro + '\n' if intro else ''}({progress}% completado)\nSección: {section['section']}\n{question['text']}"
+        quick_replies = [opt["label"] for opt in self.options]
+        return {"question": msg, "quick_replies": quick_replies}
+
+    async def _finish(self):
+        msg = (
+            "¡Has completado la evaluación NOM 35! 🎉\n"
+            "Tus respuestas han sido registradas y recibirás tu certificado y reporte de cumplimiento."
+        )
+        # Aquí puedes guardar las respuestas y disparar el flujo de scoring y reporte
+        await self._save_results()
+        return {"status": "completed", "message": msg}
+
+    async def _save_results(self):
+        """Guarda los resultados de la evaluación"""
+        try:
+            from app.ats.chatbot.workflow.assessments.nom35.models import AssessmentNOM35
+            
+            # Calcular score y nivel de riesgo
+            total_score = sum(self.answers)
+            risk_level = self._calculate_risk_level(total_score)
+            
+            # Guardar en base de datos
+            assessment = AssessmentNOM35(
+                person_id=self.user_id,
+                business_unit=self.business_unit,
+                responses={"answers": self.answers},
+                score=total_score,
+                risk_level=risk_level
+            )
+            await sync_to_async(assessment.save)()
+            
+        except Exception as e:
+            logger.error(f"Error saving NOM35 results: {str(e)}")
+
+    def _calculate_risk_level(self, total_score: int) -> str:
+        """Calcula el nivel de riesgo basado en el score total"""
+        if total_score <= 50:
+            return "bajo"
+        elif total_score <= 100:
+            return "medio"
+        else:
+            return "alto"
+
+    async def get_results(self):
+        if not self.completed:
+            raise ValueError("Assessment not completed")
+        return {
+            "answers": self.answers, 
+            "score": sum(self.answers), 
+            "risk_level": self._calculate_risk_level(sum(self.answers))
+        }
+
+
 class AssessmentFactory:
     """Factory for creating assessment handlers"""
+    
+    handlers = {
+        "cultural_fit": CulturalFitHandler,
+        "professional_dna": ProfessionalDNAWorkflow,  # Implement these handlers similarly
+        "personality": PersonalityWorkflow,  # Implement these handlers similarly
+        "nom35": NOM35AssessmentHandler,
+    }
     
     @classmethod
     async def create_handler(cls, assessment_type: str, user_id: str, 
                            business_unit: BusinessUnit, context: Dict[str, Any] = None):
         """Create an assessment handler for the specified type"""
-        handlers = {
-            "cultural_fit": CulturalFitHandler,
-            "professional_dna": ProfessionalDNAWorkflow,  # Implement these handlers similarly
-            "personality": PersonalityWorkflow,  # Implement these handlers similarly
-        }
-        
-        handler_class = handlers.get(assessment_type)
+        handler_class = cls.handlers.get(assessment_type)
         if not handler_class:
             raise ValueError(f"No handler found for assessment type: {assessment_type}")
         

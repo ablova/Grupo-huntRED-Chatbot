@@ -8,7 +8,7 @@ from app.ats.proposals.models import Proposal
 from django.views.generic import TemplateView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from app.models import BusinessUnit
-from app.ats.pricing.models.addons import BusinessUnitAddon
+from app.ats.pricing.models.addons import BusinessUnitAddon as PricingBusinessUnitAddon
 from app.ats.market.services.report_generator import MarketReportGenerator
 from app.ats.learning.services.recommendation_service import LearningRecommendationService
 from typing import Dict, Any, List
@@ -195,7 +195,7 @@ class AddonDashboardView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
         business_unit = self.request.user.business_unit
         
         # Obtener addons activos
-        active_addons = BusinessUnitAddon.objects.filter(
+        active_addons = PricingBusinessUnitAddon.objects.filter(
             business_unit=business_unit,
             is_active=True
         )
@@ -296,10 +296,10 @@ class SuperAdminDashboardView(LoginRequiredMixin, UserPassesTestMixin, TemplateV
         """Obtiene estadísticas de addons"""
         return {
             'total_addons': PremiumAddon.objects.count(),
-            'active_addons': BusinessUnitAddon.objects.filter(is_active=True).count(),
+            'active_addons': PricingBusinessUnitAddon.objects.filter(is_active=True).count(),
             'revenue': sum(
                 addon.price
-                for addon in BusinessUnitAddon.objects.filter(is_active=True)
+                for addon in PricingBusinessUnitAddon.objects.filter(is_active=True)
             )
         }
     

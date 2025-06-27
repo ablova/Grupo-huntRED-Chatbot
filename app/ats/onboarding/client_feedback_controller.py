@@ -1,3 +1,4 @@
+# app/ats/onboarding/client_feedback_controller.py
 """
 Controlador para manejar encuestas de satisfacción de clientes.
 
@@ -26,7 +27,7 @@ from django.utils.crypto import get_random_string
 from django.core.exceptions import ValidationError
 from asgiref.sync import sync_to_async
 
-from app.models import Empresa, BusinessUnit, Person, ClientFeedback, ClientFeedbackSchedule, CLIENT_FEEDBACK_PERIODS
+from app.models import Company as Empresa, BusinessUnit, Person, ClientFeedback, ClientFeedbackSchedule, CLIENT_FEEDBACK_PERIODS
 from app.ml.onboarding_processor import OnboardingMLProcessor
 
 logger = logging.getLogger(__name__)

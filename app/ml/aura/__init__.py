@@ -101,7 +101,7 @@ from .predictive.career_predictor import CareerMovementPredictor as CareerPredic
 # from .api.endpoints import AuraAPIEndpoints  # Comentado - no existe esta clase
 
 # Models modules
-from .models.gnn_models import GNNModels, GNNAnalyzer
+# from .models.gnn_models import GNNModels, GNNAnalyzer  # Comentado temporalmente - requiere PyTorch
 
 # Connectors modules
 from .connectors.linkedin_connector import LinkedInConnector
@@ -183,11 +183,11 @@ __all__ = [
     'CareerPredictor',
     
     # API
-    'AuraAPIEndpoints',
+    # 'AuraAPIEndpoints',  # Comentado - no existe esta clase
     
     # Models
-    'GNNModels',
-    'GNNAnalyzer',
+    # 'GNNModels',  # Comentado temporalmente - requiere PyTorch
+    # 'GNNAnalyzer',  # Comentado temporalmente - requiere PyTorch
     
     # Connectors
     'LinkedInConnector',

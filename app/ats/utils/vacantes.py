@@ -10,16 +10,16 @@ from typing import List, Dict, Optional
 from functools import lru_cache
 from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
-import tensorflow as tf
-import tensorflow_hub as hub
-from geopy.distance import geodesic
+# import tensorflow as tf
+# import tensorflow_hub as hub
+# from geopy.distance import geodesic
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from asgiref.sync import sync_to_async
 from app.ats.chatbot.utils.nlp_utils import NLPUtils
-from app.models import Person, GptApi, ConfiguracionBU, BusinessUnit, Vacante
-from app.ats.models.worker import Worker
-from app.ats.integrations.services import EmailService, MessageService
+from app.models import Person, GptApi, ConfiguracionBU, BusinessUnit, Vacante, Template
+from app.ats.pricing.models.business import Empleador as Worker
+from app.ats.integrations.channels.whatsapp.whatsapp import registro_amigro
 from app.ml.core.models.matchmaking import MatchmakingModel
 from app.ats.chatbot.utils.chatbot_utils import ChatbotUtils
 
@@ -31,7 +31,8 @@ SKIP_HEAVY_INIT = 'makemigrations' in sys.argv or 'migrate' in sys.argv
 
 # Carga del modelo solo si no estamos en migración
 if not SKIP_HEAVY_INIT:
-    embed = hub.load("https://tfhub.dev/google/universal-sentence-encoder/4")
+    # embed = hub.load("https://tfhub.dev/google/universal-sentence-encoder/4")
+    embed = None
 else:
     embed = None
 
@@ -293,8 +294,9 @@ class VacanteManager:
 
     async def _send_notifications(self, payload: Dict):
         """
-        Envía notificaciones por email y WhatsApp a los responsables.
+        Envía notificaciones por email y WhatsApp al responsable de la vacante.
         """
+        from app.ats.integrations.services import EmailService
         logger.info("Enviando notificaciones")
         print("📢 Enviando notificaciones...")
 
@@ -314,7 +316,7 @@ class VacanteManager:
                     f"<li>Salario: ${payload['meta']['_salary_min']} - ${payload['meta']['_salary_max']} MXN</li>"
                     f"</ul>"
                 )
-                await self.EmailService.send_email(self.configuracion.business_unit, subject, correo_responsable, body)
+                await EmailService.send_email(self.configuracion.business_unit, subject, correo_responsable, body)
                 logger.info(f"Email enviado a {correo_responsable}")
                 print(f"✅ Email enviado a {correo_responsable}")
 
@@ -522,6 +524,7 @@ class VacanteManager:
         """
         Envía un resumen de la vacante al responsable por WhatsApp.
         """
+        from app.ats.integrations.services import MessageService
         logger.debug("Enviando recap por WhatsApp")
         print("Simulando envío por WhatsApp")
         mensaje = (
@@ -533,7 +536,7 @@ class VacanteManager:
         )
         celular_responsable = self.job_data.get("celular_responsable")
         if celular_responsable:
-            await MessageServicesend_message("whatsapp", celular_responsable, mensaje, self.configuracion.business_unit.name)
+            await MessageService.send_message("whatsapp", celular_responsable, mensaje, self.configuracion.business_unit.name)
 
     @staticmethod
     def match_person_with_jobs(person, job_list):
@@ -809,32 +812,31 @@ def fit_personality(personality_data, desired_personality):
 async def procesar_vacante(data: Dict) -> Dict[str, str]:
     """
     Procesa datos del chatbot para crear una vacante en WordPress.
-
     Args:
         data (Dict): Datos recibidos del chatbot.
     Returns:
         Dict[str, str]: Estado y mensaje del resultado.
     """
-    from app.ats.integrations.channels.whatsapp import registro_amigro
-
-    required_fields = ["TextInput_5315eb", "TextInput_de5bdf", "TextInput_e1c9ad", "TextInput_4136cd", "TextInput_10ecd4", "TextArea_5df661"]
-    missing = [field for field in required_fields if not data.get(field)]
-    if missing:
-        return {"status": "error", "message": f"Faltan campos: {', '.join(missing)}"}
-
-    job_data = {
-        "business_unit": data.get("business_unit", 4),
-        "company_name": data.get("TextInput_5315eb"),
-        "job_employee": data.get("TextInput_de5bdf"),
-        "job_employee-email": data.get("TextInput_e1c9ad"),
-        "celular_responsable": data.get("TextInput_4136cd"),
-        "job_title": data.get("TextInput_10ecd4"),
-        "job_description": data.get("TextArea_5df661"),
-        "job_listing_type": data.get("Dropdown_d27f07", "Remoto"),
-        "job_listing_region": "México",
-    }
-
+    # Obtener la BU y el nombre del template (ajusta según tu lógica de entrada)
+    bu_id = data.get("business_unit")
+    template_name = data.get("template_name", "registro_amigro")
     try:
+        business_unit = await sync_to_async(BusinessUnit.objects.get)(id=bu_id)
+        template = await sync_to_async(Template.objects.get)(
+            business_unit=business_unit,
+            type='whatsapp',
+            name=template_name,
+            is_active=True
+        )
+        field_map = template.field_map
+        # Mapeo dinámico de los datos recibidos
+        datos_modelo = {field_map[k]: v for k, v in data.items() if k in field_map}
+        # Puedes agregar validaciones aquí si algún campo es obligatorio
+        job_data = {
+            **datos_modelo,
+            "business_unit": bu_id,
+            "job_listing_region": "México",
+        }
         manager = VacanteManager(job_data)
         return await manager.create_job_listing()
     except Exception as e:

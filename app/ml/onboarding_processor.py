@@ -23,6 +23,10 @@ from app.models import (
     OnboardingProcess, Person, Vacante, Company, 
     BusinessUnit, OnboardingTask
 )
+# from app.ats.assessments.models import AssessmentNOM35
+# from app.ats.assessments.nom35_questions import NOM35_GUIA_II, NOM35_GUIA_III
+from app.ml.analyzers.assessment_reporting import AssessmentReporter
+from app.ats.integrations.services.email import EmailService
 
 logger = logging.getLogger(__name__)
 
@@ -699,6 +703,44 @@ class OnboardingMLProcessor:
             })
         
         return risk_factors
+
+    async def send_nom35_email_notification(self, cliente_email: str, subject: str, body: str, attachment: str = None):
+        """
+        Envía una notificación por email al cliente sobre la NOM 35.
+        """
+        email_service = EmailService()
+        await email_service.send_email(
+            to=cliente_email,
+            subject=subject,
+            body=body,
+            attachment=attachment
+        )
+
+    async def schedule_nom35_assessment(self, person_id: int, business_unit_id: int, cliente_email: str):
+        """
+        Agenda la evaluación NOM 35 y notifica al cliente.
+        """
+        # ... lógica de agendado ...
+        subject = "[huntRED] NOM 35 agendada para su nuevo colaborador"
+        body = (
+            "¡Hola!\n\nComo parte de nuestro compromiso con el cumplimiento legal y el bienestar laboral, hemos agendado la evaluación NOM 35 para su nuevo colaborador. "
+            "Recibirá el reporte automáticamente tras su realización.\n\n¿Desea aplicar la NOM 35 a todo su equipo? Contáctenos para más información."
+        )
+        await self.send_nom35_email_notification(cliente_email, subject, body)
+
+    async def send_nom35_assessment(self, person_id: int, business_unit_id: int, cliente_email: str):
+        """
+        Envía la evaluación NOM 35 al candidato y procesa el resultado, notificando al cliente con el reporte adjunto.
+        """
+        # ... lógica de envío y procesamiento ...
+        # Suponiendo que se genera un PDF 'reporte_nom35.pdf' para el usuario
+        subject = "[huntRED] Reporte de cumplimiento NOM 35 de su colaborador"
+        body = (
+            "Adjuntamos el reporte de la evaluación NOM 35 realizada a su colaborador.\n\n"
+            "¿Desea aplicar la NOM 35 a todo su equipo? Puede hacerlo fácilmente desde nuestra plataforma.\n\n"
+            "¡Gracias por confiar en huntRED!"
+        )
+        await self.send_nom35_email_notification(cliente_email, subject, body, attachment="reporte_nom35.pdf")
 
 class OnboardingProcessor(OnboardingMLProcessor):
     """

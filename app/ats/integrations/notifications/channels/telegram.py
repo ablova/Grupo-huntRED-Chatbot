@@ -1,3 +1,4 @@
+# app/ats/integrations/notifications/channels/telegram.py
 """
 Manejador de notificaciones para Telegram.
 """
@@ -7,7 +8,12 @@ from datetime import datetime
 
 from django.conf import settings
 from telegram import Bot
-from telegram.constants import ParseMode
+# Corregir importación para versiones más recientes de python-telegram-bot
+try:
+    from telegram.constants import ParseMode
+except ImportError:
+    from telegram import ParseMode
+    # Fallback para versiones más antiguas
 from telegram.error import TelegramError
 
 from app.models import BusinessUnit, TelegramAPI

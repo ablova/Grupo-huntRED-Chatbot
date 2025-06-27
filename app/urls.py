@@ -69,7 +69,7 @@ from app.ats.views.publish_views import (
     update_job_opportunity_status,
     webhook_job_opportunity
 )
-from app.ats.pagos.views.sync_views import sync_pricing_view, sync_all_pricing_view
+from app.ats.pricing.views.sync_views import sync_pricing_view, sync_all_pricing_view
 
 # Importación para Análisis Cultural
 # Migrated to app.ats.chatbot.workflow.assessments.cultural
@@ -106,7 +106,7 @@ urlpatterns = [
     path('workflow/', include('app.views.workflow.urls')),
     path('sexsi/', include('app.sexsi.urls')),
     path('documents/', include(documents_urls, namespace='documents')),
-    path('pagos/', include('app.ats.pagos.urls', namespace='pagos')),
+    path('pricing/', include('app.ats.pricing.urls', namespace='pricing')),
     path('ml/', include('app.views.ml.urls')),
     path('webhooks/', include('app.views.webhook.urls')),
     
@@ -198,7 +198,7 @@ urlpatterns += [
     path('login/', login_view, name='login'),
     
     # Rutas de pagos
-    path('pagos/', include('app.ats.pagos.urls', namespace='pagos')),
+    path('pricing/', include('app.ats.pricing.urls', namespace='pricing')),
 ]
 
 # ----------------------------------------

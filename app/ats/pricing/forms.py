@@ -15,7 +15,12 @@ from django.db.models import Q
 
 from app.models import (
     BusinessUnit, Opportunity, Contact, Company, 
-    TalentAnalysisRequest, Promotion
+    TalentAnalysisRequest
+)
+from app.ats.pricing.models import (
+    PricingStrategy, PricePoint, DiscountRule, ReferralFee,
+    PricingCalculation, PricingPayment, PricingProposal,
+    ProposalSection, ProposalTemplate
 )
 
 
@@ -77,7 +82,7 @@ class Talent360RequestForm(forms.ModelForm):
     )
     
     description = forms.CharField(
-        label="Descripción o notas",
+        label="Descripción adicional",
         required=False,
         widget=Textarea(attrs={'class': 'form-control', 'rows': 3})
     )
@@ -110,31 +115,12 @@ class Talent360RequestForm(forms.ModelForm):
         if not code:
             return code
         
-        try:
-            promotion = Promotion.objects.get(
-                code=code, 
-                is_active=True,
-                valid_until__gte=timezone.now().date()
-            )
-            
-            # Verificar que la promoción sea para análisis de talento
-            if promotion.service_type != 'talent_analysis':
-                raise ValidationError(
-                    "Este código promocional no es válido para Análisis de Talento 360°."
-                )
-                
-            # Verificar límite de usos
-            if promotion.max_uses and promotion.times_used >= promotion.max_uses:
-                raise ValidationError(
-                    "Este código promocional ha alcanzado su límite máximo de usos."
-                )
-            
-            return code
-            
-        except Promotion.DoesNotExist:
-            raise ValidationError(
-                "El código promocional no es válido o ha expirado."
-            )
+        # Por ahora, simplemente validar que el código no esté vacío
+        # En el futuro, se puede implementar validación contra cupones de descuento
+        if len(code) < 3:
+            raise ValidationError("El código promocional debe tener al menos 3 caracteres.")
+        
+        return code
     
     def save(self, commit=True):
         instance = super().save(False)
@@ -246,36 +232,3 @@ class BulkAnalysisRequestForm(forms.Form):
         initial=False,
         widget=CheckboxInput(attrs={'class': 'form-check-input'})
     )
-
-
-class PromotionCodeForm(forms.ModelForm):
-    """Formulario para crear/editar códigos promocionales."""
-    
-    class Meta:
-        model = Promotion
-        fields = [
-            'code', 'name', 'description', 'discount_percentage', 
-            'service_type', 'valid_from', 'valid_until', 
-            'max_uses', 'is_active'
-        ]
-        widgets = {
-            'code': TextInput(attrs={'class': 'form-control'}),
-            'name': TextInput(attrs={'class': 'form-control'}),
-            'description': Textarea(attrs={'class': 'form-control', 'rows': 2}),
-            'discount_percentage': NumberInput(attrs={'class': 'form-control', 'step': '0.1', 'min': '0', 'max': '100'}),
-            'service_type': Select(attrs={'class': 'form-select'}),
-            'valid_from': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'valid_until': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'max_uses': NumberInput(attrs={'class': 'form-control', 'min': '0'}),
-            'is_active': CheckboxInput(attrs={'class': 'form-check-input'}),
-        }
-    
-    def clean(self):
-        cleaned_data = super().clean()
-        valid_from = cleaned_data.get('valid_from')
-        valid_until = cleaned_data.get('valid_until')
-        
-        if valid_from and valid_until and valid_from > valid_until:
-            raise ValidationError("La fecha de inicio no puede ser posterior a la fecha de fin.")
-        
-        return cleaned_data

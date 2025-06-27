@@ -1,8 +1,9 @@
 from typing import Dict, Any, List
 from decimal import Decimal
+from app.models import PremiumAddon
+from app.ats.pricing.models.addons import BusinessUnitAddon
 from app.ats.market.models.benchmark import MarketBenchmark
 from app.ats.market.models.trend import MarketTrend
-from app.ats.pricing.models.addons import PremiumAddon
 from app.ml.analyzers.market.salary_analyzer import SalaryAnalyzer
 from app.ml.analyzers.market.demand_analyzer import DemandAnalyzer
 

@@ -1,0 +1,93 @@
+{% extends "emails/base_email.html" %}
+
+{% block titulo %}Descubre tu {{ assessment_name }} 🚀{% endblock %}
+
+{% block cuerpo %}
+<p>Hola {{ recipient_name }},</p>
+
+<p>¡Excelente trabajo completando tus evaluaciones! Ahora es el momento perfecto para descubrir tu <strong>{{ assessment_name }}</strong> y llevar tu desarrollo profesional al siguiente nivel.</p>
+
+<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 25px; border-radius: 10px; margin: 25px 0; text-align: center;">
+    <h2 style="margin: 0; color: white;">¿Por qué {{ assessment_name }}?</h2>
+    <p style="font-size: 18px; margin: 15px 0;">Esta evaluación te revelará insights únicos sobre tu perfil profesional que te ayudarán a:</p>
+</div>
+
+<div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+    <h3 style="color: #28a745; margin-top: 0;">🎯 Beneficios Clave</h3>
+    <ul style="margin: 0; padding-left: 20px;">
+        {% for benefit in benefits %}
+        <li style="margin: 8px 0;">{{ benefit }}</li>
+        {% endfor %}
+    </ul>
+</div>
+
+{% if badges %}
+<div style="background-color: #fff3e0; padding: 20px; border-radius: 8px; margin: 20px 0;">
+    <h3 style="color: #f57c00; margin-top: 0;">🏆 Tus Logros Actuales</h3>
+    <p>Ya has ganado estos badges por tu participación:</p>
+    <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px;">
+        {% for badge in badges %}
+        <div style="background: white; padding: 12px; border-radius: 8px; border: 2px solid #f57c00; text-align: center; min-width: 90px;">
+            <div style="font-size: 28px;">{{ badge.icon|default:"🏅" }}</div>
+            <div style="font-size: 13px; font-weight: bold; color: #f57c00;">{{ badge.name }}</div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% if coupon_code %}
+<div style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%); color: white; padding: 25px; border-radius: 10px; margin: 25px 0; text-align: center;">
+    <h3 style="margin: 0; color: white;">🔥 ¡Oferta Limitada!</h3>
+    <p>Como usuario activo, te ofrecemos un descuento exclusivo en tu {{ assessment_name }}:</p>
+    
+    <div style="background: rgba(255,255,255,0.15); padding: 20px; border-radius: 8px; margin: 20px 0; border: 2px dashed rgba(255,255,255,0.3);">
+        <h4 style="margin: 0; color: white; font-size: 20px;">Cupón Especial</h4>
+        <div style="font-size: 28px; font-weight: bold; letter-spacing: 3px; margin: 15px 0; background: white; color: #ee5a24; padding: 10px; border-radius: 6px;">{{ coupon_code }}</div>
+        <div style="font-size: 24px; font-weight: bold;">{{ coupon_discount }}% de descuento</div>
+        <div style="font-size: 14px; opacity: 0.9; margin-top: 10px;">Válido por 30 días • Uso único</div>
+    </div>
+</div>
+{% endif %}
+
+{% if bundle_name %}
+<div style="background-color: #e8f5e8; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #28a745;">
+    <h3 style="color: #28a745; margin-top: 0;">📦 Bundle Recomendado</h3>
+    <p><strong>{{ bundle_name }}</strong> - Incluye múltiples evaluaciones con descuento especial:</p>
+    <ul style="margin: 10px 0; padding-left: 20px;">
+        <li>{{ assessment_name }}</li>
+        <li>Evaluación de Personalidad</li>
+        <li>Cultural Fit Assessment</li>
+        <li>Reporte de Desarrollo Profesional</li>
+    </ul>
+    <p style="margin: 10px 0;"><strong>Precio especial:</strong> ${{ bundle_price|default:"299" }} USD</p>
+</div>
+{% endif %}
+
+<div style="background-color: #f0f8ff; padding: 20px; border-radius: 8px; margin: 20px 0;">
+    <h3 style="color: #1976d2; margin-top: 0;">💡 ¿Qué incluye tu {{ assessment_name }}?</h3>
+    <ul style="margin: 0; padding-left: 20px;">
+        <li>Evaluación completa de 30-45 minutos</li>
+        <li>Reporte detallado con insights personalizados</li>
+        <li>Recomendaciones de desarrollo específicas</li>
+        <li>Certificado de completación</li>
+        <li>Soporte especializado durante el proceso</li>
+    </ul>
+</div>
+
+<p style="font-size: 18px; font-weight: bold; text-align: center; margin: 30px 0;">
+    ¡No pierdas esta oportunidad de conocerte mejor y potenciar tu carrera!
+</p>
+
+<p>Con {{ business_unit }}, cada evaluación es un paso hacia tu mejor versión profesional.</p>
+{% endblock %}
+
+{% block cta_text %}{{ cta_text }}{% endblock %}
+{% block cta_url %}{{ upsell_url }}{% endblock %}
+
+{% block footer %}
+<p style="font-size: 12px; color: #666; margin-top: 30px;">
+    Este email fue enviado por {{ business_unit }}. 
+    Para darte de baja, <a href="{{ settings.SITE_URL }}/unsubscribe">haz clic aquí</a>
+</p>
+{% endblock %} 

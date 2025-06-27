@@ -1676,17 +1676,418 @@ class Proposal(models.Model):
         return self.title
 
 class Invoice(models.Model):
-    payment = models.ForeignKey('app.Pago', on_delete=models.CASCADE)
-    invoice_number = models.CharField(max_length=100)
+    """Modelo para facturas con soporte para facturación electrónica y compliance."""
+    
+    # Relaciones principales
+    payment = models.ForeignKey('app.Pago', on_delete=models.CASCADE, related_name='invoices')
+    service = models.ForeignKey('Service', on_delete=models.CASCADE, related_name='invoices', null=True, blank=True)
+    business_unit = models.ForeignKey('BusinessUnit', on_delete=models.CASCADE, related_name='invoices')
+    
+    # Información básica
+    invoice_number = models.CharField(max_length=100, unique=True, help_text="Número de factura")
+    folio = models.CharField(max_length=50, blank=True, help_text="Folio interno")
+    
+    # Estados
+    STATUS_CHOICES = [
+        ('draft', 'Borrador'),
+        ('pending', 'Pendiente'),
+        ('sent', 'Enviada'),
+        ('paid', 'Pagada'),
+        ('cancelled', 'Cancelada'),
+        ('expired', 'Expirada'),
+    ]
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    
+    # Fechas
+    issue_date = models.DateTimeField(auto_now_add=True, help_text="Fecha de emisión")
+    due_date = models.DateTimeField(null=True, blank=True, help_text="Fecha de vencimiento")
+    payment_date = models.DateTimeField(null=True, blank=True, help_text="Fecha de pago")
+    
+    # Montos
+    subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    tax_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    discount_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    currency = models.CharField(max_length=3, default='MXN')
+    
+    # Datos fiscales del emisor (empresa)
+    issuer_rfc = models.CharField(max_length=13, blank=True, help_text="RFC del emisor")
+    issuer_name = models.CharField(max_length=200, blank=True, help_text="Razón social del emisor")
+    issuer_address = models.TextField(blank=True, help_text="Dirección fiscal del emisor")
+    issuer_regime = models.CharField(max_length=50, blank=True, help_text="Régimen fiscal del emisor")
+    
+    # Datos fiscales del receptor (cliente)
+    receiver_rfc = models.CharField(max_length=13, blank=True, help_text="RFC del receptor")
+    receiver_name = models.CharField(max_length=200, blank=True, help_text="Razón social del receptor")
+    receiver_address = models.TextField(blank=True, help_text="Dirección fiscal del receptor")
+    receiver_use = models.CharField(max_length=50, blank=True, help_text="Uso CFDI del receptor")
+    
+    # Facturación electrónica
+    cfdi_uuid = models.CharField(max_length=36, blank=True, help_text="UUID del CFDI")
+    cfdi_xml = models.TextField(blank=True, help_text="XML del CFDI")
+    cfdi_pdf = models.FileField(upload_to='invoices/pdf/', blank=True, help_text="PDF de la factura")
+    sat_status = models.CharField(max_length=20, blank=True, help_text="Estado en el SAT")
+    
+    # Configuración de facturación
+    electronic_billing_enabled = models.BooleanField(default=True, help_text="¿Facturación electrónica habilitada?")
+    auto_send_to_finances = models.BooleanField(default=True, help_text="¿Enviar automáticamente a finanzas?")
+    finances_email = models.EmailField(default='finanzas@huntRED.com', help_text="Email de finanzas")
+    
+    # Compliance y auditoría
+    audit_log = models.JSONField(default=list, help_text="Registro de cambios")
+    compliance_notes = models.TextField(blank=True, help_text="Notas de compliance")
+    
+    # Metadatos
+    notes = models.TextField(blank=True, help_text="Notas adicionales")
+    terms_conditions = models.TextField(blank=True, help_text="Términos y condiciones")
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='created_invoices')
 
     class Meta:
         verbose_name = "Factura"
         verbose_name_plural = "Facturas"
+        ordering = ['-issue_date']
+        indexes = [
+            models.Index(fields=['invoice_number']),
+            models.Index(fields=['status']),
+            models.Index(fields=['issue_date']),
+            models.Index(fields=['cfdi_uuid']),
+            models.Index(fields=['business_unit']),
+        ]
 
     def __str__(self):
-        return self.invoice_number
+        return f"Factura {self.invoice_number} - {self.total_amount} {self.currency}"
+    
+    def save(self, *args, **kwargs):
+        # Calcular total si no está establecido
+        if not self.total_amount:
+            self.total_amount = self.subtotal + self.tax_amount - self.discount_amount
+        
+        # Generar número de factura si no existe
+        if not self.invoice_number:
+            self.invoice_number = self.generate_invoice_number()
+        
+        # Registrar cambio en audit_log
+        self.audit_log.append({
+            'timestamp': timezone.now().isoformat(),
+            'action': 'updated' if self.pk else 'created',
+            'user': getattr(self.created_by, 'username', 'system') if self.created_by else 'system',
+            'changes': self._get_changes()
+        })
+        
+        super().save(*args, **kwargs)
+    
+    def generate_invoice_number(self):
+        """Genera un número de factura único."""
+        from datetime import datetime
+        year = datetime.now().year
+        month = datetime.now().month
+        
+        # Buscar el último número de factura del mes
+        last_invoice = Invoice.objects.filter(
+            invoice_number__startswith=f"F{year}{month:02d}"
+        ).order_by('-invoice_number').first()
+        
+        if last_invoice:
+            try:
+                last_number = int(last_invoice.invoice_number[-4:])
+                new_number = last_number + 1
+            except ValueError:
+                new_number = 1
+        else:
+            new_number = 1
+        
+        return f"F{year}{month:02d}{new_number:04d}"
+    
+    def _get_changes(self):
+        """Obtiene los cambios realizados en el modelo."""
+        if not self.pk:  # Nueva instancia
+            return {'created': True}
+        
+        # Para instancias existentes, comparar con la versión anterior
+        try:
+            old_instance = Invoice.objects.get(pk=self.pk)
+            changes = {}
+            for field in ['status', 'total_amount', 'cfdi_uuid']:
+                old_value = getattr(old_instance, field)
+                new_value = getattr(self, field)
+                if old_value != new_value:
+                    changes[field] = {'old': old_value, 'new': new_value}
+            return changes
+        except Invoice.DoesNotExist:
+            return {'created': True}
+    
+    def calculate_totals(self):
+        """Calcula los totales de la factura."""
+        # Obtener todos los conceptos de la factura
+        line_items = self.line_items.all()
+        
+        self.subtotal = sum(item.subtotal for item in line_items)
+        self.tax_amount = sum(item.tax_amount for item in line_items)
+        self.discount_amount = sum(item.discount_amount for item in line_items)
+        self.total_amount = self.subtotal + self.tax_amount - self.discount_amount
+        
+        self.save(update_fields=['subtotal', 'tax_amount', 'discount_amount', 'total_amount'])
+    
+    def send_to_finances(self):
+        """Envía la factura al departamento de finanzas."""
+        if not self.auto_send_to_finances:
+            return False
+        
+        # Aquí implementarías la lógica para enviar a finanzas@huntRED.com
+        # Por ahora, solo registramos la acción
+        self.audit_log.append({
+            'timestamp': timezone.now().isoformat(),
+            'action': 'sent_to_finances',
+            'user': 'system',
+            'email': self.finances_email
+        })
+        self.save(update_fields=['audit_log'])
+        return True
+    
+    def generate_pdf(self):
+        """Genera el PDF de la factura."""
+        # Implementar generación de PDF
+        pass
+    
+    def generate_xml(self):
+        """Genera el XML para facturación electrónica."""
+        if not self.electronic_billing_enabled:
+            return None
+        
+        # Implementar generación de XML CFDI
+        pass
+    
+    def mark_as_paid(self):
+        """Marca la factura como pagada."""
+        self.status = 'paid'
+        self.payment_date = timezone.now()
+        self.save(update_fields=['status', 'payment_date'])
+    
+    def cancel(self, reason=""):
+        """Cancela la factura."""
+        self.status = 'cancelled'
+        self.compliance_notes = f"Cancelada: {reason}"
+        self.save(update_fields=['status', 'compliance_notes'])
+
+class LineItem(models.Model):
+    """Modelo para conceptos de factura (líneas de factura)."""
+    
+    # Relaciones
+    invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name='line_items')
+    service = models.ForeignKey('Service', on_delete=models.CASCADE, related_name='line_items', null=True, blank=True)
+    
+    # Información del concepto
+    description = models.TextField(help_text="Descripción del concepto")
+    product_key = models.CharField(max_length=20, blank=True, help_text="Clave del producto/servicio SAT")
+    unit_key = models.CharField(max_length=20, blank=True, help_text="Clave de unidad SAT")
+    
+    # Cantidades y precios
+    quantity = models.DecimalField(max_digits=10, decimal_places=2, default=1, help_text="Cantidad")
+    unit_price = models.DecimalField(max_digits=12, decimal_places=2, help_text="Precio unitario")
+    
+    # Montos
+    subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Subtotal sin impuestos")
+    tax_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Monto de impuestos")
+    discount_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Monto de descuento")
+    total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Total del concepto")
+    
+    # Impuestos
+    tax_rate = models.DecimalField(max_digits=5, decimal_places=2, default=16, help_text="Tasa de impuesto (%)")
+    tax_type = models.CharField(max_length=20, default='IVA', help_text="Tipo de impuesto")
+    
+    # Metadatos
+    notes = models.TextField(blank=True, help_text="Notas adicionales")
+    metadata = models.JSONField(default=dict, help_text="Datos adicionales")
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Concepto de Factura"
+        verbose_name_plural = "Conceptos de Factura"
+        ordering = ['invoice', 'created_at']
+        indexes = [
+            models.Index(fields=['invoice']),
+            models.Index(fields=['service']),
+        ]
+
+    def __str__(self):
+        return f"{self.description} - {self.quantity} x {self.unit_price}"
+    
+    def save(self, *args, **kwargs):
+        # Calcular montos si no están establecidos
+        if not self.subtotal:
+            self.subtotal = self.quantity * self.unit_price
+        
+        if not self.tax_amount:
+            self.tax_amount = self.subtotal * (self.tax_rate / 100)
+        
+        if not self.total_amount:
+            self.total_amount = self.subtotal + self.tax_amount - self.discount_amount
+        
+        super().save(*args, **kwargs)
+    
+    def calculate_totals(self):
+        """Recalcula todos los totales del concepto."""
+        self.subtotal = self.quantity * self.unit_price
+        self.tax_amount = self.subtotal * (self.tax_rate / 100)
+        self.total_amount = self.subtotal + self.tax_amount - self.discount_amount
+        self.save(update_fields=['subtotal', 'tax_amount', 'total_amount'])
+
+class Order(models.Model):
+    """Modelo para órdenes de servicio (punto intermedio antes de facturar)."""
+    
+    ORDER_TYPE_CHOICES = [
+        ('service', 'Servicio'),
+        ('consulting', 'Consultoría'),
+        ('recruitment', 'Reclutamiento'),
+        ('assessment', 'Evaluación'),
+        ('other', 'Otro'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('draft', 'Borrador'),
+        ('pending', 'Pendiente'),
+        ('approved', 'Aprobada'),
+        ('in_progress', 'En Progreso'),
+        ('completed', 'Completada'),
+        ('cancelled', 'Cancelada'),
+        ('invoiced', 'Facturada'),
+    ]
+    
+    # Información básica
+    order_number = models.CharField(max_length=100, unique=True, help_text="Número de orden")
+    title = models.CharField(max_length=200, help_text="Título de la orden")
+    description = models.TextField(help_text="Descripción detallada")
+    order_type = models.CharField(max_length=20, choices=ORDER_TYPE_CHOICES, help_text="Tipo de orden")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    
+    # Relaciones
+    client = models.ForeignKey('Person', on_delete=models.CASCADE, related_name='orders', help_text="Cliente")
+    business_unit = models.ForeignKey('BusinessUnit', on_delete=models.CASCADE, related_name='orders')
+    service = models.ForeignKey('Service', on_delete=models.CASCADE, related_name='orders', null=True, blank=True)
+    assigned_to = models.ForeignKey('Person', on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_orders', help_text="Persona asignada")
+    
+    # Fechas
+    requested_date = models.DateTimeField(auto_now_add=True, help_text="Fecha de solicitud")
+    due_date = models.DateTimeField(null=True, blank=True, help_text="Fecha de vencimiento")
+    completed_date = models.DateTimeField(null=True, blank=True, help_text="Fecha de completado")
+    
+    # Montos
+    estimated_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Monto estimado")
+    actual_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Monto real")
+    currency = models.CharField(max_length=3, default='MXN')
+    
+    # Configuración
+    auto_invoice = models.BooleanField(default=True, help_text="¿Generar factura automáticamente al completar?")
+    send_to_finances = models.BooleanField(default=True, help_text="¿Enviar a finanzas al completar?")
+    
+    # Metadatos
+    requirements = models.JSONField(default=list, help_text="Requisitos específicos")
+    deliverables = models.JSONField(default=list, help_text="Entregables esperados")
+    notes = models.TextField(blank=True, help_text="Notas adicionales")
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='created_orders')
+
+    class Meta:
+        verbose_name = "Orden de Servicio"
+        verbose_name_plural = "Órdenes de Servicio"
+        ordering = ['-requested_date']
+        indexes = [
+            models.Index(fields=['order_number']),
+            models.Index(fields=['status']),
+            models.Index(fields=['client']),
+            models.Index(fields=['business_unit']),
+            models.Index(fields=['requested_date']),
+        ]
+
+    def __str__(self):
+        return f"Orden {self.order_number} - {self.title}"
+    
+    def save(self, *args, **kwargs):
+        # Generar número de orden si no existe
+        if not self.order_number:
+            self.order_number = self.generate_order_number()
+        
+        super().save(*args, **kwargs)
+    
+    def generate_order_number(self):
+        """Genera un número de orden único."""
+        from datetime import datetime
+        year = datetime.now().year
+        month = datetime.now().month
+        
+        # Buscar el último número de orden del mes
+        last_order = Order.objects.filter(
+            order_number__startswith=f"O{year}{month:02d}"
+        ).order_by('-order_number').first()
+        
+        if last_order:
+            try:
+                last_number = int(last_order.order_number[-4:])
+                new_number = last_number + 1
+            except ValueError:
+                new_number = 1
+        else:
+            new_number = 1
+        
+        return f"O{year}{month:02d}{new_number:04d}"
+    
+    def approve(self):
+        """Aprueba la orden."""
+        self.status = 'approved'
+        self.save(update_fields=['status'])
+    
+    def start_work(self):
+        """Inicia el trabajo en la orden."""
+        self.status = 'in_progress'
+        self.save(update_fields=['status'])
+    
+    def complete(self, actual_amount=None):
+        """Completa la orden."""
+        self.status = 'completed'
+        self.completed_date = timezone.now()
+        
+        if actual_amount is not None:
+            self.actual_amount = actual_amount
+        
+        self.save(update_fields=['status', 'completed_date', 'actual_amount'])
+        
+        # Generar factura automáticamente si está configurado
+        if self.auto_invoice:
+            self.generate_invoice()
+    
+    def generate_invoice(self):
+        """Genera una factura para esta orden."""
+        from app.ats.pricing.services.billing_service import BillingService
+        
+        billing_service = BillingService()
+        invoice = billing_service.create_invoice_from_order(self)
+        return invoice
+    
+    def cancel(self, reason=""):
+        """Cancela la orden."""
+        self.status = 'cancelled'
+        self.notes = f"{self.notes}\n\nCancelada: {reason}"
+        self.save(update_fields=['status', 'notes'])
+    
+    def get_progress_percentage(self):
+        """Calcula el porcentaje de progreso basado en el estado."""
+        progress_map = {
+            'draft': 0,
+            'pending': 10,
+            'approved': 25,
+            'in_progress': 60,
+            'completed': 100,
+            'cancelled': 0,
+            'invoiced': 100,
+        }
+        return progress_map.get(self.status, 0)
 
 class LinkedInMessageTemplate(models.Model):
     """Modelo para plantillas de mensajes de LinkedIn."""
@@ -2388,6 +2789,39 @@ class DiscountCoupon(models.Model):
             proposal=proposal,
             description=description
         )
+    
+    def __str__(self):
+        return (
+            f"Cupón {self.code} - {self.discount_percentage}% - "
+            f"{self.get_status_display()} - "
+            f"Vence: {self.expiration_date.strftime('%Y-%m-%d %H:%M')}"
+        )
+
+    def get_time_remaining(self):
+        """
+        Obtiene el tiempo restante hasta la expiración del cupón.
+        
+        Returns:
+            str: Tiempo restante en formato legible
+        """
+        if self.is_used:
+            return "Cupón ya utilizado"
+        
+        if self.expiration_date <= timezone.now():
+            return "Cupón expirado"
+        
+        remaining = self.expiration_date - timezone.now()
+        
+        if remaining.days > 0:
+            return f"{remaining.days} días"
+        elif remaining.seconds > 3600:
+            hours = remaining.seconds // 3600
+            return f"{hours} horas"
+        elif remaining.seconds > 60:
+            minutes = remaining.seconds // 60
+            return f"{minutes} minutos"
+        else:
+            return "Menos de 1 minuto"
     
     def __str__(self):
         return (
@@ -4571,6 +5005,15 @@ class WhatsAppConfig(models.Model):
     def __str__(self):
         return f"WhatsApp - {self.business_unit}"
 
+def default_field_map():
+    """Valores por defecto para el mapeo de campos de WhatsApp a modelos internos."""
+    return {
+        "TextInput_531eb": "first_name",
+        "TextInput_123ab": "last_name",
+        "TextInput_999xx": "email",
+        "TextInput_888yy": "phone"
+    }
+
 class Template(models.Model):
     """Modelo para plantillas de mensajes."""
     name = models.CharField(max_length=100)
@@ -4587,12 +5030,13 @@ class Template(models.Model):
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    field_map = models.JSONField(default=default_field_map, help_text="Mapeo de campos WhatsApp → modelo interno ")
     
     class Meta:
         verbose_name = "Plantilla"
         verbose_name_plural = "Plantillas"
         ordering = ['type', 'name']
-        
+    
     def __str__(self):
         return self.name
 
@@ -5526,3 +5970,181 @@ class Feedback(models.Model):
     def skip_feedback(self):
         self.status = 'SKIPPED'
         self.save()
+
+class Service(models.Model):
+    """Modelo principal para servicios ofrecidos por las unidades de negocio."""
+    
+    SERVICE_TYPE_CHOICES = [
+        ('recruitment', 'Reclutamiento Especializado'),
+        ('executive_search', 'Búsqueda de Ejecutivos'),
+        ('talent_analysis', 'Análisis de Talento 360°'),
+        ('consulting', 'Consultoría de HR'),
+        ('outplacement', 'Outplacement'),
+        ('training', 'Capacitación'),
+        ('verification', 'Verificación de Antecedentes'),
+        ('assessment', 'Evaluación de Competencias'),
+        ('other', 'Otro Servicio'),
+    ]
+    
+    BILLING_TYPE_CHOICES = [
+        ('fixed', 'Precio Fijo'),
+        ('hourly', 'Por Hora'),
+        ('daily', 'Por Día'),
+        ('monthly', 'Por Mes'),
+        ('project', 'Por Proyecto'),
+        ('percentage', 'Porcentaje'),
+        ('recurring', 'Recurrente'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('active', 'Activo'),
+        ('inactive', 'Inactivo'),
+        ('draft', 'Borrador'),
+        ('archived', 'Archivado'),
+    ]
+    
+    # Información básica
+    name = models.CharField(max_length=200, help_text="Nombre del servicio")
+    description = models.TextField(help_text="Descripción detallada del servicio")
+    service_type = models.CharField(
+        max_length=50, 
+        choices=SERVICE_TYPE_CHOICES,
+        help_text="Tipo de servicio"
+    )
+    billing_type = models.CharField(
+        max_length=20,
+        choices=BILLING_TYPE_CHOICES,
+        help_text="Tipo de facturación"
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='active',
+        help_text="Estado del servicio"
+    )
+    
+    # Pricing
+    base_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        help_text="Precio base del servicio"
+    )
+    currency = models.CharField(
+        max_length=3,
+        default='MXN',
+        help_text="Moneda del precio"
+    )
+    pricing_config = models.JSONField(
+        default=dict,
+        help_text="Configuración específica de precios"
+    )
+    
+    # Business Unit
+    business_unit = models.ForeignKey(
+        'BusinessUnit',
+        on_delete=models.CASCADE,
+        related_name='services',
+        help_text="Unidad de negocio que ofrece el servicio"
+    )
+    
+    # Características
+    features = models.JSONField(
+        default=list,
+        help_text="Lista de características del servicio"
+    )
+    requirements = models.JSONField(
+        default=list,
+        help_text="Requisitos para el servicio"
+    )
+    deliverables = models.JSONField(
+        default=list,
+        help_text="Entregables del servicio"
+    )
+    
+    # Configuración de pagos
+    payment_terms = models.CharField(
+        max_length=50,
+        default='net30',
+        help_text="Términos de pago"
+    )
+    payment_methods = models.JSONField(
+        default=list,
+        help_text="Métodos de pago aceptados"
+    )
+    
+    # Configuración de hitos
+    default_milestones = models.JSONField(
+        default=list,
+        help_text="Hitos de pago por defecto"
+    )
+    
+    # Metadatos
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='created_services'
+    )
+    
+    class Meta:
+        verbose_name = "Servicio"
+        verbose_name_plural = "Servicios"
+        ordering = ['name']
+        indexes = [
+            models.Index(fields=['service_type', 'status']),
+            models.Index(fields=['business_unit', 'status']),
+            models.Index(fields=['billing_type']),
+        ]
+    
+    def __str__(self):
+        return f"{self.name} - {self.business_unit.name}"
+    
+    def get_pricing_config(self, key=None, default=None):
+        """Obtiene configuración de precios"""
+        if key is None:
+            return self.pricing_config
+        return self.pricing_config.get(key, default)
+    
+    def set_pricing_config(self, key, value):
+        """Establece configuración de precios"""
+        self.pricing_config[key] = value
+        self.save()
+    
+    def calculate_price(self, **kwargs):
+        """Calcula el precio del servicio según el tipo de facturación"""
+        if self.billing_type == 'fixed':
+            return self.base_price
+        elif self.billing_type == 'hourly':
+            hours = kwargs.get('hours', 1)
+            return self.base_price * hours
+        elif self.billing_type == 'daily':
+            days = kwargs.get('days', 1)
+            return self.base_price * days
+        elif self.billing_type == 'monthly':
+            months = kwargs.get('months', 1)
+            return self.base_price * months
+        elif self.billing_type == 'percentage':
+            base_amount = kwargs.get('base_amount', 0)
+            return (self.base_price * base_amount) / 100
+        elif self.billing_type == 'recurring':
+            cycles = kwargs.get('cycles', 1)
+            return self.base_price * cycles
+        else:
+            return self.base_price
+    
+    def is_available_for(self, business_unit):
+        """Verifica si el servicio está disponible para una unidad de negocio"""
+        return self.business_unit == business_unit and self.status == 'active'
+    
+    def get_payment_schedule(self, total_amount, payment_structure='standard'):
+        """Genera un calendario de pagos para el servicio"""
+        from app.ats.pricing.progressive_billing import ProgressiveBilling
+        
+        return ProgressiveBilling.generate_payment_schedule(
+            business_unit_name=self.business_unit.name,
+            start_date=timezone.now().date(),
+            contract_amount=total_amount,
+            service_type=self.service_type
+        )

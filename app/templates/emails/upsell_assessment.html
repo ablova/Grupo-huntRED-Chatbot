@@ -1,0 +1,15 @@
+{% extends "emails/base_email.html" %}
+{% block titulo %}¡Potencia el Talento de tu Equipo con Nuevas Evaluaciones!{% endblock %}
+{% block cuerpo %}
+<p>Hola {{ nombre_cliente }},</p>
+<p>¿Sabías que puedes complementar la NOM 35 con evaluaciones de <b>Plan de Sucesión</b>, <b>Cultural Fit</b> y mucho más?</p>
+<ul>
+    <li>Identifica líderes y sucesores clave</li>
+    <li>Mejora el clima y la cultura organizacional</li>
+    <li>Reduce la rotación y aumenta el compromiso</li>
+</ul>
+<p><b>Solicita una demo o activa estas evaluaciones para tu equipo hoy mismo.</b></p>
+<p>¡Estamos para ayudarte a crecer!</p>
+{% endblock %}
+{% block cta_text %}Activa tu bundle con cupón especial{% endblock %}
+{% block cta_url %}{{ coupon_url }}{% endblock %} 

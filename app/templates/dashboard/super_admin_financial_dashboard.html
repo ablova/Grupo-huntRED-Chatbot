@@ -1,0 +1,936 @@
+{% extends 'layout/layout_vertical.html' %}
+{% load static %}
+
+{% block title %}🚀 Dashboard Financiero - Super Admin 🚀{% endblock %}
+
+{% block page_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard/super_admin.css' %}">
+<style>
+    .financial-metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .financial-card {
+        background: var(--card-bg);
+        border-radius: var(--border-radius);
+        padding: 1.5rem;
+        box-shadow: var(--shadow);
+        transition: var(--transition);
+        border: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .financial-card:hover {
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-hover);
+    }
+    
+    .financial-value {
+        font-size: 2rem;
+        font-weight: bold;
+        margin: 0.5rem 0;
+        background: var(--primary-gradient);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    
+    .financial-label {
+        font-size: 0.9rem;
+        opacity: 0.8;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    
+    .financial-trend {
+        font-size: 0.8rem;
+        margin-top: 0.5rem;
+    }
+    
+    .trend-positive { color: #28a745; }
+    .trend-negative { color: #dc3545; }
+    .trend-neutral { color: #6c757d; }
+    
+    .chart-container {
+        background: var(--card-bg);
+        border-radius: var(--border-radius);
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: var(--shadow);
+    }
+    
+    .chart-title {
+        font-size: 1.2rem;
+        font-weight: bold;
+        margin-bottom: 1rem;
+        color: var(--text-primary);
+    }
+    
+    .validation-status {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 1rem;
+        font-size: 0.8rem;
+        font-weight: bold;
+        text-transform: uppercase;
+    }
+    
+    .status-validated { background: #28a745; color: white; }
+    .status-failed { background: #dc3545; color: white; }
+    .status-pending { background: #ffc107; color: black; }
+    .status-no-rfc { background: #6c757d; color: white; }
+    
+    .risk-level {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 1rem;
+        font-size: 0.8rem;
+        font-weight: bold;
+        text-transform: uppercase;
+    }
+    
+    .risk-high { background: #dc3545; color: white; }
+    .risk-medium { background: #ffc107; color: black; }
+    .risk-low { background: #28a745; color: white; }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- BRUCE ALMIGHTY MODE INDICATOR 🚀 -->
+<div class="god-mode-indicator">
+    🚀 Bruce Almighty Mode - Dashboard Financiero 🚀 <br>
+    🚀 Pablo Lelo de Larrea y de Haro 🚀
+</div>
+
+<!-- HEADER ESPECTACULAR -->
+<div class="bruce-almighty-header">
+    <h1 class="bruce-almighty-title">💰 DASHBOARD FINANCIERO</h1>
+    <p class="bruce-almighty-subtitle">Control Total de Finanzas, Pagos y Compliance SAT 🚀</p>
+</div>
+
+<!-- NAVEGACIÓN PRINCIPAL -->
+<ul class="nav nav-tabs" id="financialTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <a class="nav-link active" id="overview-tab" data-bs-toggle="tab" href="#overview" role="tab">
+            <i class="fas fa-chart-line"></i> Overview Financiero
+        </a>
+    </li>
+    <li class="nav-item" role="presentation">
+        <a class="nav-link" id="payments-tab" data-bs-toggle="tab" href="#payments" role="tab">
+            <i class="fas fa-credit-card"></i> Pagos
+        </a>
+    </li>
+    <li class="nav-item" role="presentation">
+        <a class="nav-link" id="receivables-tab" data-bs-toggle="tab" href="#receivables" role="tab">
+            <i class="fas fa-hand-holding-usd"></i> Cuentas por Cobrar
+        </a>
+    </li>
+    <li class="nav-item" role="presentation">
+        <a class="nav-link" id="payables-tab" data-bs-toggle="tab" href="#payables" role="tab">
+            <i class="fas fa-file-invoice-dollar"></i> Cuentas por Pagar
+        </a>
+    </li>
+    <li class="nav-item" role="presentation">
+        <a class="nav-link" id="providers-tab" data-bs-toggle="tab" href="#providers" role="tab">
+            <i class="fas fa-users"></i> Proveedores
+        </a>
+    </li>
+    <li class="nav-item" role="presentation">
+        <a class="nav-link" id="sat-tab" data-bs-toggle="tab" href="#sat" role="tab">
+            <i class="fas fa-file-contract"></i> Compliance SAT
+        </a>
+    </li>
+    <li class="nav-item" role="presentation">
+        <a class="nav-link" id="risk-tab" data-bs-toggle="tab" href="#risk" role="tab">
+            <i class="fas fa-exclamation-triangle"></i> Análisis de Riesgo
+        </a>
+    </li>
+</ul>
+
+<!-- CONTENIDO DE LAS PESTAÑAS -->
+<div class="tab-content" id="financialTabContent">
+    <!-- OVERVIEW FINANCIERO -->
+    <div class="tab-pane fade show active" id="overview" role="tabpanel">
+        <div class="financial-metrics-grid">
+            <div class="financial-card">
+                <div class="financial-label">Ingresos Totales</div>
+                <div class="financial-value" id="total-revenue">$0</div>
+                <div class="financial-trend trend-positive" id="revenue-trend">+15.3% vs mes anterior</div>
+            </div>
+            <div class="financial-card">
+                <div class="financial-label">Pagos Recibidos</div>
+                <div class="financial-value" id="total-payments">$0</div>
+                <div class="financial-trend trend-positive" id="payments-trend">+8.7% vs mes anterior</div>
+            </div>
+            <div class="financial-card">
+                <div class="financial-label">Cuentas por Cobrar</div>
+                <div class="financial-value" id="accounts-receivable">$0</div>
+                <div class="financial-trend trend-negative" id="ar-trend">+12.1% vs mes anterior</div>
+            </div>
+            <div class="financial-card">
+                <div class="financial-label">Cuentas por Pagar</div>
+                <div class="financial-value" id="accounts-payable">$0</div>
+                <div class="financial-trend trend-neutral" id="ap-trend">+2.3% vs mes anterior</div>
+            </div>
+            <div class="financial-card">
+                <div class="financial-label">Días Promedio de Pago</div>
+                <div class="financial-value" id="avg-payment-days">0</div>
+                <div class="financial-trend trend-positive" id="days-trend">-3.2 días vs mes anterior</div>
+            </div>
+            <div class="financial-card">
+                <div class="financial-label">Tasa de Éxito Pagos</div>
+                <div class="financial-value" id="payment-success-rate">0%</div>
+                <div class="financial-trend trend-positive" id="success-trend">+1.5% vs mes anterior</div>
+            </div>
+        </div>
+
+        <!-- GRÁFICOS -->
+        <div class="row">
+            <div class="col-md-6">
+                <div class="chart-container">
+                    <div class="chart-title">Flujo de Ingresos Mensual</div>
+                    <canvas id="revenueChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="chart-container">
+                    <div class="chart-title">Rendimiento de Pagos</div>
+                    <canvas id="paymentChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-12">
+                <div class="chart-container">
+                    <div class="chart-title">Flujo de Efectivo Proyectado</div>
+                    <canvas id="cashFlowChart" width="800" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PAGOS -->
+    <div class="tab-pane fade" id="payments" role="tabpanel">
+        <div class="financial-metrics-grid">
+            <div class="financial-card">
+                <div class="financial-label">Total Transacciones</div>
+                <div class="financial-value" id="total-transactions">0</div>
+            </div>
+            <div class="financial-card">
+                <div class="financial-label">Transacciones Exitosas</div>
+                <div class="financial-value" id="successful-transactions">0</div>
+            </div>
+            <div class="financial-card">
+                <div class="financial-label">Transacciones Fallidas</div>
+                <div class="financial-value" id="failed-transactions">0</div>
+            </div>
+            <div class="financial-card">
+                <div class="financial-label">Tasa de Éxito</div>
+                <div class="financial-value" id="success-rate">0%</div>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <div class="chart-title">Rendimiento por Gateway de Pago</div>
+            <div id="gateway-performance"></div>
+        </div>
+
+        <div class="chart-container">
+            <div class="chart-title">Pagos Programados</div>
+            <div id="scheduled-payments"></div>
+        </div>
+    </div>
+
+    <!-- CUENTAS POR COBRAR -->
+    <div class="tab-pane fade" id="receivables" role="tabpanel">
+        <div class="financial-metrics-grid">
+            <div class="financial-card">
+                <div class="financial-label">Total Pendiente</div>
+                <div class="financial-value" id="total-pending">$0</div>
+            </div>
+            <div class="financial-card">
+                <div class="financial-label">Total Vencido</div>
+                <div class="financial-value" id="total-overdue">$0</div>
+            </div>
+            <div class="financial-card">
+                <div class="financial-label">Facturas Pendientes</div>
+                <div class="financial-value" id="pending-invoices">0</div>
+            </div>
+            <div class="financial-card">
+                <div class="financial-label">Facturas Vencidas</div>
+                <div class="financial-value" id="overdue-invoices">0</div>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <div class="chart-title">Cuentas por Cobrar por Cliente</div>
+            <div id="client-ar"></div>
+        </div>
+    </div>
+
+    <!-- CUENTAS POR PAGAR -->
+    <div class="tab-pane fade" id="payables" role="tabpanel">
+        <div class="financial-metrics-grid">
+            <div class="financial-card">
+                <div class="financial-label">Total Programado</div>
+                <div class="financial-value" id="total-scheduled">$0</div>
+            </div>
+            <div class="financial-card">
+                <div class="financial-label">Total Vencido</div>
+                <div class="financial-value" id="total-overdue-payables">$0</div>
+            </div>
+            <div class="financial-card">
+                <div class="financial-label">Pagos Programados</div>
+                <div class="financial-value" id="scheduled-payments-count">0</div>
+            </div>
+            <div class="financial-card">
+                <div class="financial-label">Pagos Vencidos</div>
+                <div class="financial-value" id="overdue-payments-count">0</div>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <div class="chart-title">Cuentas por Pagar por Proveedor</div>
+            <div id="provider-ap"></div>
+        </div>
+    </div>
+
+    <!-- PROVEEDORES -->
+    <div class="tab-pane fade" id="providers" role="tabpanel">
+        <div class="financial-metrics-grid">
+            <div class="financial-card">
+                <div class="financial-label">Total Proveedores</div>
+                <div class="financial-value" id="total-providers">0</div>
+            </div>
+            <div class="financial-card">
+                <div class="financial-label">Proveedores Validados</div>
+                <div class="financial-value" id="validated-providers">0</div>
+            </div>
+            <div class="financial-card">
+                <div class="financial-label">Pendientes de Validación</div>
+                <div class="financial-value" id="pending-validation">0</div>
+            </div>
+            <div class="financial-card">
+                <div class="financial-label">Validación Fallida</div>
+                <div class="financial-value" id="failed-validation">0</div>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <div class="chart-title">Estado de Validación de Proveedores</div>
+            <div id="provider-validation"></div>
+        </div>
+
+        <div class="chart-container">
+            <div class="chart-title">Detalles de Validación</div>
+            <div id="validation-details"></div>
+        </div>
+    </div>
+
+    <!-- COMPLIANCE SAT -->
+    <div class="tab-pane fade" id="sat" role="tabpanel">
+        <div class="financial-metrics-grid">
+            <div class="financial-card">
+                <div class="financial-label">Tasa de Compliance CFDI</div>
+                <div class="financial-value" id="cfdi-compliance-rate">0%</div>
+            </div>
+            <div class="financial-card">
+                <div class="financial-label">Facturas con CFDI</div>
+                <div class="financial-value" id="invoices-with-cfdi">0</div>
+            </div>
+            <div class="financial-card">
+                <div class="financial-label">Facturas sin CFDI</div>
+                <div class="financial-value" id="invoices-without-cfdi">0</div>
+            </div>
+            <div class="financial-card">
+                <div class="financial-label">Total Facturas</div>
+                <div class="financial-value" id="total-invoices">0</div>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <div class="chart-title">Compliance CFDI por Mes</div>
+            <div id="cfdi-monthly"></div>
+        </div>
+
+        <div class="chart-container">
+            <div class="chart-title">Razones de No CFDI</div>
+            <div id="no-cfdi-reasons"></div>
+        </div>
+    </div>
+
+    <!-- ANÁLISIS DE RIESGO -->
+    <div class="tab-pane fade" id="risk" role="tabpanel">
+        <div class="financial-metrics-grid">
+            <div class="financial-card">
+                <div class="financial-label">Clientes de Alto Riesgo</div>
+                <div class="financial-value" id="high-risk-clients">0</div>
+            </div>
+            <div class="financial-card">
+                <div class="financial-label">Clientes de Riesgo Medio</div>
+                <div class="financial-value" id="medium-risk-clients">0</div>
+            </div>
+            <div class="financial-card">
+                <div class="financial-label">Clientes de Bajo Riesgo</div>
+                <div class="financial-value" id="low-risk-clients">0</div>
+            </div>
+            <div class="financial-card">
+                <div class="financial-label">Total en Riesgo</div>
+                <div class="financial-value" id="total-risky-clients">0</div>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <div class="chart-title">Análisis de Riesgo por Cliente</div>
+            <div id="risk-analysis"></div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL PARA VALIDACIÓN DE PROVEEDORES -->
+<div class="modal fade" id="providerValidationModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content super-admin-modal">
+            <div class="modal-header">
+                <h5 class="modal-title">Validación de Proveedor</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="validation-result"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block page_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{% static 'js/dashboard/super_admin.js' %}"></script>
+<script>
+class FinancialDashboard {
+    constructor() {
+        this.charts = {};
+        this.init();
+    }
+    
+    async init() {
+        await this.loadFinancialData();
+        this.setupEventListeners();
+        this.updateInterval = setInterval(() => this.loadFinancialData(), 300000); // 5 minutos
+    }
+    
+    async loadFinancialData() {
+        try {
+            const response = await fetch('/super-admin/financial-data/');
+            const data = await response.json();
+            
+            if (data.success) {
+                this.updateDashboard(data.financial_data);
+            } else {
+                console.error('Error cargando datos financieros:', data.error);
+            }
+        } catch (error) {
+            console.error('Error cargando datos financieros:', error);
+        }
+    }
+    
+    updateDashboard(financialData) {
+        const dashboard = financialData.financial_dashboard;
+        
+        // Actualizar métricas principales
+        this.updateOverviewMetrics(dashboard);
+        
+        // Actualizar gráficos
+        this.updateCharts(dashboard);
+        
+        // Actualizar tablas
+        this.updateTables(dashboard);
+    }
+    
+    updateOverviewMetrics(dashboard) {
+        const revenue = dashboard.revenue_overview;
+        const payments = dashboard.payment_performance;
+        const ar = dashboard.accounts_receivable;
+        const ap = dashboard.accounts_payable;
+        
+        // Métricas principales
+        document.getElementById('total-revenue').textContent = this.formatCurrency(revenue.total_annual_revenue);
+        document.getElementById('total-payments').textContent = this.formatCurrency(payments.total_transactions * 1000); // Simulado
+        document.getElementById('accounts-receivable').textContent = this.formatCurrency(ar.total_pending);
+        document.getElementById('accounts-payable').textContent = this.formatCurrency(ap.total_scheduled);
+        document.getElementById('avg-payment-days').textContent = payments.average_payment_time || 15;
+        document.getElementById('payment-success-rate').textContent = `${payments.success_rate || 95}%`;
+        
+        // Métricas de pagos
+        document.getElementById('total-transactions').textContent = payments.total_transactions || 0;
+        document.getElementById('successful-transactions').textContent = payments.successful_transactions || 0;
+        document.getElementById('failed-transactions').textContent = payments.failed_transactions || 0;
+        document.getElementById('success-rate').textContent = `${payments.success_rate || 95}%`;
+        
+        // Métricas de cuentas por cobrar
+        document.getElementById('total-pending').textContent = this.formatCurrency(ar.total_pending);
+        document.getElementById('total-overdue').textContent = this.formatCurrency(ar.total_overdue);
+        document.getElementById('pending-invoices').textContent = ar.pending_invoices_count || 0;
+        document.getElementById('overdue-invoices').textContent = ar.overdue_invoices_count || 0;
+        
+        // Métricas de cuentas por pagar
+        document.getElementById('total-scheduled').textContent = this.formatCurrency(ap.total_scheduled);
+        document.getElementById('total-overdue-payables').textContent = this.formatCurrency(ap.total_overdue);
+        document.getElementById('scheduled-payments-count').textContent = ap.scheduled_payments_count || 0;
+        document.getElementById('overdue-payments-count').textContent = ap.overdue_payments_count || 0;
+        
+        // Métricas de proveedores
+        const providers = dashboard.provider_validation;
+        document.getElementById('total-providers').textContent = providers.total_providers || 0;
+        document.getElementById('validated-providers').textContent = providers.validated_providers || 0;
+        document.getElementById('pending-validation').textContent = providers.pending_validation || 0;
+        document.getElementById('failed-validation').textContent = providers.failed_validation || 0;
+        
+        // Métricas de SAT
+        const sat = dashboard.sat_compliance;
+        document.getElementById('cfdi-compliance-rate').textContent = `${sat.cfdi_compliance_rate || 0}%`;
+        document.getElementById('invoices-with-cfdi').textContent = sat.invoices_with_cfdi || 0;
+        document.getElementById('invoices-without-cfdi').textContent = sat.invoices_without_cfdi || 0;
+        document.getElementById('total-invoices').textContent = sat.total_invoices || 0;
+        
+        // Métricas de riesgo
+        const risk = dashboard.risk_analysis;
+        document.getElementById('high-risk-clients').textContent = risk.high_risk_clients || 0;
+        document.getElementById('medium-risk-clients').textContent = risk.medium_risk_clients || 0;
+        document.getElementById('low-risk-clients').textContent = risk.low_risk_clients || 0;
+        document.getElementById('total-risky-clients').textContent = risk.total_risky_clients || 0;
+    }
+    
+    updateCharts(dashboard) {
+        // Gráfico de ingresos
+        this.updateRevenueChart(dashboard.revenue_overview);
+        
+        // Gráfico de pagos
+        this.updatePaymentChart(dashboard.payment_performance);
+        
+        // Gráfico de flujo de efectivo
+        this.updateCashFlowChart(dashboard.cash_flow_analysis);
+    }
+    
+    updateRevenueChart(revenueData) {
+        const ctx = document.getElementById('revenueChart');
+        if (!ctx) return;
+        
+        if (this.charts.revenue) {
+            this.charts.revenue.destroy();
+        }
+        
+        const labels = revenueData.monthly_revenue?.map(item => item.month) || [];
+        const data = revenueData.monthly_revenue?.map(item => item.revenue) || [];
+        
+        this.charts.revenue = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Ingresos Mensuales',
+                    data: data,
+                    borderColor: '#7367f0',
+                    backgroundColor: 'rgba(115, 103, 240, 0.1)',
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+    
+    updatePaymentChart(paymentData) {
+        const ctx = document.getElementById('paymentChart');
+        if (!ctx) return;
+        
+        if (this.charts.payment) {
+            this.charts.payment.destroy();
+        }
+        
+        this.charts.payment = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Exitosos', 'Fallidos'],
+                datasets: [{
+                    data: [paymentData.successful_transactions || 0, paymentData.failed_transactions || 0],
+                    backgroundColor: ['#28a745', '#dc3545']
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                    }
+                }
+            }
+        });
+    }
+    
+    updateCashFlowChart(cashFlowData) {
+        const ctx = document.getElementById('cashFlowChart');
+        if (!ctx) return;
+        
+        if (this.charts.cashFlow) {
+            this.charts.cashFlow.destroy();
+        }
+        
+        const labels = cashFlowData.net_cash_flow?.map(item => item.month) || [];
+        const netFlow = cashFlowData.net_cash_flow?.map(item => item.net_flow) || [];
+        const cumulative = cashFlowData.net_cash_flow?.map(item => item.cumulative_balance) || [];
+        
+        this.charts.cashFlow = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Flujo Neto',
+                    data: netFlow,
+                    backgroundColor: '#7367f0',
+                    yAxisID: 'y'
+                }, {
+                    label: 'Balance Acumulado',
+                    data: cumulative,
+                    type: 'line',
+                    borderColor: '#ffc107',
+                    backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                    yAxisID: 'y1'
+                }]
+            },
+            options: {
+                responsive: true,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                scales: {
+                    x: {
+                        display: true,
+                        title: {
+                            display: true,
+                            text: 'Mes'
+                        }
+                    },
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        title: {
+                            display: true,
+                            text: 'Flujo Neto'
+                        }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        title: {
+                            display: true,
+                            text: 'Balance Acumulado'
+                        },
+                        grid: {
+                            drawOnChartArea: false,
+                        },
+                    }
+                }
+            }
+        });
+    }
+    
+    updateTables(dashboard) {
+        // Actualizar tabla de clientes por cobrar
+        this.updateClientARTable(dashboard.accounts_receivable);
+        
+        // Actualizar tabla de proveedores por pagar
+        this.updateProviderAPTable(dashboard.accounts_payable);
+        
+        // Actualizar tabla de validación de proveedores
+        this.updateProviderValidationTable(dashboard.provider_validation);
+        
+        // Actualizar tabla de análisis de riesgo
+        this.updateRiskAnalysisTable(dashboard.risk_analysis);
+    }
+    
+    updateClientARTable(arData) {
+        const container = document.getElementById('client-ar');
+        if (!container) return;
+        
+        const html = `
+            <div class="table-responsive">
+                <table class="table super-admin-table">
+                    <thead>
+                        <tr>
+                            <th>Cliente</th>
+                            <th>Total Pendiente</th>
+                            <th>Facturas</th>
+                            <th>Vencido</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${arData.client_ar?.map(client => `
+                            <tr>
+                                <td>${client.receiver_name}</td>
+                                <td>${this.formatCurrency(client.total_amount)}</td>
+                                <td>${client.invoice_count}</td>
+                                <td>${this.formatCurrency(client.overdue_amount)}</td>
+                            </tr>
+                        `).join('') || '<tr><td colspan="4">No hay datos</td></tr>'}
+                    </tbody>
+                </table>
+            </div>
+        `;
+        
+        container.innerHTML = html;
+    }
+    
+    updateProviderAPTable(apData) {
+        const container = document.getElementById('provider-ap');
+        if (!container) return;
+        
+        const html = `
+            <div class="table-responsive">
+                <table class="table super-admin-table">
+                    <thead>
+                        <tr>
+                            <th>Proveedor</th>
+                            <th>Total Programado</th>
+                            <th>Pagos</th>
+                            <th>Vencido</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${apData.provider_ap?.map(provider => `
+                            <tr>
+                                <td>${provider.beneficiary_name}</td>
+                                <td>${this.formatCurrency(provider.total_amount)}</td>
+                                <td>${provider.payment_count}</td>
+                                <td>${this.formatCurrency(provider.overdue_amount)}</td>
+                            </tr>
+                        `).join('') || '<tr><td colspan="4">No hay datos</td></tr>'}
+                    </tbody>
+                </table>
+            </div>
+        `;
+        
+        container.innerHTML = html;
+    }
+    
+    updateProviderValidationTable(validationData) {
+        const container = document.getElementById('validation-details');
+        if (!container) return;
+        
+        const html = `
+            <div class="table-responsive">
+                <table class="table super-admin-table">
+                    <thead>
+                        <tr>
+                            <th>Proveedor</th>
+                            <th>RFC</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${validationData.validation_details?.map(provider => `
+                            <tr>
+                                <td>${provider.provider_name}</td>
+                                <td>${provider.rfc || 'N/A'}</td>
+                                <td>
+                                    <span class="validation-status status-${provider.status}">
+                                        ${provider.status}
+                                    </span>
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-primary" onclick="financialDashboard.validateProvider(${provider.provider_id})">
+                                        Validar
+                                    </button>
+                                </td>
+                            </tr>
+                        `).join('') || '<tr><td colspan="4">No hay datos</td></tr>'}
+                    </tbody>
+                </table>
+            </div>
+        `;
+        
+        container.innerHTML = html;
+    }
+    
+    updateRiskAnalysisTable(riskData) {
+        const container = document.getElementById('risk-analysis');
+        if (!container) return;
+        
+        const html = `
+            <div class="table-responsive">
+                <table class="table super-admin-table">
+                    <thead>
+                        <tr>
+                            <th>Cliente</th>
+                            <th>Monto Vencido</th>
+                            <th>Facturas</th>
+                            <th>% Vencido</th>
+                            <th>Nivel de Riesgo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${riskData.risk_analysis?.map(client => `
+                            <tr>
+                                <td>${client.client_name}</td>
+                                <td>${this.formatCurrency(client.overdue_amount)}</td>
+                                <td>${client.overdue_count}</td>
+                                <td>${client.overdue_ratio}%</td>
+                                <td>
+                                    <span class="risk-level risk-${client.risk_level}">
+                                        ${client.risk_level}
+                                    </span>
+                                </td>
+                            </tr>
+                        `).join('') || '<tr><td colspan="5">No hay datos</td></tr>'}
+                    </tbody>
+                </table>
+            </div>
+        `;
+        
+        container.innerHTML = html;
+    }
+    
+    async validateProvider(providerId) {
+        try {
+            const response = await fetch('/super-admin/provider-validation/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCSRFToken()
+                },
+                body: JSON.stringify({ provider_id: providerId })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                this.showValidationResult(data.validation_result);
+            } else {
+                alert('Error validando proveedor: ' + data.error);
+            }
+        } catch (error) {
+            console.error('Error validando proveedor:', error);
+            alert('Error validando proveedor');
+        }
+    }
+    
+    showValidationResult(validationResult) {
+        const modal = new bootstrap.Modal(document.getElementById('providerValidationModal'));
+        const container = document.getElementById('validation-result');
+        
+        const html = `
+            <div class="alert alert-${validationResult.overall_status === 'passed' ? 'success' : validationResult.overall_status === 'warning' ? 'warning' : 'danger'}">
+                <h6>Estado: ${validationResult.overall_status.toUpperCase()}</h6>
+                <p>Proveedor: ${validationResult.provider_name}</p>
+                ${validationResult.blocking_issues ? `
+                    <h6>Problemas:</h6>
+                    <ul>
+                        ${validationResult.blocking_issues.map(issue => `<li>${issue}</li>`).join('')}
+                    </ul>
+                ` : ''}
+                ${validationResult.recommendations ? `
+                    <h6>Recomendaciones:</h6>
+                    <ul>
+                        ${validationResult.recommendations.map(rec => `<li>${rec}</li>`).join('')}
+                    </ul>
+                ` : ''}
+            </div>
+        `;
+        
+        container.innerHTML = html;
+        modal.show();
+    }
+    
+    setupEventListeners() {
+        // Event listeners para las pestañas
+        document.querySelectorAll('#financialTabs .nav-link').forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                e.preventDefault();
+                const target = e.target.getAttribute('href');
+                this.showTab(target);
+            });
+        });
+    }
+    
+    showTab(tabId) {
+        // Ocultar todas las pestañas
+        document.querySelectorAll('.tab-pane').forEach(pane => {
+            pane.classList.remove('show', 'active');
+        });
+        
+        // Mostrar la pestaña seleccionada
+        const targetPane = document.querySelector(tabId);
+        if (targetPane) {
+            targetPane.classList.add('show', 'active');
+        }
+        
+        // Actualizar navegación
+        document.querySelectorAll('#financialTabs .nav-link').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        
+        const activeTab = document.querySelector(`[href="${tabId}"]`);
+        if (activeTab) {
+            activeTab.classList.add('active');
+        }
+    }
+    
+    formatCurrency(amount) {
+        return new Intl.NumberFormat('es-MX', {
+            style: 'currency',
+            currency: 'MXN'
+        }).format(amount || 0);
+    }
+    
+    getCSRFToken() {
+        return document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+    }
+    
+    destroy() {
+        if (this.updateInterval) {
+            clearInterval(this.updateInterval);
+        }
+        
+        Object.values(this.charts).forEach(chart => {
+            if (chart && chart.destroy) {
+                chart.destroy();
+            }
+        });
+    }
+}
+
+// Inicializar dashboard financiero
+let financialDashboard;
+document.addEventListener('DOMContentLoaded', () => {
+    financialDashboard = new FinancialDashboard();
+});
+
+// Limpiar al salir
+window.addEventListener('beforeunload', () => {
+    if (financialDashboard) {
+        financialDashboard.destroy();
+    }
+});
+</script>
+{% endblock %} 

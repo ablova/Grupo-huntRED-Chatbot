@@ -1,25 +1,24 @@
-from datetime import timedelta, datetime
+# app/ats/pricing/services/discount_service.py
+from typing import Dict, Any, List, Optional
+from decimal import Decimal
 from django.utils import timezone
-from django.db import transaction
-from django.core.cache import cache
-from django.conf import settings
-import uuid
+from django.db.models import Q, Sum
+from django.core.exceptions import ValidationError
+from django.contrib.auth.models import User
+from datetime import timedelta
 
-from app.models import DiscountCoupon, Proposal, User
-from app.ats.pricing.models import TeamEvaluation
+from app.models import BusinessUnit, Person, DiscountCoupon, Proposal
 
-class PricingService:
-    """
-    Servicio principal para la gestión de precios y promociones.
-    """
+class DiscountService:
+    """Servicio para gestión de descuentos y cupones"""
     
     @staticmethod
     def generate_discount_coupon(
         user: User,
         discount_percentage: int = 5,
         validity_hours: int = 4,
-        proposal: Proposal = None,
-        description: str = None,
+        proposal: Optional[Proposal] = None,
+        description: str = "",
         max_uses: int = 1
     ) -> DiscountCoupon:
         """
@@ -36,8 +35,6 @@ class PricingService:
         Returns:
             DiscountCoupon: El cupón generado
         """
-        from app.ats.pricing.models import DiscountCoupon
-        
         return DiscountCoupon.create_coupon(
             user=user,
             discount_percentage=discount_percentage,
@@ -64,8 +61,6 @@ class PricingService:
         Returns:
             dict: Resultado de la aplicación del cupón
         """
-        from app.ats.pricing.models import DiscountCoupon
-        
         try:
             coupon = DiscountCoupon.objects.get(code=coupon_code, user=user)
             
@@ -102,55 +97,7 @@ class PricingService:
             }
     
     @staticmethod
-    def create_team_evaluation_offer(
-        user: User,
-        team_size: int = 10,
-        validity_days: int = 7,
-        discount_percentage: int = 100
-    ) -> dict:
-        """
-        Crea una oferta especial de evaluación de equipo.
-        
-        Args:
-            user: Usuario al que se ofrece la evaluación
-            team_size: Número de miembros del equipo a evaluar
-            validity_days: Días de validez de la oferta
-            discount_percentage: Porcentaje de descuento (100% = gratuito)
-            
-        Returns:
-            dict: Detalles de la oferta
-        """
-        from app.ats.pricing.models import TeamEvaluation
-        
-        # Crear la evaluación de equipo
-        evaluation = TeamEvaluation.objects.create(
-            user=user,
-            team_size=team_size,
-            status='pending',
-            expires_at=timezone.now() + timedelta(days=validity_days),
-            discount_percentage=discount_percentage
-        )
-        
-        # Generar un código de descuento para la evaluación
-        coupon = PricingService.generate_discount_coupon(
-            user=user,
-            discount_percentage=discount_percentage,
-            validity_hours=validity_days * 24,  # Convertir días a horas
-            description=f"Evaluación para {team_size} miembros del equipo"
-        )
-        
-        return {
-            'success': True,
-            'evaluation_id': evaluation.id,
-            'coupon_code': coupon.code,
-            'team_size': team_size,
-            'discount_percentage': discount_percentage,
-            'expires_at': evaluation.expires_at,
-            'status': evaluation.status
-        }
-    
-    @staticmethod
-    def get_promotion_banner_data(user: User = None) -> dict:
+    def get_promotion_banner_data(user: Optional[User] = None) -> dict:
         """
         Genera datos para mostrar un banner de promoción atractivo.
         
@@ -160,10 +107,8 @@ class PricingService:
         Returns:
             dict: Datos para el banner de promoción
         """
-        from django.utils.timezone import now
-        
         # Fecha de la promoción (últimos 3 días del mes)
-        today = now().date()
+        today = timezone.now().date()
         end_of_month = today.replace(day=28) + timedelta(days=4)
         end_of_month = end_of_month.replace(day=1) - timedelta(days=1)
         
@@ -194,23 +139,5 @@ class PricingService:
                 'Válido hasta agotar existentes'
             ]
         }
-        
-        # Si hay un usuario autenticado, verificar si ya tiene una evaluación pendiente
-        if user and user.is_authenticated:
-            from app.ats.pricing.models import TeamEvaluation
-            has_pending_evaluation = TeamEvaluation.objects.filter(
-                user=user,
-                status='pending',
-                expires_at__gt=now()
-            ).exists()
-            
-            if has_pending_evaluation:
-                banner_data.update({
-                    'title': '¡Tienes una evaluación pendiente!',
-                    'subtitle': 'Completa tu evaluación de equipo',
-                    'cta_text': 'Continuar Evaluación',
-                    'badge_text': 'Activo',
-                    'badge_style': 'success'
-                })
         
         return banner_data

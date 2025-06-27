@@ -1,3 +1,4 @@
+# app/ml/aura/models/gnn_models.py
 """
 Modelos de Redes Neuronales de Grafos (GNN) para AURA
 
@@ -8,469 +9,495 @@ detección de comunidades, predicción de conexiones y análisis de influencia.
 import logging
 from typing import Dict, List, Any, Optional, Tuple, Union
 import numpy as np
-# import torch
-# import torch.nn as nn
-# import torch.nn.functional as F
-# from torch_geometric.nn import GCNConv, GATConv, SAGEConv, GINConv
-# from torch_geometric.data import Data, Batch
-# from torch_geometric.utils import to_networkx
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from torch_geometric.nn import GCNConv, GATConv, SAGEConv, GINConv
+from torch_geometric.data import Data, Batch
+from torch_geometric.utils import to_networkx
 import networkx as nx
 from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
 
 logger = logging.getLogger(__name__)
 
-# Comentado temporalmente debido a incompatibilidad con Python 3.13
-# class ProfessionalNetworkGNN(nn.Module):
-#     """
-#     Modelo GNN para análisis de red profesional.
-#     
-#     Combina múltiples tipos de capas GNN para capturar diferentes
-#     aspectos de las relaciones profesionales.
-#     """
-#     
-#     def __init__(
-#         self,
-#         input_dim: int,
-#         hidden_dim: int = 128,
-#         output_dim: int = 64,
-#         num_layers: int = 3,
-#         dropout: float = 0.2
-#     ):
-#         """
-#         Inicializa el modelo GNN.
-#         
-#         Args:
-#             input_dim: Dimensión de entrada (features de nodos)
-#             hidden_dim: Dimensión de capas ocultas
-#             output_dim: Dimensión de salida
-#             num_layers: Número de capas GNN
-#             dropout: Tasa de dropout
-#         """
-#         super(ProfessionalNetworkGNN, self).__init__()
-#         
-#         self.input_dim = input_dim
-#         self.hidden_dim = hidden_dim
-#         self.output_dim = output_dim
-#         self.num_layers = num_layers
-#         self.dropout = dropout
-#         
-#         # Capas GNN
-#         self.gnn_layers = nn.ModuleList()
-#         
-#         # Primera capa
-#         self.gnn_layers.append(GCNConv(input_dim, hidden_dim))
-#         
-#         # Capas intermedias
-#         for _ in range(num_layers - 2):
-#             self.gnn_layers.append(GCNConv(hidden_dim, hidden_dim))
-#         
-#         # Capa final
-#         self.gnn_layers.append(GCNConv(hidden_dim, output_dim))
-#         
-#         # Capa de atención para relaciones profesionales
-#         self.attention = GATConv(output_dim, output_dim, heads=4, dropout=dropout)
-#         
-#         # Capa de predicción
-#         self.predictor = nn.Sequential(
-#             nn.Linear(output_dim * 2, hidden_dim),
-#             nn.ReLU(),
-#             nn.Dropout(dropout),
-#             nn.Linear(hidden_dim, 1),
-#             nn.Sigmoid()
-#         )
-#         
-#         logger.info(f"Modelo GNN inicializado: {input_dim} -> {hidden_dim} -> {output_dim}")
-#     
-#     def forward(self, data: Data) -> Tuple[torch.Tensor, torch.Tensor]:
-#         """
-#         Forward pass del modelo.
-#         
-#         Args:
-#             data: Datos del grafo (nodos, aristas, features)
-#             
-#         Returns:
-#             Embeddings de nodos y predicciones de conexiones
-#         """
-#         x, edge_index = data.x, data.edge_index
-#         
-#         # Capas GNN
-#         for i, layer in enumerate(self.gnn_layers):
-#             x = layer(x, edge_index)
-#             if i < len(self.gnn_layers) - 1:
-#                 x = F.relu(x)
-#                 x = F.dropout(x, p=self.dropout, training=self.training)
-#         
-#         # Capa de atención
-#         x = self.attention(x, edge_index)
-#         
-#         # Generar predicciones de conexiones
-#         edge_predictions = self._predict_connections(x, edge_index)
-#         
-#         return x, edge_predictions
-#     
-#     def _predict_connections(
-#         self,
-#         node_embeddings: torch.Tensor,
-#         edge_index: torch.Tensor
-#     ) -> torch.Tensor:
-#         """
-#         Predice la probabilidad de conexiones entre nodos.
-#         
-#         Args:
-#             node_embeddings: Embeddings de los nodos
-#             edge_index: Índices de las aristas
-#             
-#         Returns:
-#             Predicciones de conexiones
-#         """
-#         # Obtener embeddings de nodos conectados
-#         src_nodes = edge_index[0]
-#         dst_nodes = edge_index[1]
-#         
-#         src_embeddings = node_embeddings[src_nodes]
-#         dst_embeddings = node_embeddings[dst_nodes]
-#         
-#         # Concatenar embeddings
-#         combined_embeddings = torch.cat([src_embeddings, dst_embeddings], dim=1)
-#         
-#         # Predecir probabilidad de conexión
-#         predictions = self.predictor(combined_embeddings)
-#         
-#         return predictions.squeeze()
+class ProfessionalNetworkGNN(nn.Module):
+    """
+    Modelo GNN para análisis de red profesional.
+    
+    Combina múltiples tipos de capas GNN para capturar diferentes
+    aspectos de las relaciones profesionales.
+    """
+    
+    def __init__(
+        self,
+        input_dim: int,
+        hidden_dim: int = 128,
+        output_dim: int = 64,
+        num_layers: int = 3,
+        dropout: float = 0.2
+    ):
+        """
+        Inicializa el modelo GNN.
+        
+        Args:
+            input_dim: Dimensión de entrada (features de nodos)
+            hidden_dim: Dimensión de capas ocultas
+            output_dim: Dimensión de salida
+            num_layers: Número de capas GNN
+            dropout: Tasa de dropout
+        """
+        super(ProfessionalNetworkGNN, self).__init__()
+        
+        self.input_dim = input_dim
+        self.hidden_dim = hidden_dim
+        self.output_dim = output_dim
+        self.num_layers = num_layers
+        self.dropout = dropout
+        
+        # Capas GNN
+        self.gnn_layers = nn.ModuleList()
+        
+        # Primera capa
+        self.gnn_layers.append(GCNConv(input_dim, hidden_dim))
+        
+        # Capas intermedias
+        for _ in range(num_layers - 2):
+            self.gnn_layers.append(GCNConv(hidden_dim, hidden_dim))
+        
+        # Capa final
+        self.gnn_layers.append(GCNConv(hidden_dim, output_dim))
+        
+        # Capa de atención para relaciones profesionales
+        self.attention = GATConv(output_dim, output_dim, heads=4, dropout=dropout)
+        
+        # Capa de predicción
+        self.predictor = nn.Sequential(
+            nn.Linear(output_dim * 2, hidden_dim),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_dim, 1),
+            nn.Sigmoid()
+        )
+        
+        logger.info(f"Modelo GNN inicializado: {input_dim} -> {hidden_dim} -> {output_dim}")
+    
+    def forward(self, data: Data) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Forward pass del modelo.
+        
+        Args:
+            data: Datos del grafo (nodos, aristas, features)
+            
+        Returns:
+            Embeddings de nodos y predicciones de conexiones
+        """
+        x, edge_index = data.x, data.edge_index
+        
+        # Capas GNN
+        for i, layer in enumerate(self.gnn_layers):
+            x = layer(x, edge_index)
+            if i < len(self.gnn_layers) - 1:
+                x = F.relu(x)
+                x = F.dropout(x, p=self.dropout, training=self.training)
+        
+        # Capa de atención
+        x = self.attention(x, edge_index)
+        
+        # Generar predicciones de conexiones
+        edge_predictions = self._predict_connections(x, edge_index)
+        
+        return x, edge_predictions
+    
+    def _predict_connections(
+        self,
+        node_embeddings: torch.Tensor,
+        edge_index: torch.Tensor
+    ) -> torch.Tensor:
+        """
+        Predice la probabilidad de conexiones entre nodos.
+        
+        Args:
+            node_embeddings: Embeddings de los nodos
+            edge_index: Índices de las aristas
+            
+        Returns:
+            Predicciones de conexiones
+        """
+        # Obtener embeddings de nodos conectados
+        src_nodes = edge_index[0]
+        dst_nodes = edge_index[1]
+        
+        src_embeddings = node_embeddings[src_nodes]
+        dst_embeddings = node_embeddings[dst_nodes]
+        
+        # Concatenar embeddings
+        combined_embeddings = torch.cat([src_embeddings, dst_embeddings], dim=1)
+        
+        # Predecir probabilidad de conexión
+        predictions = self.predictor(combined_embeddings)
+        
+        return predictions.squeeze()
 
-# Comentado temporalmente debido a incompatibilidad con Python 3.13
-# class CommunityDetectionGNN(nn.Module):
-#     """
-#     Modelo GNN para detección de comunidades profesionales.
-#     
-#     Identifica grupos de profesionales con intereses y conexiones similares.
-#     """
-#     
-#     def __init__(
-#         self,
-#         input_dim: int,
-#         hidden_dim: int = 64,
-#         num_communities: int = 10,
-#         dropout: float = 0.2
-#     ):
-#         """
-#         Inicializa el modelo de detección de comunidades.
-#         
-#         Args:
-#             input_dim: Dimensión de entrada
-#             hidden_dim: Dimensión de capas ocultas
-#             num_communities: Número de comunidades a detectar
-#             dropout: Tasa de dropout
-#         """
-#         super(CommunityDetectionGNN, self).__init__()
-#         
-#         self.input_dim = input_dim
-#         self.hidden_dim = hidden_dim
-#         self.num_communities = num_communities
-#         self.dropout = dropout
-#         
-#         # Encoder GNN
-#         self.encoder = nn.Sequential(
-#             GCNConv(input_dim, hidden_dim),
-#             nn.ReLU(),
-#             nn.Dropout(dropout),
-#             GCNConv(hidden_dim, hidden_dim),
-#             nn.ReLU(),
-#             nn.Dropout(dropout)
-#         )
-#         
-#         # Clasificador de comunidades
-#         self.community_classifier = nn.Sequential(
-#             nn.Linear(hidden_dim, hidden_dim // 2),
-#             nn.ReLU(),
-#             nn.Dropout(dropout),
-#             nn.Linear(hidden_dim // 2, num_communities),
-#             nn.Softmax(dim=1)
-#         )
-#         
-#         logger.info(f"Modelo de detección de comunidades inicializado: {num_communities} comunidades")
-#     
-#     def forward(self, data: Data) -> Tuple[torch.Tensor, torch.Tensor]:
-#         """
-#         Forward pass del modelo.
-#         
-#         Args:
-#             data: Datos del grafo
-#             
-#         Returns:
-#             Embeddings y asignaciones de comunidades
-#         """
-#         x, edge_index = data.x, data.edge_index
-#         
-#         # Encoder
-#         x = self.encoder[0](x, edge_index)
-#         x = self.encoder[1](x)  # ReLU
-#         x = self.encoder[2](x)  # Dropout
-#         x = self.encoder[3](x, edge_index)
-#         x = self.encoder[4](x)  # ReLU
-#         x = self.encoder[5](x)  # Dropout
-#         
-#         # Clasificación de comunidades
-#         community_probs = self.community_classifier(x)
-#         
-#         return x, community_probs
+class CommunityDetectionGNN(nn.Module):
+    """
+    Modelo GNN para detección de comunidades profesionales.
+    
+    Identifica grupos de profesionales con intereses y conexiones similares.
+    """
+    
+    def __init__(
+        self,
+        input_dim: int,
+        hidden_dim: int = 64,
+        num_communities: int = 10,
+        dropout: float = 0.2
+    ):
+        """
+        Inicializa el modelo de detección de comunidades.
+        
+        Args:
+            input_dim: Dimensión de entrada
+            hidden_dim: Dimensión de capas ocultas
+            num_communities: Número de comunidades a detectar
+            dropout: Tasa de dropout
+        """
+        super(CommunityDetectionGNN, self).__init__()
+        
+        self.input_dim = input_dim
+        self.hidden_dim = hidden_dim
+        self.num_communities = num_communities
+        self.dropout = dropout
+        
+        # Encoder GNN
+        self.encoder = nn.Sequential(
+            GCNConv(input_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            GCNConv(hidden_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Dropout(dropout)
+        )
+        
+        # Clasificador de comunidades
+        self.community_classifier = nn.Sequential(
+            nn.Linear(hidden_dim, hidden_dim // 2),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_dim // 2, num_communities),
+            nn.Softmax(dim=1)
+        )
+        
+        logger.info(f"Modelo de detección de comunidades inicializado: {num_communities} comunidades")
+    
+    def forward(self, data: Data) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Forward pass del modelo.
+        
+        Args:
+            data: Datos del grafo
+            
+        Returns:
+            Embeddings y asignaciones de comunidades
+        """
+        x, edge_index = data.x, data.edge_index
+        
+        # Encoder
+        embeddings = self.encoder(x, edge_index)
+        
+        # Clasificación de comunidades
+        community_probs = self.community_classifier(embeddings)
+        
+        return embeddings, community_probs
 
-# Comentado temporalmente debido a incompatibilidad con Python 3.13
-# class InfluenceAnalysisGNN(nn.Module):
-#     """
-#     Modelo GNN para análisis de influencia en redes profesionales.
-#     
-#     Identifica líderes de opinión y analiza la propagación de influencia.
-#     """
-#     
-#     def __init__(
-#         self,
-#         input_dim: int,
-#         hidden_dim: int = 128,
-#         output_dim: int = 32,
-#         dropout: float = 0.2
-#     ):
-#         """
-#         Inicializa el modelo de análisis de influencia.
-#         
-#         Args:
-#             input_dim: Dimensión de entrada
-#             hidden_dim: Dimensión de capas ocultas
-#             output_dim: Dimensión de salida
-#             dropout: Tasa de dropout
-#         """
-#         super(InfluenceAnalysisGNN, self).__init__()
-#         
-#         self.input_dim = input_dim
-#         self.hidden_dim = hidden_dim
-#         self.output_dim = output_dim
-#         self.dropout = dropout
-#         
-#         # Encoder GNN con atención
-#         self.encoder = nn.Sequential(
-#             GATConv(input_dim, hidden_dim, heads=4, dropout=dropout),
-#             nn.ReLU(),
-#             nn.Dropout(dropout),
-#             GATConv(hidden_dim * 4, hidden_dim, heads=2, dropout=dropout),
-#             nn.ReLU(),
-#             nn.Dropout(dropout)
-#         )
-#         
-#         # Predictor de influencia
-#         self.influence_predictor = nn.Sequential(
-#             nn.Linear(hidden_dim * 2, hidden_dim),
-#             nn.ReLU(),
-#             nn.Dropout(dropout),
-#             nn.Linear(hidden_dim, output_dim),
-#             nn.Sigmoid()
-#         )
-#         
-#         logger.info(f"Modelo de análisis de influencia inicializado")
-#     
-#     def forward(self, data: Data) -> Tuple[torch.Tensor, torch.Tensor]:
-#         """
-#         Forward pass del modelo.
-#         
-#         Args:
-#             data: Datos del grafo
-#             
-#         Returns:
-#             Embeddings y scores de influencia
-#         """
-#         x, edge_index = data.x, data.edge_index
-#         
-#         # Encoder
-#         x = self.encoder[0](x, edge_index)
-#         x = self.encoder[1](x)  # ReLU
-#         x = self.encoder[2](x)  # Dropout
-#         x = self.encoder[3](x, edge_index)
-#         x = self.encoder[4](x)  # ReLU
-#         x = self.encoder[5](x)  # Dropout
-#         
-#         # Predicción de influencia
-#         influence_scores = self.influence_predictor(x)
-#         
-#         return x, influence_scores
+class InfluenceAnalysisGNN(nn.Module):
+    """
+    Modelo GNN para análisis de influencia en redes profesionales.
+    
+    Identifica líderes de opinión, hubs de información y nodos influyentes.
+    """
+    
+    def __init__(
+        self,
+        input_dim: int,
+        hidden_dim: int = 128,
+        output_dim: int = 32,
+        dropout: float = 0.2
+    ):
+        """
+        Inicializa el modelo de análisis de influencia.
+        
+        Args:
+            input_dim: Dimensión de entrada
+            hidden_dim: Dimensión de capas ocultas
+            output_dim: Dimensión de salida
+            dropout: Tasa de dropout
+        """
+        super(InfluenceAnalysisGNN, self).__init__()
+        
+        self.input_dim = input_dim
+        self.hidden_dim = hidden_dim
+        self.output_dim = output_dim
+        self.dropout = dropout
+        
+        # Encoder con atención
+        self.encoder = GATConv(input_dim, hidden_dim, heads=8, dropout=dropout)
+        
+        # Capa de pooling para capturar información global
+        self.global_pool = nn.Sequential(
+            nn.Linear(hidden_dim * 8, hidden_dim),
+            nn.ReLU(),
+            nn.Dropout(dropout)
+        )
+        
+        # Predictor de influencia
+        self.influence_predictor = nn.Sequential(
+            nn.Linear(hidden_dim + output_dim, hidden_dim // 2),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_dim // 2, 1),
+            nn.Sigmoid()
+        )
+        
+        # Embeddings de nodos
+        self.node_embeddings = nn.Linear(hidden_dim * 8, output_dim)
+        
+        logger.info("Modelo de análisis de influencia inicializado")
+    
+    def forward(self, data: Data) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Forward pass del modelo.
+        
+        Args:
+            data: Datos del grafo
+            
+        Returns:
+            Embeddings de nodos y scores de influencia
+        """
+        x, edge_index = data.x, data.edge_index
+        
+        # Encoder con atención
+        encoded = self.encoder(x, edge_index)
+        
+        # Pooling global
+        global_features = self.global_pool(encoded.mean(dim=0, keepdim=True).expand(encoded.size(0), -1))
+        
+        # Embeddings de nodos
+        node_embeddings = self.node_embeddings(encoded)
+        
+        # Combinar features locales y globales
+        combined_features = torch.cat([node_embeddings, global_features], dim=1)
+        
+        # Predecir influencia
+        influence_scores = self.influence_predictor(combined_features)
+        
+        return node_embeddings, influence_scores
 
-# Comentado temporalmente debido a incompatibilidad con Python 3.13
-# class GNNTrainer:
-#     """
-#     Entrenador para modelos GNN.
-#     
-#     Maneja el entrenamiento, validación y evaluación de modelos GNN.
-#     """
-#     
-#     def __init__(self, model: nn.Module, device: str = 'cpu'):
-#         """
-#         Inicializa el entrenador.
-#         
-#         Args:
-#             model: Modelo GNN a entrenar
-#             device: Dispositivo para entrenamiento
-#         """
-#         self.model = model
-#         self.device = device
-#         self.model.to(device)
-#         
-#         # Optimizador
-#         self.optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-#         
-#         # Función de pérdida
-#         self.criterion = nn.BCELoss()
-#         
-#         logger.info(f"Entrenador GNN inicializado en dispositivo: {device}")
-#     
-#     def train_epoch(
-#         self,
-#         train_loader: List[Data],
-#         epoch: int
-#     ) -> Dict[str, float]:
-#         """
-#         Entrena el modelo por una época.
-#         
-#         Args:
-#             train_loader: DataLoader con datos de entrenamiento
-#             epoch: Número de época
-#             
-#         Returns:
-#             Métricas de entrenamiento
-#         """
-#         self.model.train()
-#         total_loss = 0.0
-#         num_batches = 0
-#         
-#         for batch in train_loader:
-#             batch = batch.to(self.device)
-#             
-#             # Forward pass
-#             self.optimizer.zero_grad()
-#             embeddings, predictions = self.model(batch)
-#             
-#             # Calcular pérdida (ejemplo para predicción de conexiones)
-#             if hasattr(batch, 'edge_attr') and batch.edge_attr is not None:
-#                 loss = self.criterion(predictions, batch.edge_attr.float())
-#             else:
-#                 # Pérdida dummy si no hay etiquetas
-#                 loss = torch.mean(predictions)
-#             
-#             # Backward pass
-#             loss.backward()
-#             self.optimizer.step()
-#             
-#             total_loss += loss.item()
-#             num_batches += 1
-#         
-#         avg_loss = total_loss / num_batches if num_batches > 0 else 0.0
-#         
-#         logger.info(f"Época {epoch}: Loss = {avg_loss:.4f}")
-#         
-#         return {'loss': avg_loss}
-#     
-#     def evaluate(
-#         self,
-#         test_loader: List[Data]
-#     ) -> Dict[str, float]:
-#         """
-#         Evalúa el modelo.
-#         
-#         Args:
-#             test_loader: DataLoader con datos de prueba
-#             
-#         Returns:
-#             Métricas de evaluación
-#         """
-#         self.model.eval()
-#         total_loss = 0.0
-#         num_batches = 0
-#         
-#         with torch.no_grad():
-#             for batch in test_loader:
-#                 batch = batch.to(self.device)
-#                 
-#                 # Forward pass
-#                 embeddings, predictions = self.model(batch)
-#                 
-#                 # Calcular pérdida
-#                 if hasattr(batch, 'edge_attr') and batch.edge_attr is not None:
-#                     loss = self.criterion(predictions, batch.edge_attr.float())
-#                 else:
-#                     loss = torch.mean(predictions)
-#                 
-#                 total_loss += loss.item()
-#                 num_batches += 1
-#         
-#         avg_loss = total_loss / num_batches if num_batches > 0 else 0.0
-#         
-#         logger.info(f"Evaluación: Loss = {avg_loss:.4f}")
-#         
-#         return {'loss': avg_loss}
+class GNNTrainer:
+    """
+    Entrenador para modelos GNN de AURA.
+    
+    Maneja el entrenamiento, validación y evaluación de modelos GNN.
+    """
+    
+    def __init__(self, model: nn.Module, device: str = 'cpu'):
+        """
+        Inicializa el entrenador.
+        
+        Args:
+            model: Modelo GNN a entrenar
+            device: Dispositivo para entrenamiento
+        """
+        self.model = model.to(device)
+        self.device = device
+        self.optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+        self.criterion = nn.BCELoss()
+        
+        logger.info(f"Entrenador GNN inicializado en dispositivo: {device}")
+    
+    def train_epoch(
+        self,
+        train_loader: List[Data],
+        epoch: int
+    ) -> Dict[str, float]:
+        """
+        Entrena el modelo por una época.
+        
+        Args:
+            train_loader: Datos de entrenamiento
+            epoch: Número de época
+            
+        Returns:
+            Métricas de entrenamiento
+        """
+        self.model.train()
+        total_loss = 0.0
+        num_batches = 0
+        
+        for batch in train_loader:
+            batch = batch.to(self.device)
+            
+            self.optimizer.zero_grad()
+            
+            # Forward pass
+            node_embeddings, predictions = self.model(batch)
+            
+            # Calcular pérdida (simulada para conexiones)
+            if hasattr(batch, 'edge_labels'):
+                loss = self.criterion(predictions, batch.edge_labels.float())
+            else:
+                # Pérdida simulada para desarrollo
+                loss = torch.mean(predictions)
+            
+            # Backward pass
+            loss.backward()
+            self.optimizer.step()
+            
+            total_loss += loss.item()
+            num_batches += 1
+        
+        avg_loss = total_loss / num_batches if num_batches > 0 else 0.0
+        
+        logger.info(f"Época {epoch}: Loss = {avg_loss:.4f}")
+        
+        return {'loss': avg_loss}
+    
+    def evaluate(
+        self,
+        test_loader: List[Data]
+    ) -> Dict[str, float]:
+        """
+        Evalúa el modelo en datos de prueba.
+        
+        Args:
+            test_loader: Datos de prueba
+            
+        Returns:
+            Métricas de evaluación
+        """
+        self.model.eval()
+        total_loss = 0.0
+        predictions_list = []
+        labels_list = []
+        
+        with torch.no_grad():
+            for batch in test_loader:
+                batch = batch.to(self.device)
+                
+                # Forward pass
+                node_embeddings, predictions = self.model(batch)
+                
+                # Calcular pérdida
+                if hasattr(batch, 'edge_labels'):
+                    loss = self.criterion(predictions, batch.edge_labels.float())
+                    total_loss += loss.item()
+                    
+                    predictions_list.extend(predictions.cpu().numpy())
+                    labels_list.extend(batch.edge_labels.cpu().numpy())
+        
+        # Calcular métricas
+        metrics = {
+            'loss': total_loss / len(test_loader) if test_loader else 0.0,
+            'accuracy': 0.0,  # Simulado
+            'f1_score': 0.0   # Simulado
+        }
+        
+        logger.info(f"Evaluación completada: Loss = {metrics['loss']:.4f}")
+        
+        return metrics
 
 class GNNAnalyzer:
     """
-    Analizador de redes usando técnicas de grafos.
+    Analizador que utiliza modelos GNN entrenados para generar insights.
     
-    Proporciona análisis de redes profesionales sin depender de PyTorch.
+    Proporciona análisis de red, detección de comunidades y análisis de influencia.
     """
     
     def __init__(self, model_path: Optional[str] = None):
         """
-        Inicializa el analizador.
+        Inicializa el analizador GNN.
         
         Args:
-            model_path: Ruta a modelos pre-entrenados (opcional)
+            model_path: Ruta al modelo entrenado (opcional)
         """
-        self.model_path = model_path
-        self.graph = None
+        self.models = {}
+        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         
-        logger.info("Analizador GNN inicializado (modo sin PyTorch)")
+        # Inicializar modelos
+        self._initialize_models()
+        
+        # Cargar modelo si se especifica
+        if model_path:
+            self.load_models(model_path)
+        
+        logger.info("Analizador GNN inicializado")
     
     def _initialize_models(self):
-        """Inicializa los modelos (placeholder para compatibilidad)."""
-        logger.info("Modelos GNN no disponibles en modo sin PyTorch")
+        """Inicializa los modelos GNN."""
+        # Modelo de red profesional
+        self.models['network'] = ProfessionalNetworkGNN(
+            input_dim=64,  # Features de nodos
+            hidden_dim=128,
+            output_dim=64
+        ).to(self.device)
+        
+        # Modelo de detección de comunidades
+        self.models['communities'] = CommunityDetectionGNN(
+            input_dim=64,
+            hidden_dim=64,
+            num_communities=10
+        ).to(self.device)
+        
+        # Modelo de análisis de influencia
+        self.models['influence'] = InfluenceAnalysisGNN(
+            input_dim=64,
+            hidden_dim=128,
+            output_dim=32
+        ).to(self.device)
     
     def analyze_professional_network(
         self,
         network_data: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
-        Analiza una red profesional usando NetworkX.
+        Analiza una red profesional usando GNN.
         
         Args:
             network_data: Datos de la red profesional
             
         Returns:
-            Resultados del análisis
+            Análisis completo de la red
         """
         try:
-            # Crear grafo con NetworkX
-            self.graph = nx.Graph()
+            # Preparar datos para GNN
+            graph_data = self._prepare_graph_data(network_data)
             
-            # Agregar nodos
-            for node in network_data.get('nodes', []):
-                self.graph.add_node(node['id'], **node.get('attributes', {}))
+            # Análisis con diferentes modelos
+            network_analysis = {}
             
-            # Agregar aristas
-            for edge in network_data.get('edges', []):
-                self.graph.add_edge(edge['source'], edge['target'], **edge.get('attributes', {}))
+            # Análisis de red general
+            with torch.no_grad():
+                node_embeddings, connection_predictions = self.models['network'](graph_data)
+                network_analysis['embeddings'] = node_embeddings.cpu().numpy()
+                network_analysis['connection_predictions'] = connection_predictions.cpu().numpy()
             
-            # Análisis básico
-            analysis = {
-                'num_nodes': self.graph.number_of_nodes(),
-                'num_edges': self.graph.number_of_edges(),
-                'density': nx.density(self.graph),
-                'average_clustering': nx.average_clustering(self.graph),
-                'average_shortest_path': nx.average_shortest_path_length(self.graph) if nx.is_connected(self.graph) else None,
-                'degree_centrality': nx.degree_centrality(self.graph),
-                'betweenness_centrality': nx.betweenness_centrality(self.graph),
-                'closeness_centrality': nx.closeness_centrality(self.graph)
-            }
+            # Detección de comunidades
+            with torch.no_grad():
+                community_embeddings, community_probs = self.models['communities'](graph_data)
+                network_analysis['communities'] = self._extract_communities(community_probs)
             
-            logger.info(f"Análisis de red completado: {analysis['num_nodes']} nodos, {analysis['num_edges']} aristas")
-            return analysis
+            # Análisis de influencia
+            with torch.no_grad():
+                influence_embeddings, influence_scores = self.models['influence'](graph_data)
+                network_analysis['influence_scores'] = influence_scores.cpu().numpy()
+            
+            # Métricas adicionales
+            network_analysis['metrics'] = self._calculate_network_metrics(graph_data)
+            
+            return network_analysis
             
         except Exception as e:
-            logger.error(f"Error en análisis de red: {str(e)}")
+            logger.error(f"Error analizando red profesional: {str(e)}")
             return {'error': str(e)}
     
     def detect_communities(
@@ -479,46 +506,40 @@ class GNNAnalyzer:
         num_communities: int = 10
     ) -> Dict[str, Any]:
         """
-        Detecta comunidades en la red usando clustering.
+        Detecta comunidades en la red profesional.
         
         Args:
             network_data: Datos de la red
             num_communities: Número de comunidades a detectar
             
         Returns:
-            Información de comunidades detectadas
+            Análisis de comunidades
         """
         try:
-            # Crear grafo si no existe
-            if self.graph is None:
-                self.analyze_professional_network(network_data)
+            # Preparar datos
+            graph_data = self._prepare_graph_data(network_data)
             
-            # Detectar comunidades usando Louvain
-            communities = nx.community.louvain_communities(self.graph)
-            
-            # Análisis de comunidades
-            community_analysis = []
-            for i, community in enumerate(communities):
-                community_nodes = list(community)
-                subgraph = self.graph.subgraph(community_nodes)
+            # Detectar comunidades
+            with torch.no_grad():
+                embeddings, community_probs = self.models['communities'](graph_data)
                 
-                analysis = {
-                    'community_id': i,
-                    'size': len(community_nodes),
-                    'density': nx.density(subgraph),
-                    'members': community_nodes,
-                    'average_degree': sum(dict(subgraph.degree()).values()) / len(community_nodes) if community_nodes else 0
-                }
-                community_analysis.append(analysis)
+                # Asignar comunidades
+                community_assignments = torch.argmax(community_probs, dim=1)
+                
+                # Analizar comunidades
+                communities = self._analyze_communities(
+                    community_assignments.cpu().numpy(),
+                    network_data['nodes']
+                )
             
-            logger.info(f"Detectadas {len(communities)} comunidades")
             return {
-                'communities': community_analysis,
-                'num_communities': len(communities)
+                'communities': communities,
+                'community_assignments': community_assignments.cpu().numpy(),
+                'community_probs': community_probs.cpu().numpy()
             }
             
         except Exception as e:
-            logger.error(f"Error en detección de comunidades: {str(e)}")
+            logger.error(f"Error detectando comunidades: {str(e)}")
             return {'error': str(e)}
     
     def analyze_influence(
@@ -526,7 +547,7 @@ class GNNAnalyzer:
         network_data: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
-        Analiza la influencia en la red.
+        Analiza la influencia de nodos en la red.
         
         Args:
             network_data: Datos de la red
@@ -535,162 +556,205 @@ class GNNAnalyzer:
             Análisis de influencia
         """
         try:
-            # Crear grafo si no existe
-            if self.graph is None:
-                self.analyze_professional_network(network_data)
+            # Preparar datos
+            graph_data = self._prepare_graph_data(network_data)
             
-            # Calcular métricas de influencia
-            influence_metrics = {
-                'degree_centrality': nx.degree_centrality(self.graph),
-                'betweenness_centrality': nx.betweenness_centrality(self.graph),
-                'closeness_centrality': nx.closeness_centrality(self.graph),
-                'eigenvector_centrality': nx.eigenvector_centrality(self.graph, max_iter=1000),
-                'pagerank': nx.pagerank(self.graph)
-            }
+            # Analizar influencia
+            with torch.no_grad():
+                embeddings, influence_scores = self.models['influence'](graph_data)
+                
+                # Identificar líderes de opinión
+                top_influencers = self._identify_top_influencers(
+                    influence_scores.cpu().numpy(),
+                    network_data['nodes']
+                )
             
-            # Identificar top influencers
-            top_influencers = self._identify_top_influencers(influence_metrics)
-            
-            logger.info(f"Análisis de influencia completado")
             return {
-                'influence_metrics': influence_metrics,
-                'top_influencers': top_influencers
+                'influence_scores': influence_scores.cpu().numpy(),
+                'top_influencers': top_influencers,
+                'influence_distribution': self._calculate_influence_distribution(influence_scores)
             }
             
         except Exception as e:
-            logger.error(f"Error en análisis de influencia: {str(e)}")
+            logger.error(f"Error analizando influencia: {str(e)}")
             return {'error': str(e)}
     
-    def _prepare_graph_data(self, network_data: Dict[str, Any]) -> Any:
-        """
-        Prepara datos del grafo (placeholder para compatibilidad).
-        
-        Args:
-            network_data: Datos de la red
+    def _prepare_graph_data(self, network_data: Dict[str, Any]) -> Data:
+        """Prepara datos para modelos GNN."""
+        try:
+            # Extraer nodos y aristas
+            nodes = network_data['nodes']
+            edges = network_data['edges']
             
-        Returns:
-            Datos preparados
-        """
-        return network_data
+            # Crear features de nodos (simulado)
+            num_nodes = len(nodes)
+            node_features = torch.randn(num_nodes, 64)  # 64 features por nodo
+            
+            # Crear matriz de adyacencia
+            edge_index = torch.tensor(edges, dtype=torch.long).t().contiguous()
+            
+            # Crear objeto Data de PyTorch Geometric
+            graph_data = Data(
+                x=node_features,
+                edge_index=edge_index
+            )
+            
+            return graph_data
+            
+        except Exception as e:
+            logger.error(f"Error preparando datos de grafo: {str(e)}")
+            raise
     
-    def _extract_communities(self, community_probs: Any) -> List[Dict[str, Any]]:
-        """
-        Extrae información de comunidades (placeholder para compatibilidad).
-        
-        Args:
-            community_probs: Probabilidades de comunidades
+    def _extract_communities(self, community_probs: torch.Tensor) -> List[Dict[str, Any]]:
+        """Extrae información de comunidades."""
+        try:
+            community_assignments = torch.argmax(community_probs, dim=1)
             
-        Returns:
-            Información de comunidades
-        """
-        return []
+            communities = []
+            for i in range(community_probs.size(1)):
+                community_members = (community_assignments == i).nonzero().squeeze().cpu().numpy()
+                
+                communities.append({
+                    'community_id': i,
+                    'size': len(community_members),
+                    'members': community_members.tolist(),
+                    'cohesion_score': community_probs[:, i].mean().item()
+                })
+            
+            return communities
+            
+        except Exception as e:
+            logger.error(f"Error extrayendo comunidades: {str(e)}")
+            return []
     
     def _analyze_communities(
         self,
         community_assignments: np.ndarray,
         nodes: List[Dict[str, Any]]
     ) -> List[Dict[str, Any]]:
-        """
-        Analiza características de comunidades (placeholder para compatibilidad).
-        
-        Args:
-            community_assignments: Asignaciones de comunidades
-            nodes: Lista de nodos
+        """Analiza las comunidades detectadas."""
+        try:
+            communities = []
             
-        Returns:
-            Análisis de comunidades
-        """
-        return []
+            for community_id in np.unique(community_assignments):
+                member_indices = np.where(community_assignments == community_id)[0]
+                
+                # Analizar características de la comunidad
+                community_analysis = {
+                    'community_id': int(community_id),
+                    'size': len(member_indices),
+                    'members': member_indices.tolist(),
+                    'characteristics': self._analyze_community_characteristics(
+                        member_indices, nodes
+                    )
+                }
+                
+                communities.append(community_analysis)
+            
+            return communities
+            
+        except Exception as e:
+            logger.error(f"Error analizando comunidades: {str(e)}")
+            return []
     
     def _identify_top_influencers(
         self,
-        influence_scores: Dict[str, Dict[int, float]]
+        influence_scores: np.ndarray,
+        nodes: List[Dict[str, Any]]
     ) -> List[Dict[str, Any]]:
-        """
-        Identifica los principales influencers.
-        
-        Args:
-            influence_scores: Métricas de influencia
+        """Identifica los principales influenciadores."""
+        try:
+            # Obtener top 10 influenciadores
+            top_indices = np.argsort(influence_scores.flatten())[-10:][::-1]
             
-        Returns:
-            Lista de top influencers
-        """
-        top_influencers = []
-        
-        for metric_name, scores in influence_scores.items():
-            # Ordenar por score
-            sorted_scores = sorted(scores.items(), key=lambda x: x[1], reverse=True)
-            
-            # Tomar top 10
-            top_10 = sorted_scores[:10]
-            
-            for node_id, score in top_10:
+            top_influencers = []
+            for idx in top_indices:
                 top_influencers.append({
-                    'node_id': node_id,
-                    'metric': metric_name,
-                    'score': score
+                    'node_id': int(idx),
+                    'influence_score': float(influence_scores[idx]),
+                    'node_info': nodes[idx] if idx < len(nodes) else {}
                 })
-        
-        return top_influencers
-    
-    def _calculate_network_metrics(self, graph_data: Any) -> Dict[str, float]:
-        """
-        Calcula métricas de red (placeholder para compatibilidad).
-        
-        Args:
-            graph_data: Datos del grafo
             
-        Returns:
-            Métricas de red
-        """
-        return {}
+            return top_influencers
+            
+        except Exception as e:
+            logger.error(f"Error identificando influenciadores: {str(e)}")
+            return []
+    
+    def _calculate_network_metrics(self, graph_data: Data) -> Dict[str, float]:
+        """Calcula métricas de la red."""
+        try:
+            # Convertir a NetworkX para análisis
+            nx_graph = to_networkx(graph_data, to_undirected=True)
+            
+            metrics = {
+                'num_nodes': nx_graph.number_of_nodes(),
+                'num_edges': nx_graph.number_of_edges(),
+                'density': nx.density(nx_graph),
+                'average_clustering': nx.average_clustering(nx_graph),
+                'average_shortest_path': nx.average_shortest_path_length(nx_graph) if nx.is_connected(nx_graph) else float('inf')
+            }
+            
+            return metrics
+            
+        except Exception as e:
+            logger.error(f"Error calculando métricas de red: {str(e)}")
+            return {}
     
     def _analyze_community_characteristics(
         self,
         member_indices: np.ndarray,
         nodes: List[Dict[str, Any]]
     ) -> Dict[str, Any]:
-        """
-        Analiza características de comunidades (placeholder para compatibilidad).
-        
-        Args:
-            member_indices: Índices de miembros
-            nodes: Lista de nodos
+        """Analiza características de una comunidad."""
+        try:
+            # En una implementación real, esto analizaría características específicas
+            # Por ahora, retornamos métricas básicas
+            return {
+                'avg_experience': 5.0,  # Simulado
+                'common_skills': ['Python', 'JavaScript'],  # Simulado
+                'industry_focus': 'Technology',  # Simulado
+                'geographic_concentration': 'San Francisco'  # Simulado
+            }
             
-        Returns:
-            Características de la comunidad
-        """
-        return {}
+        except Exception as e:
+            logger.error(f"Error analizando características de comunidad: {str(e)}")
+            return {}
     
-    def _calculate_influence_distribution(self, influence_scores: Any) -> Dict[str, float]:
-        """
-        Calcula distribución de influencia (placeholder para compatibilidad).
-        
-        Args:
-            influence_scores: Scores de influencia
+    def _calculate_influence_distribution(self, influence_scores: torch.Tensor) -> Dict[str, float]:
+        """Calcula distribución de influencia."""
+        try:
+            scores = influence_scores.cpu().numpy().flatten()
             
-        Returns:
-            Distribución de influencia
-        """
-        return {}
+            return {
+                'mean': float(np.mean(scores)),
+                'std': float(np.std(scores)),
+                'min': float(np.min(scores)),
+                'max': float(np.max(scores)),
+                'median': float(np.median(scores))
+            }
+            
+        except Exception as e:
+            logger.error(f"Error calculando distribución de influencia: {str(e)}")
+            return {}
     
     def load_models(self, model_path: str) -> None:
-        """
-        Carga modelos (placeholder para compatibilidad).
-        
-        Args:
-            model_path: Ruta a los modelos
-        """
-        logger.info(f"Modelos no disponibles en modo sin PyTorch: {model_path}")
+        """Carga modelos entrenados."""
+        try:
+            # En una implementación real, esto cargaría los modelos
+            logger.info(f"Cargando modelos desde: {model_path}")
+            
+        except Exception as e:
+            logger.error(f"Error cargando modelos: {str(e)}")
     
     def save_models(self, model_path: str) -> None:
-        """
-        Guarda modelos (placeholder para compatibilidad).
-        
-        Args:
-            model_path: Ruta para guardar modelos
-        """
-        logger.info(f"Modelos no disponibles en modo sin PyTorch: {model_path}")
+        """Guarda modelos entrenados."""
+        try:
+            # En una implementación real, esto guardaría los modelos
+            logger.info(f"Guardando modelos en: {model_path}")
+            
+        except Exception as e:
+            logger.error(f"Error guardando modelos: {str(e)}")
 
 
 class GNNModels:
@@ -709,7 +773,7 @@ class GNNModels:
         self.analyzer = None
         self.trainer = None
         
-        logger.info("Colección de modelos GNN inicializada (modo sin PyTorch)")
+        logger.info("Colección de modelos GNN inicializada")
     
     def initialize_models(self, input_dim: int = 128):
         """
@@ -718,10 +782,13 @@ class GNNModels:
         Args:
             input_dim: Dimensión de entrada para los modelos
         """
-        # En modo sin PyTorch, solo inicializamos el analizador
+        self.professional_network = ProfessionalNetworkGNN(input_dim)
+        self.community_detection = CommunityDetectionGNN(input_dim)
+        self.influence_analysis = InfluenceAnalysisGNN(input_dim)
         self.analyzer = GNNAnalyzer()
+        self.trainer = GNNTrainer(self.professional_network)
         
-        logger.info("Modelos GNN inicializados (modo sin PyTorch)")
+        logger.info("Todos los modelos GNN inicializados")
     
     def get_model(self, model_type: str):
         """
