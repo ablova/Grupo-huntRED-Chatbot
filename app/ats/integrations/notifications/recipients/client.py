@@ -278,3 +278,42 @@ class ClientNotifier:
             business_unit=self.business_unit,
             channels=channels or ['email']
         )
+
+    async def send_payment_confirmation(self, amount, payment_date, payment_method, reference, context_extra=None):
+        context = {
+            'client': {'name': self.client.nombre},
+            'payment': {
+                'amount': amount,
+                'date': payment_date,
+                'method': payment_method,
+                'reference': reference
+            }
+        }
+        if context_extra:
+            context.update(context_extra)
+        return await self.notification_service.send_notification(
+            recipient=self.client,
+            template_name='payment_confirmation',
+            context=context,
+            channels=['email'],
+            business_unit=self.business_unit
+        )
+
+    async def send_payment_alert(self, alert_type, due_date, amount, context_extra=None):
+        context = {
+            'client': {'name': self.client.nombre},
+            'alert': {
+                'type': alert_type,
+                'due_date': due_date,
+                'amount': amount
+            }
+        }
+        if context_extra:
+            context.update(context_extra)
+        return await self.notification_service.send_notification(
+            recipient=self.client,
+            template_name='payment_alert',
+            context=context,
+            channels=['email', 'whatsapp'],
+            business_unit=self.business_unit
+        )

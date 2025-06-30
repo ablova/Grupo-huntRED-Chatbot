@@ -3,8 +3,8 @@ from django.conf import settings
 from django.core.cache import cache
 from django.db import transaction
 import logging
-from typing import Dict, Any, Optional
-from app.models import Conversation, ChatMessage, Notification, Person, BusinessUnit 
+from typing import Dict, Any, Optional, List
+from app.models import Conversation, ChatMessage, Notification, Person, BusinessUnit, Vacante 
 from app.tasks import process_message, send_notification
 from app.ats.utils.report_generator import ReportGenerator
 from app.ats.chatbot.components.chat_state_manager import ChatStateManager
@@ -18,7 +18,11 @@ from app.ats.chatbot.workflow.business_units.huntred.huntred import process_hunt
 from app.ats.chatbot.workflow.business_units.huntred_executive import process_huntred_executive_candidate
 from app.ats.chatbot.workflow.business_units.huntu.huntu import process_huntu_candidate
 from app.ats.chatbot.workflow.business_units.amigro.amigro import process_amigro_candidate
-from app.ats.chatbot.workflow.business_units.sexsi.sexsi import process_sexsi_payment 
+from app.ats.chatbot.workflow.business_units.sexsi.sexsi import process_sexsi_payment
+
+# Integración con nuevas funcionalidades ML
+from app.ml.core.job_description_generator import JobDescriptionGenerator
+from app.ml.core.cv_analyzer import CVAnalyzer
 
 logger = logging.getLogger('app.ats.integrations.chatbot_integration')
 
@@ -32,6 +36,10 @@ class ChatbotIntegration:
         self.intent_handler = IntentHandler()
         self.nlp_processor = NLPProcessor()
         self.gpt_handler = GPTHandler()
+        
+        # Inicializar nuevas funcionalidades ML
+        self.job_generator = JobDescriptionGenerator()
+        self.cv_analyzer = CVAnalyzer()
         
     def process_incoming_message(self, recipient_id: str, message: str, channel: str) -> Dict[str, Any]:
         """
@@ -337,3 +345,267 @@ class ChatbotIntegration:
             
         except Exception as e:
             logger.error(f"Error initiating conversation flow: {str(e)}")
+
+    async def handle_recruitment_assistant_request(
+        self,
+        user_id: str,
+        request_type: str,
+        context: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
+        """
+        Maneja solicitudes del asistente de reclutamiento.
+        
+        Args:
+            user_id: ID del usuario
+            request_type: Tipo de solicitud
+            context: Contexto adicional
+            
+        Returns:
+            Dict con respuesta y datos
+        """
+        try:
+            if request_type == 'generate_job_description':
+                return await self._handle_job_description_generation(context)
+            
+            elif request_type == 'analyze_cv':
+                return await self._handle_cv_analysis(context)
+            
+            elif request_type == 'compare_candidates':
+                return await self._handle_candidate_comparison(context)
+            
+            elif request_type == 'generate_interview_questions':
+                return await self._handle_interview_questions_generation(context)
+            
+            elif request_type == 'get_market_insights':
+                return await self._handle_market_insights(context)
+            
+            else:
+                return {
+                    'success': False,
+                    'error': f'Tipo de solicitud no reconocido: {request_type}'
+                }
+                
+        except Exception as e:
+            logger.error(f"Error manejando solicitud de asistente: {str(e)}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
+
+    async def _handle_job_description_generation(self, context: Dict[str, Any]) -> Dict[str, Any]:
+        """Maneja la generación de descripción de puesto."""
+        try:
+            position = context.get('position')
+            requirements = context.get('requirements', [])
+            location = context.get('location', 'No especificado')
+            experience_level = context.get('experience_level', 'mid')
+            
+            if not position:
+                return {
+                    'success': False,
+                    'error': 'Se requiere el título del puesto'
+                }
+            
+            # Generar descripción
+            result = await self.job_generator.generate_job_description(
+                position=position,
+                requirements=requirements,
+                location=location,
+                experience_level=experience_level
+            )
+            
+            return {
+                'success': True,
+                'data': result,
+                'message': f'Descripción generada para: {position}'
+            }
+            
+        except Exception as e:
+            logger.error(f"Error generando descripción: {str(e)}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
+
+    async def _handle_cv_analysis(self, context: Dict[str, Any]) -> Dict[str, Any]:
+        """Maneja el análisis de CV."""
+        try:
+            cv_text = context.get('cv_text')
+            position = context.get('position')
+            candidate_id = context.get('candidate_id')
+            
+            if not cv_text:
+                return {
+                    'success': False,
+                    'error': 'Se requiere el contenido del CV'
+                }
+            
+            # Analizar CV
+            result = await self.cv_analyzer.analyze_cv(
+                cv_text=cv_text,
+                position=position,
+                candidate_id=candidate_id
+            )
+            
+            return {
+                'success': True,
+                'data': result,
+                'message': 'Análisis de CV completado'
+            }
+            
+        except Exception as e:
+            logger.error(f"Error analizando CV: {str(e)}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
+
+    async def _handle_candidate_comparison(self, context: Dict[str, Any]) -> Dict[str, Any]:
+        """Maneja la comparación de candidatos."""
+        try:
+            cv_analyses = context.get('cv_analyses', [])
+            position = context.get('position')
+            
+            if not cv_analyses or not position:
+                return {
+                    'success': False,
+                    'error': 'Se requieren análisis de CV y posición'
+                }
+            
+            # Comparar candidatos
+            result = await self.cv_analyzer.compare_candidates(
+                cv_analyses=cv_analyses,
+                position=position
+            )
+            
+            return {
+                'success': True,
+                'data': result,
+                'message': 'Comparación de candidatos completada'
+            }
+            
+        except Exception as e:
+            logger.error(f"Error comparando candidatos: {str(e)}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
+
+    async def _handle_interview_questions_generation(self, context: Dict[str, Any]) -> Dict[str, Any]:
+        """Maneja la generación de preguntas de entrevista."""
+        try:
+            candidate_info = context.get('candidate_info', {})
+            position = context.get('position')
+            question_type = context.get('question_type', 'technical')
+            
+            if not candidate_info or not position:
+                return {
+                    'success': False,
+                    'error': 'Se requiere información del candidato y posición'
+                }
+            
+            # Generar preguntas
+            result = await self.cv_analyzer.generate_interview_questions(
+                candidate_info=candidate_info,
+                position=position,
+                question_type=question_type
+            )
+            
+            return {
+                'success': True,
+                'data': result,
+                'message': 'Preguntas de entrevista generadas'
+            }
+            
+        except Exception as e:
+            logger.error(f"Error generando preguntas: {str(e)}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
+
+    async def _handle_market_insights(self, context: Dict[str, Any]) -> Dict[str, Any]:
+        """Maneja la obtención de insights de mercado."""
+        try:
+            position = context.get('position')
+            location = context.get('location')
+            
+            if not position:
+                return {
+                    'success': False,
+                    'error': 'Se requiere el título del puesto'
+                }
+            
+            # Obtener insights
+            result = await self.job_generator.get_market_insights(
+                position=position,
+                location=location
+            )
+            
+            return {
+                'success': True,
+                'data': result,
+                'message': 'Insights de mercado obtenidos'
+            }
+            
+        except Exception as e:
+            logger.error(f"Error obteniendo insights: {str(e)}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
+
+    async def notify_ideal_candidate_selected(
+        self,
+        selected_candidate: Person,
+        vacancy: Vacante,
+        other_candidates: List[Person],
+        selection_reason: str = None
+    ) -> bool:
+        """
+        Notifica cuando se identifica el candidato ideal y agradece/descarta al resto.
+        Integra con el sistema de notificaciones existente.
+        """
+        try:
+            # Usar el sistema de notificaciones existente
+            from app.ats.integrations.notifications.process.offer_notifications import OfferNotificationService
+            
+            notification_service = OfferNotificationService(self.business_unit)
+            
+            success = await notification_service.notify_ideal_candidate_selected(
+                selected_candidate=selected_candidate,
+                vacancy=vacancy,
+                other_candidates=other_candidates,
+                selection_reason=selection_reason
+            )
+            
+            if success:
+                logger.info(f"Candidato ideal seleccionado: {selected_candidate.full_name}")
+                
+                # Actualizar métricas
+                await self._update_recruitment_metrics(
+                    vacancy_id=vacancy.id,
+                    selected_candidate_id=selected_candidate.id,
+                    total_candidates=len(other_candidates) + 1
+                )
+            
+            return success
+            
+        except Exception as e:
+            logger.error(f"Error notificando candidato ideal: {str(e)}")
+            return False
+
+    async def _update_recruitment_metrics(
+        self,
+        vacancy_id: int,
+        selected_candidate_id: int,
+        total_candidates: int
+    ):
+        """Actualiza métricas de reclutamiento."""
+        try:
+            # Aquí se integraría con el sistema de métricas existente
+            # Por ahora, solo logging
+            logger.info(f"Métricas actualizadas - Vacante: {vacancy_id}, Candidato: {selected_candidate_id}, Total: {total_candidates}")
+            
+        except Exception as e:
+            logger.error(f"Error actualizando métricas: {str(e)}")

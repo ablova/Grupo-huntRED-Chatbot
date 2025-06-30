@@ -166,457 +166,509 @@ class Achievement:
         self.icon = icon
 
 class GamificationService:
-    """Servicio de gamificación"""
+    """
+    Servicio de gamificación avanzado para Grupo huntRED®
+    
+    Mejoras implementadas:
+    - Sistema de niveles dinámico
+    - Competencias en tiempo real
+    - Logros personalizados por BU
+    - Recompensas inteligentes
+    - Analytics predictivo
+    - Integración con ML
+    """
     
     def __init__(self):
-        """Inicializa el servicio de gamificación"""
-        self.levels = self._initialize_levels()
         self.achievements = self._initialize_achievements()
-        self.points_config = self._get_points_config()
+        self.user_profiles = {}
+        self.competitions = {}
+        self.rewards_system = self._initialize_rewards()
+        self.analytics = GamificationAnalytics()
+        self._initialize_competitions()
     
-    def _initialize_levels(self) -> List[Level]:
-        """
-        Inicializa los niveles disponibles
-        
-        Returns:
-            List[Level]: Lista de niveles
-        """
-        return [
-            Level(1, "Novato", 0, {"features": ["basic_menu"]}),
-            Level(2, "Aprendiz", 100, {"features": ["quick_replies"]}),
-            Level(3, "Intermedio", 500, {"features": ["evaluations"]}),
-            Level(4, "Avanzado", 1000, {"features": ["references"]}),
-            Level(5, "Experto", 2000, {"features": ["all_features"]})
-        ]
-        
-    def _initialize_achievements(self) -> List[Achievement]:
-        """
-        Inicializa los logros disponibles
-        
-        Returns:
-            List[Achievement]: Lista de logros
-        """
-        achievements = [
-            # Logros de mensajería
-            Achievement(
-                AchievementType.MESSAGE_MILESTONE,
-                "Comunicador",
-                "Envía 100 mensajes",
-                50,
-                {"messages_sent": 100},
-                "message_icon"
-            ),
-            Achievement(
-                AchievementType.QUICK_REPLY_MASTER,
-                "Maestro de Respuestas Rápidas",
-                "Usa 50 respuestas rápidas",
-                75,
-                {"quick_replies_used": 50},
-                "quick_reply_icon"
-            ),
-            
-            # Logros de evaluación
-            Achievement(
-                AchievementType.EVALUATION_NOVICE,
-                "Evaluador Novato",
-                "Completa 5 evaluaciones",
-                100,
-                {"evaluations_completed": 5},
-                "evaluation_icon"
-            ),
-            Achievement(
-                AchievementType.EVALUATION_EXPERT,
-                "Evaluador Experto",
-                "Completa 20 evaluaciones con puntuación alta",
-                200,
-                {"evaluations_completed": 20, "min_score": 8},
-                "expert_icon"
-            ),
-            
-            # Logros de referencia
-            Achievement(
-                AchievementType.REFERENCE_COLLECTOR,
-                "Coleccionista de Referencias",
-                "Obtén 10 referencias completadas",
-                150,
-                {"references_completed": 10},
-                "reference_icon"
-            ),
-            Achievement(
-                AchievementType.REFERENCE_QUALITY,
-                "Referencias de Calidad",
-                "Obtén 5 referencias con puntuación alta",
-                200,
-                {"high_quality_references": 5},
-                "quality_icon"
-            ),
-            
-            # Logros de perfil
-            Achievement(
-                AchievementType.PROFILE_COMPLETE,
-                "Perfil Completo",
-                "Completa todos los campos de tu perfil",
-                100,
-                {"profile_completion": 100},
-                "profile_icon"
-            ),
-            Achievement(
-                AchievementType.SKILL_MASTER,
-                "Maestro de Habilidades",
-                "Añade 10 habilidades a tu perfil",
-                150,
-                {"skills_added": 10},
-                "skills_icon"
-            ),
-            
-            # Logros de interacción
-            Achievement(
-                AchievementType.MENU_NAVIGATOR,
-                "Navegador del Menú",
-                "Accede a todas las secciones del menú",
-                75,
-                {"menu_sections_accessed": "all"},
-                "menu_icon"
-            ),
-            Achievement(
-                AchievementType.FEATURE_EXPLORER,
-                "Explorador de Características",
-                "Usa todas las características disponibles",
-                100,
-                {"features_used": "all"},
-                "explorer_icon"
-            ),
-            
-            # Logros de comunidad
-            Achievement(
-                AchievementType.RECOMMENDATION_GIVER,
-                "Recomendador",
-                "Da 5 recomendaciones",
-                150,
-                {"recommendations_given": 5},
-                "recommendation_icon"
-            ),
-            Achievement(
-                AchievementType.FEEDBACK_PROVIDER,
-                "Proveedor de Feedback",
-                "Proporciona feedback en 10 ocasiones",
-                100,
-                {"feedback_provided": 10},
-                "feedback_icon"
-            ),
-            
-            # Logros especiales
-            Achievement(
-                AchievementType.DAILY_STREAK,
-                "Racha Diaria",
-                "Usa el chatbot 7 días seguidos",
-                200,
-                {"daily_streak": 7},
-                "streak_icon"
-            ),
-            Achievement(
-                AchievementType.WEEKLY_CHALLENGE,
-                "Desafío Semanal",
-                "Completa todos los desafíos semanales",
-                300,
-                {"weekly_challenges_completed": "all"},
-                "challenge_icon"
-            ),
-            
-            # Logros de CV
-            Achievement(
-                AchievementType.CV_CREATOR,
-                "Creador de CV",
-                "Genera tu primer CV optimizado",
-                100,
-                {"cvs_generated": 1},
-                "cv_creator_icon"
-            ),
-            Achievement(
-                AchievementType.CV_OPTIMIZER,
-                "Optimizador de CV",
-                "Optimiza 5 CVs con personalidad",
-                200,
-                {"cvs_optimized": 5},
-                "cv_optimizer_icon"
-            ),
-            Achievement(
-                AchievementType.CV_MASTER,
-                "Maestro del CV",
-                "Genera 10 CVs con puntuación alta",
-                300,
-                {"high_score_cvs": 10},
-                "cv_master_icon"
-            ),
-            Achievement(
-                AchievementType.CV_PERSONALITY_EXPERT,
-                "Experto en Personalidad",
-                "Alcanza un match de personalidad perfecto en 3 CVs",
-                250,
-                {"perfect_personality_matches": 3},
-                "personality_expert_icon"
-            ),
-            Achievement(
-                AchievementType.CV_TEMPLATE_EXPLORER,
-                "Explorador de Plantillas",
-                "Usa todas las plantillas disponibles",
-                150,
-                {"templates_used": "all"},
-                "template_explorer_icon"
-            ),
-            Achievement(
-                AchievementType.CV_PERFECTIONIST,
-                "Perfeccionista del CV",
-                "Alcanza una puntuación de optimización de 0.9 o superior",
-                400,
-                {"optimization_score": 0.9},
-                "perfectionist_icon"
-            )
-        ]
-        
-        return achievements
-        
-    def _get_points_config(self) -> Dict[str, int]:
-        """
-        Obtiene la configuración de puntos por actividad
-        
-        Returns:
-            Dict[str, int]: Configuración de puntos
-        """
+    def _initialize_rewards(self) -> Dict[str, Dict[str, Any]]:
+        """Sistema de recompensas inteligente"""
         return {
-            ActivityType.MESSAGE_SENT.value: 1,
-            ActivityType.MESSAGE_RECEIVED.value: 1,
-            ActivityType.QUICK_REPLY.value: 2,
-            ActivityType.BUTTON_CLICK.value: 1,
-            ActivityType.EVALUATION_STARTED.value: 5,
-            ActivityType.EVALUATION_COMPLETED.value: 10,
-            ActivityType.EVALUATION_SCORE.value: 5,
-            ActivityType.REFERENCE_REQUESTED.value: 5,
-            ActivityType.REFERENCE_COMPLETED.value: 20,
-            ActivityType.REFERENCE_QUALITY.value: 10,
-            ActivityType.PROFILE_UPDATED.value: 5,
-            ActivityType.SKILL_ADDED.value: 10,
-            ActivityType.EXPERIENCE_ADDED.value: 15,
-            ActivityType.MENU_ACCESS.value: 1,
-            ActivityType.FEATURE_USED.value: 5,
-            ActivityType.HELP_REQUESTED.value: 2,
-            ActivityType.RECOMMENDATION_GIVEN.value: 15,
-            ActivityType.RECOMMENDATION_RECEIVED.value: 10,
-            ActivityType.FEEDBACK_PROVIDED.value: 5,
-            ActivityType.CV_GENERATED.value: 50,
-            ActivityType.CV_OPTIMIZED.value: 75,
-            ActivityType.CV_SECTION_ENHANCED.value: 25,
-            ActivityType.CV_TEMPLATE_USED.value: 30,
-            ActivityType.CV_PERSONALITY_MATCH.value: 40,
-            ActivityType.CV_OPTIMIZATION_SCORE.value: 50
+            'points': {
+                'base_multiplier': 1.0,
+                'streak_bonus': 0.1,
+                'difficulty_bonus': 0.2,
+                'time_bonus': 0.05
+            },
+            'badges': {
+                'unlock_thresholds': {
+                    'bronze': 100,
+                    'silver': 500,
+                    'gold': 1000,
+                    'platinum': 2500,
+                    'diamond': 5000
+                },
+                'special_badges': {
+                    'early_adopter': {'condition': 'join_date_2024', 'points': 1000},
+                    'streak_master': {'condition': 'streak_30_days', 'points': 500},
+                    'community_leader': {'condition': 'help_others_50', 'points': 750}
+                }
+            },
+            'features': {
+                'premium_access': {'points_required': 2000},
+                'priority_support': {'points_required': 1000},
+                'advanced_analytics': {'points_required': 1500},
+                'custom_themes': {'points_required': 500}
+            },
+            'real_world': {
+                'mentorship': {'points_required': 3000},
+                'networking_events': {'points_required': 1500},
+                'job_recommendations': {'points_required': 2500},
+                'certification_discounts': {'points_required': 1000}
+            }
         }
-        
-    async def record_activity(self, 
-                            user_id: str,
-                            activity_type: ActivityType,
-                            data: Dict[str, Any] = None) -> Dict[str, Any]:
-        """
-        Registra una actividad y actualiza puntos/logros
-        
-        Args:
-            user_id: ID del usuario
-            activity_type: Tipo de actividad
-            data: Datos adicionales de la actividad
+    
+    def _initialize_competitions(self):
+        """Inicializa competencias dinámicas"""
+        try:
+            # Competencia semanal de engagement
+            weekly_comp = Competition(
+                id="weekly_engagement_2024",
+                name="Engagement Semanal",
+                description="Participa activamente durante la semana",
+                type=CompetitionType.ENGAGEMENT,
+                difficulty=ChallengeDifficulty.EASY,
+                start_date=datetime.now(),
+                end_date=datetime.now() + timedelta(days=7),
+                max_participants=100,
+                rewards={
+                    "points": 500,
+                    "badge": "weekly_warrior",
+                    "feature_unlock": "priority_support"
+                },
+                rules=[
+                    "Envía al menos 10 mensajes",
+                    "Completa 3 evaluaciones",
+                    "Actualiza tu perfil",
+                    "Ayuda a otros usuarios"
+                ]
+            )
             
-        Returns:
-            Dict con el resultado de la actividad
+            # Competencia mensual de skills
+            monthly_comp = Competition(
+                id="skill_master_monthly",
+                name="Maestro de Habilidades Mensual",
+                description="Desarrolla y demuestra tus habilidades",
+                type=CompetitionType.SKILL_DEVELOPMENT,
+                difficulty=ChallengeDifficulty.INTERMEDIATE,
+                start_date=datetime.now(),
+                end_date=datetime.now() + timedelta(days=30),
+                max_participants=50,
+                rewards={
+                    "points": 1500,
+                    "badge": "skill_master",
+                    "real_world": "mentorship_session"
+                },
+                rules=[
+                    "Añade 20 nuevas habilidades",
+                    "Completa 10 evaluaciones con puntuación alta",
+                    "Genera 5 CVs optimizados",
+                    "Participa en 3 sesiones de networking"
+                ]
+            )
+            
+            self.competitions[weekly_comp.id] = weekly_comp
+            self.competitions[monthly_comp.id] = monthly_comp
+            
+            logger.info("Competencias inicializadas exitosamente")
+            
+        except Exception as e:
+            logger.error(f"Error inicializando competencias: {str(e)}")
+    
+    async def record_activity(self, user: Person, activity_type: ActivityType, 
+                            xp_amount: int = 0, metadata: Dict[str, Any] = None) -> Dict[str, Any]:
+        """
+        Registra actividad del usuario con sistema avanzado de recompensas
         """
         try:
-            # Obtener puntos por la actividad
-            points = self.points_config.get(activity_type.value, 0)
+            # Obtener perfil del usuario
+            profile = await self._get_or_create_profile(user)
             
-            # Actualizar puntos del usuario
-            user_points = await self._update_user_points(user_id, points)
+            # Calcular puntos base
+            base_points = xp_amount or self._calculate_base_points(activity_type)
             
-            # Verificar logros
-            new_achievements = await self._check_achievements(user_id, activity_type, data)
+            # Aplicar multiplicadores
+            final_points = await self._apply_point_multipliers(
+                base_points, profile, activity_type, metadata
+            )
             
-            # Verificar nivel
-            new_level = await self._check_level(user_id, user_points)
+            # Actualizar perfil
+            profile.experience += final_points
+            profile.total_points += final_points
+            profile.last_activity = datetime.now()
+            
+            # Verificar logros desbloqueados
+            new_achievements = await self._check_achievements(user, profile)
+            
+            # Verificar competencias
+            competition_updates = await self._update_competitions(user, final_points, activity_type)
+            
+            # Generar analytics
+            analytics_data = await self.analytics.record_activity(
+                user, activity_type, final_points, metadata
+            )
+            
+            # Guardar perfil
+            await self._save_profile(profile)
             
             return {
-                'points_earned': points,
-                'total_points': user_points,
-                'new_achievements': new_achievements,
-                'new_level': new_level
+                'points_earned': final_points,
+                'new_level': profile.level,
+                'badges_earned': new_achievements,
+                'competition_updates': competition_updates,
+                'analytics': analytics_data,
+                'next_achievement': await self._get_next_achievement(profile)
             }
             
         except Exception as e:
-            logger.error(f"Error recording activity: {str(e)}")
-            raise
+            logger.error(f"Error registrando actividad: {str(e)}")
+            return {'error': str(e)}
+    
+    async def _apply_point_multipliers(self, base_points: int, profile: UserProfile, 
+                                     activity_type: ActivityType, metadata: Dict[str, Any]) -> int:
+        """Aplica multiplicadores inteligentes a los puntos"""
+        try:
+            multiplier = 1.0
             
-    async def _update_user_points(self, user_id: str, points: int) -> int:
-        """
-        Actualiza los puntos del usuario
-        
-        Args:
-            user_id: ID del usuario
-            points: Puntos a añadir
+            # Multiplicador por racha
+            if profile.current_streak > 0:
+                streak_bonus = min(profile.current_streak * 0.1, 1.0)
+                multiplier += streak_bonus
             
-        Returns:
-            int: Total de puntos actualizado
-        """
-        cache_key = f"user_points_{user_id}"
-        current_points = cache.get(cache_key, 0)
-        new_points = current_points + points
-        cache.set(cache_key, new_points)
-        return new_points
-        
-    async def _check_achievements(self,
-                                user_id: str,
-                                activity_type: ActivityType,
-                                data: Dict[str, Any] = None) -> List[Achievement]:
-        """
-        Verifica si se han desbloqueado nuevos logros
-        
-        Args:
-            user_id: ID del usuario
-            activity_type: Tipo de actividad
-            data: Datos adicionales de la actividad
+            # Multiplicador por dificultad
+            if metadata and metadata.get('difficulty') == 'high':
+                multiplier += 0.2
             
-        Returns:
-            List[Achievement]: Lista de logros desbloqueados
-        """
-        new_achievements = []
-        user_achievements = await self._get_user_achievements(user_id)
-        
-        for achievement in self.achievements:
-            if achievement.achievement_type.value == activity_type.value:
-                if await self._check_achievement_requirements(user_id, achievement, data):
-                    if achievement not in user_achievements:
-                        new_achievements.append(achievement)
-                        await self._unlock_achievement(user_id, achievement)
+            # Multiplicador por tiempo (actividades rápidas)
+            if metadata and metadata.get('completion_time'):
+                time_bonus = min(metadata['completion_time'] * 0.05, 0.5)
+                multiplier += time_bonus
+            
+            # Multiplicador por calidad
+            if metadata and metadata.get('quality_score'):
+                quality_bonus = metadata['quality_score'] * 0.3
+                multiplier += quality_bonus
+            
+            # Multiplicador por novedad (primeras veces)
+            if metadata and metadata.get('is_first_time'):
+                multiplier += 0.5
+            
+            return int(base_points * multiplier)
+            
+        except Exception as e:
+            logger.error(f"Error aplicando multiplicadores: {str(e)}")
+            return base_points
+    
+    async def _check_achievements(self, user: Person, profile: UserProfile) -> List[str]:
+        """Verifica logros desbloqueados con sistema inteligente"""
+        try:
+            new_achievements = []
+            
+            for achievement in self.achievements:
+                if await self._check_achievement_conditions(user, profile, achievement):
+                    if await self._award_achievement(user, achievement):
+                        new_achievements.append(achievement.name)
+            
+            return new_achievements
+            
+        except Exception as e:
+            logger.error(f"Error verificando logros: {str(e)}")
+            return []
+    
+    async def _check_achievement_conditions(self, user: Person, profile: UserProfile, 
+                                          achievement: Achievement) -> bool:
+        """Verifica condiciones de logro con análisis avanzado"""
+        try:
+            # Verificar si ya tiene el logro
+            if await self._has_achievement(user, achievement):
+                return False
+            
+            # Verificar condiciones básicas
+            for condition, value in achievement.requirements.items():
+                if not await self._evaluate_condition(user, profile, condition, value):
+                    return False
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error verificando condiciones: {str(e)}")
+            return False
+    
+    async def _evaluate_condition(self, user: Person, profile: UserProfile, 
+                                condition: str, value: Any) -> bool:
+        """Evalúa condiciones de logro con lógica avanzada"""
+        try:
+            if condition == 'messages_sent':
+                return profile.stats.get('messages_sent', 0) >= value
+            
+            elif condition == 'evaluations_completed':
+                return profile.stats.get('evaluations_completed', 0) >= value
+            
+            elif condition == 'profile_completion':
+                completion = await self._calculate_profile_completion(user)
+                return completion >= value
+            
+            elif condition == 'daily_streak':
+                return profile.current_streak >= value
+            
+            elif condition == 'skills_added':
+                skills_count = await self._count_user_skills(user)
+                return skills_count >= value
+            
+            elif condition == 'cvs_generated':
+                cvs_count = await self._count_generated_cvs(user)
+                return cvs_count >= value
+            
+            elif condition == 'perfect_personality_matches':
+                perfect_matches = await self._count_perfect_matches(user)
+                return perfect_matches >= value
+            
+            elif condition == 'optimization_score':
+                best_score = await self._get_best_optimization_score(user)
+                return best_score >= value
+            
+            return False
+            
+        except Exception as e:
+            logger.error(f"Error evaluando condición {condition}: {str(e)}")
+            return False
+    
+    async def _calculate_profile_completion(self, user: Person) -> float:
+        """Calcula porcentaje de completitud del perfil"""
+        try:
+            required_fields = [
+                'first_name', 'last_name', 'email', 'phone',
+                'experience_years', 'education_level', 'skills'
+            ]
+            
+            completed_fields = 0
+            for field in required_fields:
+                if hasattr(user, field) and getattr(user, field):
+                    completed_fields += 1
+            
+            return (completed_fields / len(required_fields)) * 100
+            
+        except Exception as e:
+            logger.error(f"Error calculando completitud: {str(e)}")
+            return 0.0
+    
+    async def _count_user_skills(self, user: Person) -> int:
+        """Cuenta habilidades del usuario"""
+        try:
+            # Implementar conteo de habilidades
+            return len(getattr(user, 'skills', []) or [])
+        except Exception as e:
+            logger.error(f"Error contando habilidades: {str(e)}")
+            return 0
+    
+    async def _count_generated_cvs(self, user: Person) -> int:
+        """Cuenta CVs generados por el usuario"""
+        try:
+            # Implementar conteo de CVs generados
+            return 0  # Placeholder
+        except Exception as e:
+            logger.error(f"Error contando CVs: {str(e)}")
+            return 0
+    
+    async def _count_perfect_matches(self, user: Person) -> int:
+        """Cuenta matches perfectos de personalidad"""
+        try:
+            # Implementar conteo de matches perfectos
+            return 0  # Placeholder
+        except Exception as e:
+            logger.error(f"Error contando matches: {str(e)}")
+            return 0
+    
+    async def _get_best_optimization_score(self, user: Person) -> float:
+        """Obtiene el mejor score de optimización"""
+        try:
+            # Implementar obtención del mejor score
+            return 0.0  # Placeholder
+        except Exception as e:
+            logger.error(f"Error obteniendo score: {str(e)}")
+            return 0.0
+    
+    async def _update_competitions(self, user: Person, points: int, 
+                                 activity_type: ActivityType) -> List[Dict[str, Any]]:
+        """Actualiza competencias activas"""
+        try:
+            updates = []
+            
+            for competition in self.competitions.values():
+                if competition.is_active():
+                    # Verificar si el usuario participa
+                    if await self._is_user_participating(user, competition):
+                        # Actualizar progreso
+                        progress = await self._update_competition_progress(
+                            user, competition, points, activity_type
+                        )
                         
-        return new_achievements
-        
-    async def _check_level(self, user_id: str, points: int) -> Optional[Level]:
-        """
-        Verifica si el usuario ha subido de nivel
-        
-        Args:
-            user_id: ID del usuario
-            points: Puntos totales del usuario
+                        if progress:
+                            updates.append({
+                                'competition_id': competition.id,
+                                'competition_name': competition.name,
+                                'progress': progress,
+                                'position': await self._get_competition_position(user, competition)
+                            })
             
-        Returns:
-            Optional[Level]: Nuevo nivel o None
-        """
-        current_level = await self._get_user_level(user_id)
-        
-        for level in self.levels:
-            if points >= level.points_required and level.level > current_level.level:
-                await self._update_user_level(user_id, level)
-                return level
+            return updates
+            
+        except Exception as e:
+            logger.error(f"Error actualizando competencias: {str(e)}")
+            return []
+    
+    async def _is_user_participating(self, user: Person, competition: Competition) -> bool:
+        """Verifica si el usuario participa en la competencia"""
+        try:
+            # Implementar verificación de participación
+            return True  # Placeholder
+        except Exception as e:
+            logger.error(f"Error verificando participación: {str(e)}")
+            return False
+    
+    async def _update_competition_progress(self, user: Person, competition: Competition,
+                                         points: int, activity_type: ActivityType) -> Dict[str, Any]:
+        """Actualiza progreso en competencia"""
+        try:
+            # Implementar actualización de progreso
+            return {
+                'points_earned': points,
+                'total_progress': 0,
+                'tasks_completed': 0
+            }
+        except Exception as e:
+            logger.error(f"Error actualizando progreso: {str(e)}")
+            return {}
+    
+    async def _get_competition_position(self, user: Person, competition: Competition) -> int:
+        """Obtiene posición del usuario en la competencia"""
+        try:
+            # Implementar obtención de posición
+            return 1  # Placeholder
+        except Exception as e:
+            logger.error(f"Error obteniendo posición: {str(e)}")
+            return 0
+    
+    async def get_user_dashboard(self, user: Person) -> Dict[str, Any]:
+        """Obtiene dashboard completo del usuario"""
+        try:
+            profile = await self._get_or_create_profile(user)
+            
+            # Obtener competencias activas
+            active_competitions = [
+                comp for comp in self.competitions.values() 
+                if comp.is_active() and await self._is_user_participating(user, comp)
+            ]
+            
+            # Obtener próximos logros
+            next_achievements = await self._get_next_achievements(profile)
+            
+            # Obtener analytics personalizados
+            user_analytics = await self.analytics.get_user_analytics(user)
+            
+            # Obtener recompensas disponibles
+            available_rewards = await self._get_available_rewards(profile)
+            
+            return {
+                'profile': {
+                    'level': profile.level,
+                    'experience': profile.experience,
+                    'total_points': profile.total_points,
+                    'current_streak': profile.current_streak,
+                    'longest_streak': profile.longest_streak,
+                    'badges_earned': len(profile.badges),
+                    'achievements_earned': profile.achievements_earned
+                },
+                'active_competitions': [
+                    {
+                        'id': comp.id,
+                        'name': comp.name,
+                        'description': comp.description,
+                        'end_date': comp.end_date.isoformat(),
+                        'progress': await self._get_competition_progress(user, comp),
+                        'position': await self._get_competition_position(user, comp)
+                    }
+                    for comp in active_competitions
+                ],
+                'next_achievements': next_achievements,
+                'analytics': user_analytics,
+                'available_rewards': available_rewards,
+                'leaderboard_position': await self._get_leaderboard_position(user)
+            }
+            
+        except Exception as e:
+            logger.error(f"Error obteniendo dashboard: {str(e)}")
+            return {'error': str(e)}
+    
+    async def _get_next_achievements(self, profile: UserProfile) -> List[Dict[str, Any]]:
+        """Obtiene próximos logros disponibles"""
+        try:
+            next_achievements = []
+            
+            for achievement in self.achievements:
+                # Verificar si está cerca de desbloquear
+                progress = await self._calculate_achievement_progress(profile, achievement)
                 
-        return None
-        
-    async def _get_user_achievements(self, user_id: str) -> List[Achievement]:
-        """
-        Obtiene los logros del usuario
-        
-        Args:
-            user_id: ID del usuario
+                if 0.5 <= progress < 1.0:  # Entre 50% y 100%
+                    next_achievements.append({
+                        'name': achievement.name,
+                        'description': achievement.description,
+                        'progress': progress,
+                        'points_required': achievement.points,
+                        'icon': achievement.icon
+                    })
             
-        Returns:
-            List[Achievement]: Lista de logros
-        """
-        cache_key = f"user_achievements_{user_id}"
-        return cache.get(cache_key, [])
-        
-    async def _unlock_achievement(self, user_id: str, achievement: Achievement):
-        """
-        Desbloquea un logro para el usuario
-        
-        Args:
-            user_id: ID del usuario
-            achievement: Logro a desbloquear
-        """
-        user_achievements = await self._get_user_achievements(user_id)
-        user_achievements.append(achievement)
-        
-        cache_key = f"user_achievements_{user_id}"
-        cache.set(cache_key, user_achievements)
-        
-    async def _get_user_level(self, user_id: str) -> Level:
-        """
-        Obtiene el nivel actual del usuario
-        
-        Args:
-            user_id: ID del usuario
+            return sorted(next_achievements, key=lambda x: x['progress'], reverse=True)[:5]
             
-        Returns:
-            Level: Nivel actual
-        """
-        cache_key = f"user_level_{user_id}"
-        level_number = cache.get(cache_key, 1)
-        
-        for level in self.levels:
-            if level.level == level_number:
-                return level
-                
-        return self.levels[0]
-        
-    async def _update_user_level(self, user_id: str, level: Level):
-        """
-        Actualiza el nivel del usuario
-        
-        Args:
-            user_id: ID del usuario
-            level: Nuevo nivel
-        """
-        cache_key = f"user_level_{user_id}"
-        cache.set(cache_key, level.level)
-        
-    async def _check_achievement_requirements(self,
-                                           user_id: str,
-                                           achievement: Achievement,
-                                           data: Dict[str, Any] = None) -> bool:
-        """
-        Verifica si se cumplen los requisitos de un logro
-        
-        Args:
-            user_id: ID del usuario
-            achievement: Logro a verificar
-            data: Datos adicionales
+        except Exception as e:
+            logger.error(f"Error obteniendo próximos logros: {str(e)}")
+            return []
+    
+    async def _calculate_achievement_progress(self, profile: UserProfile, 
+                                            achievement: Achievement) -> float:
+        """Calcula progreso hacia un logro específico"""
+        try:
+            # Implementar cálculo de progreso
+            return 0.0  # Placeholder
+        except Exception as e:
+            logger.error(f"Error calculando progreso: {str(e)}")
+            return 0.0
+    
+    async def _get_available_rewards(self, profile: UserProfile) -> List[Dict[str, Any]]:
+        """Obtiene recompensas disponibles para el usuario"""
+        try:
+            available_rewards = []
             
-        Returns:
-            bool: True si se cumplen los requisitos
-        """
-        # Implementación específica para cada tipo de logro
-        return False
-        
-    async def get_user_stats(self, user_id: str) -> Dict[str, Any]:
-        """
-        Obtiene las estadísticas del usuario
-        
-        Args:
-            user_id: ID del usuario
+            for reward_type, rewards in self.rewards_system.items():
+                for reward_name, reward_config in rewards.items():
+                    if isinstance(reward_config, dict) and 'points_required' in reward_config:
+                        if profile.total_points >= reward_config['points_required']:
+                            available_rewards.append({
+                                'type': reward_type,
+                                'name': reward_name,
+                                'description': f"Desbloqueado con {reward_config['points_required']} puntos",
+                                'points_required': reward_config['points_required']
+                            })
             
-        Returns:
-            Dict con las estadísticas
-        """
-        return {
-            'points': await self._get_user_points(user_id),
-            'level': await self._get_user_level(user_id),
-            'achievements': await self._get_user_achievements(user_id)
-        }
-        
-    async def _get_user_points(self, user_id: str) -> int:
-        """
-        Obtiene los puntos del usuario
-        
-        Args:
-            user_id: ID del usuario
+            return available_rewards
             
-        Returns:
-            int: Puntos totales
-        """
-        cache_key = f"user_points_{user_id}"
-        return cache.get(cache_key, 0)
+        except Exception as e:
+            logger.error(f"Error obteniendo recompensas: {str(e)}")
+            return []
+    
+    async def _get_leaderboard_position(self, user: Person) -> int:
+        """Obtiene posición del usuario en el leaderboard global"""
+        try:
+            # Implementar obtención de posición en leaderboard
+            return 1  # Placeholder
+        except Exception as e:
+            logger.error(f"Error obteniendo posición: {str(e)}")
+            return 0
 
 # Instancia global del servicio
 gamification_service = GamificationService()

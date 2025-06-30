@@ -1,0 +1,518 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ page_title }} - huntRED{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+    .dashboard-container {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 20px;
+    }
+    
+    .stats-card {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 20px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    
+    .stats-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+    }
+    
+    .stat-number {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #2c3e50;
+        margin-bottom: 5px;
+    }
+    
+    .stat-label {
+        font-size: 0.9rem;
+        color: #7f8c8d;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    
+    .stat-icon {
+        font-size: 2rem;
+        color: #3498db;
+        margin-bottom: 15px;
+    }
+    
+    .chart-container {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 20px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .chart-title {
+        font-size: 1.3rem;
+        font-weight: 600;
+        color: #2c3e50;
+        margin-bottom: 20px;
+        text-align: center;
+    }
+    
+    .attention-card {
+        background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+        color: white;
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
+    
+    .attention-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        margin-bottom: 15px;
+    }
+    
+    .campaign-item {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 10px;
+        border-left: 4px solid #fff;
+    }
+    
+    .campaign-name {
+        font-weight: 600;
+        margin-bottom: 5px;
+    }
+    
+    .campaign-status {
+        font-size: 0.8rem;
+        opacity: 0.9;
+    }
+    
+    .metric-badge {
+        display: inline-block;
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin-right: 10px;
+    }
+    
+    .metric-positive {
+        background: #2ecc71;
+        color: white;
+    }
+    
+    .metric-warning {
+        background: #f39c12;
+        color: white;
+    }
+    
+    .metric-negative {
+        background: #e74c3c;
+        color: white;
+    }
+    
+    .realtime-indicator {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        background: #2ecc71;
+        border-radius: 50%;
+        margin-right: 8px;
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.5; }
+        100% { opacity: 1; }
+    }
+    
+    .nav-tabs {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        padding: 5px;
+        margin-bottom: 30px;
+    }
+    
+    .nav-tabs .nav-link {
+        color: rgba(255, 255, 255, 0.8);
+        border: none;
+        border-radius: 8px;
+        padding: 10px 20px;
+        margin: 0 5px;
+        transition: all 0.3s ease;
+    }
+    
+    .nav-tabs .nav-link.active {
+        background: rgba(255, 255, 255, 0.9);
+        color: #2c3e50;
+        font-weight: 600;
+    }
+    
+    .nav-tabs .nav-link:hover {
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="container-fluid">
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h1 class="text-white mb-0">
+                            <i class="fas fa-chart-line me-3"></i>
+                            {{ page_title }}
+                        </h1>
+                        <p class="text-white-50 mb-0">Panel de control en tiempo real</p>
+                    </div>
+                    <div class="text-white">
+                        <span class="realtime-indicator"></span>
+                        <span>Actualización en tiempo real</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <ul class="nav nav-tabs" id="dashboardTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview" type="button" role="tab">
+                            <i class="fas fa-tachometer-alt me-2"></i>Resumen
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="campaigns-tab" data-bs-toggle="tab" data-bs-target="#campaigns" type="button" role="tab">
+                            <i class="fas fa-bullhorn me-2"></i>Campañas
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="metrics-tab" data-bs-toggle="tab" data-bs-target="#metrics" type="button" role="tab">
+                            <i class="fas fa-chart-bar me-2"></i>Métricas
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="approvals-tab" data-bs-toggle="tab" data-bs-target="#approvals" type="button" role="tab">
+                            <i class="fas fa-check-circle me-2"></i>Aprobaciones
+                        </button>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Tab Content -->
+        <div class="tab-content" id="dashboardTabContent">
+            <!-- Overview Tab -->
+            <div class="tab-pane fade show active" id="overview" role="tabpanel">
+                <!-- Stats Cards -->
+                <div class="row mb-4">
+                    <div class="col-lg-3 col-md-6">
+                        <div class="stats-card text-center">
+                            <div class="stat-icon">
+                                <i class="fas fa-bullhorn"></i>
+                            </div>
+                            <div class="stat-number" id="totalCampaigns">{{ total_campaigns }}</div>
+                            <div class="stat-label">Total Campañas</div>
+                        </div>
+                    </div>
+                    <div class="col-lg-3 col-md-6">
+                        <div class="stats-card text-center">
+                            <div class="stat-icon">
+                                <i class="fas fa-play-circle"></i>
+                            </div>
+                            <div class="stat-number" id="activeCampaigns">{{ active_campaigns }}</div>
+                            <div class="stat-label">Campañas Activas</div>
+                        </div>
+                    </div>
+                    <div class="col-lg-3 col-md-6">
+                        <div class="stats-card text-center">
+                            <div class="stat-icon">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                            <div class="stat-number" id="pendingApprovals">{{ pending_approvals }}</div>
+                            <div class="stat-label">Pendientes de Aprobación</div>
+                        </div>
+                    </div>
+                    <div class="col-lg-3 col-md-6">
+                        <div class="stats-card text-center">
+                            <div class="stat-icon">
+                                <i class="fas fa-dollar-sign"></i>
+                            </div>
+                            <div class="stat-number" id="totalRevenue">${{ total_revenue|floatformat:0 }}</div>
+                            <div class="stat-label">Ingresos Totales</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Performance Metrics -->
+                <div class="row mb-4">
+                    <div class="col-lg-6">
+                        <div class="stats-card">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="mb-0">ROI General</h5>
+                                <span class="metric-badge {% if roi > 0 %}metric-positive{% else %}metric-negative{% endif %}">
+                                    {{ roi|floatformat:1 }}%
+                                </span>
+                            </div>
+                            <div class="progress" style="height: 10px;">
+                                <div class="progress-bar {% if roi > 0 %}bg-success{% else %}bg-danger{% endif %}" 
+                                     style="width: {{ roi|abs }}%"></div>
+                            </div>
+                            <small class="text-muted">Retorno sobre inversión promedio</small>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="stats-card">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="mb-0">Engagement Promedio</h5>
+                                <span class="metric-badge {% if avg_engagement > 5 %}metric-positive{% elif avg_engagement > 3 %}metric-warning{% else %}metric-negative{% endif %}">
+                                    {{ avg_engagement|floatformat:1 }}
+                                </span>
+                            </div>
+                            <div class="progress" style="height: 10px;">
+                                <div class="progress-bar {% if avg_engagement > 5 %}bg-success{% elif avg_engagement > 3 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                     style="width: {{ avg_engagement|multiply:10 }}%"></div>
+                            </div>
+                            <small class="text-muted">Score de engagement promedio</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Row -->
+                <div class="row">
+                    <div class="col-lg-8">
+                        <div class="chart-container">
+                            <div class="chart-title">Rendimiento de Campañas (Últimos 30 días)</div>
+                            <canvas id="performanceChart" height="100"></canvas>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="chart-container">
+                            <div class="chart-title">Distribución por Tipo</div>
+                            <canvas id="campaignTypeChart" height="100"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Campaigns Tab -->
+            <div class="tab-pane fade" id="campaigns" role="tabpanel">
+                <div class="row">
+                    <div class="col-12">
+                        <div class="attention-card">
+                            <div class="attention-title">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                Campañas que Requieren Atención
+                            </div>
+                            {% if campaigns_needing_attention %}
+                                {% for campaign in campaigns_needing_attention %}
+                                <div class="campaign-item">
+                                    <div class="campaign-name">{{ campaign.name }}</div>
+                                    <div class="campaign-status">
+                                        Estado: {{ campaign.get_status_display }}
+                                        {% if campaign.scheduled_date %}
+                                            | Programada: {{ campaign.scheduled_date|date:"d/m/Y H:i" }}
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <p class="mb-0">No hay campañas que requieran atención inmediata.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Metrics Tab -->
+            <div class="tab-pane fade" id="metrics" role="tabpanel">
+                <div class="row">
+                    <div class="col-12">
+                        <div class="chart-container">
+                            <div class="chart-title">Tendencias de Engagement</div>
+                            <canvas id="engagementChart" height="100"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Approvals Tab -->
+            <div class="tab-pane fade" id="approvals" role="tabpanel">
+                <div class="row">
+                    <div class="col-12">
+                        <div class="stats-card">
+                            <h5 class="mb-3">Workflow de Aprobación</h5>
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <div class="text-center">
+                                        <div class="stat-number text-primary">{{ pending_approvals }}</div>
+                                        <div class="stat-label">Pendientes</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="text-center">
+                                        <div class="stat-number text-success">{{ total_campaigns|add:"-pending_approvals" }}</div>
+                                        <div class="stat-label">Aprobadas</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="text-center">
+                                        <div class="stat-number text-warning">0</div>
+                                        <div class="stat-label">En Revisión</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="text-center">
+                                        <div class="stat-number text-danger">0</div>
+                                        <div class="stat-label">Rechazadas</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+<script>
+// Performance Chart
+const performanceCtx = document.getElementById('performanceChart').getContext('2d');
+const performanceChart = new Chart(performanceCtx, {
+    type: 'line',
+    data: {
+        labels: {{ performance_data.labels|safe }},
+        datasets: [{
+            label: 'Engagement',
+            data: {{ performance_data.engagement|safe }},
+            borderColor: '#3498db',
+            backgroundColor: 'rgba(52, 152, 219, 0.1)',
+            tension: 0.4
+        }, {
+            label: 'Conversiones',
+            data: {{ performance_data.conversions|safe }},
+            borderColor: '#2ecc71',
+            backgroundColor: 'rgba(46, 204, 113, 0.1)',
+            tension: 0.4
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'top',
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true
+            }
+        }
+    }
+});
+
+// Campaign Type Chart
+const typeCtx = document.getElementById('campaignTypeChart').getContext('2d');
+const typeChart = new Chart(typeCtx, {
+    type: 'doughnut',
+    data: {
+        labels: ['Lanzamiento', 'Concienciación', 'Conversión', 'Retención'],
+        datasets: [{
+            data: [30, 25, 25, 20],
+            backgroundColor: [
+                '#3498db',
+                '#e74c3c',
+                '#2ecc71',
+                '#f39c12'
+            ]
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom',
+            }
+        }
+    }
+});
+
+// Engagement Chart
+const engagementCtx = document.getElementById('engagementChart').getContext('2d');
+const engagementChart = new Chart(engagementCtx, {
+    type: 'bar',
+    data: {
+        labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'],
+        datasets: [{
+            label: 'Engagement Score',
+            data: [4.2, 4.5, 4.8, 5.1, 5.3, 5.6],
+            backgroundColor: '#3498db'
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                max: 10
+            }
+        }
+    }
+});
+
+// Real-time updates
+function updateStats() {
+    fetch('/api/campaign-stats/')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('totalCampaigns').textContent = data.data.total_campaigns;
+                document.getElementById('activeCampaigns').textContent = data.data.active_campaigns;
+                document.getElementById('pendingApprovals').textContent = data.data.pending_approvals;
+                document.getElementById('totalRevenue').textContent = '$' + data.data.total_revenue.toFixed(0);
+            }
+        })
+        .catch(error => console.error('Error updating stats:', error));
+}
+
+// Update stats every 30 seconds
+setInterval(updateStats, 30000);
+
+// Initialize tooltips
+var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+    return new bootstrap.Tooltip(tooltipTriggerEl);
+});
+</script>
+{% endblock %} 

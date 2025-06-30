@@ -1200,6 +1200,15 @@ class Company(models.Model):
     def __str__(self):
         return self.name
 
+    # Roles de contacto
+    signer = models.ForeignKey('Person', on_delete=models.SET_NULL, null=True, blank=True, related_name='signed_companies', help_text="Persona que firma la propuesta")
+    payment_responsible = models.ForeignKey('Person', on_delete=models.SET_NULL, null=True, blank=True, related_name='payment_companies', help_text="Responsable de pagos")
+    fiscal_responsible = models.ForeignKey('Person', on_delete=models.SET_NULL, null=True, blank=True, related_name='fiscal_companies', help_text="Responsable fiscal")
+    process_responsible = models.ForeignKey('Person', on_delete=models.SET_NULL, null=True, blank=True, related_name='process_companies', help_text="Responsable del proceso")
+    report_invitees = models.ManyToManyField('Person', blank=True, related_name='report_companies', help_text="Personas invitadas a reportes (ej. Dir RH, CFO, etc)")
+    # Preferencias de notificación
+    notification_preferences = models.JSONField(default=dict, blank=True, help_text="Preferencias de notificación por tipo de evento y canal")
+
 class FamilyRelationship(models.Model):
     """Modelo para gestionar relaciones familiares entre personas."""
     
@@ -5493,20 +5502,6 @@ class NotificationLog(models.Model):
 
     def __str__(self):
         return f"{self.notification} - {self.channel} ({self.status})"
-
-class Contact(models.Model):
-    """Modelo para gestionar contactos de empresas y candidatos."""
-    name = models.CharField(max_length=255)
-    email = models.EmailField()
-    phone = models.CharField(max_length=20, blank=True)
-    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='contacts')
-    position = models.CharField(max_length=100, blank=True)
-    is_primary = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    def __str__(self):
-        return f"{self.name} - {self.company.name}"
 
 class Assessment(models.Model):
     """Modelo para evaluaciones de candidatos."""

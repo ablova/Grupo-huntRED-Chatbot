@@ -1,0 +1,471 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Dashboard Global del Sistema - Grupo huntRED®{% endblock %}
+
+{% block extra_css %}
+<style>
+    .system-status-card {
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        transition: transform 0.2s;
+    }
+    
+    .system-status-card:hover {
+        transform: translateY(-2px);
+    }
+    
+    .load-indicator {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 8px;
+    }
+    
+    .load-low { background-color: #10b981; }
+    .load-medium { background-color: #f59e0b; }
+    .load-high { background-color: #f97316; }
+    .load-critical { background-color: #ef4444; }
+    
+    .rate-limit-bar {
+        height: 8px;
+        border-radius: 4px;
+        background-color: #e5e7eb;
+        overflow: hidden;
+    }
+    
+    .rate-limit-fill {
+        height: 100%;
+        transition: width 0.3s ease;
+    }
+    
+    .rate-limit-safe { background-color: #10b981; }
+    .rate-limit-warning { background-color: #f59e0b; }
+    .rate-limit-danger { background-color: #ef4444; }
+    
+    .module-status {
+        padding: 12px;
+        border-radius: 8px;
+        margin-bottom: 12px;
+    }
+    
+    .module-enabled { background-color: #f0fdf4; border: 1px solid #bbf7d0; }
+    .module-disabled { background-color: #fef2f2; border: 1px solid #fecaca; }
+    
+    .update-trigger {
+        font-size: 0.75rem;
+        padding: 2px 6px;
+        border-radius: 4px;
+        background-color: #f3f4f6;
+    }
+    
+    .real-time-indicator {
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0">
+                        <i class="fas fa-server text-primary"></i>
+                        Dashboard Global del Sistema
+                    </h1>
+                    <p class="text-muted mb-0">Monitoreo en tiempo real del sistema huntRED®</p>
+                </div>
+                <div class="d-flex align-items-center">
+                    <span class="real-time-indicator me-2">
+                        <i class="fas fa-circle text-success"></i>
+                    </span>
+                    <span class="text-muted">Actualización en tiempo real</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Load Overview -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="system-status-card card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-tachometer-alt"></i>
+                        Estado General del Sistema
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <h4 id="system-load-display">Cargando...</h4>
+                                <p class="text-muted">Carga del Sistema</p>
+                                <div id="load-indicator" class="load-indicator"></div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <h4 id="active-operations">-</h4>
+                                <p class="text-muted">Operaciones Activas</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <h4 id="queue-length">-</h4>
+                                <p class="text-muted">En Cola</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <h4 id="ml-available">-</h4>
+                                <p class="text-muted">ML Disponible</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rate Limits -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="system-status-card card">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">
+                        <i class="fas fa-shield-alt"></i>
+                        Límites de Tasa Globales
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row" id="rate-limits-container">
+                        <!-- Rate limits se cargan dinámicamente -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Module Status -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="system-status-card card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-cubes"></i>
+                        Estado de Módulos
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row" id="module-status-container">
+                        <!-- Estados de módulos se cargan dinámicamente -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Update System -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="system-status-card card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-sync-alt"></i>
+                        Sistema de Actualizaciones Bajo Demanda
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Actualizaciones Pendientes</h6>
+                            <div id="pending-updates">-</div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Historial de Actualizaciones</h6>
+                            <div id="update-history">-</div>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <h6>Actualizaciones Recientes</h6>
+                            <div id="recent-updates">
+                                <!-- Actualizaciones recientes se cargan dinámicamente -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Performance Metrics -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="system-status-card card">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-line"></i>
+                        Métricas de Rendimiento
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <h4 id="cpu-usage">-</h4>
+                                <p class="text-muted">Uso de CPU</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <h4 id="memory-usage">-</h4>
+                                <p class="text-muted">Uso de Memoria</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <h4 id="active-connections">-</h4>
+                                <p class="text-muted">Conexiones Activas</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <h4 id="last-update">-</h4>
+                                <p class="text-muted">Última Actualización</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para detalles -->
+<div class="modal fade" id="detailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Detalles del Sistema</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="modal-content">
+                <!-- Contenido dinámico -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+class GlobalSystemDashboard {
+    constructor() {
+        this.updateInterval = 5000; // 5 segundos
+        this.init();
+    }
+
+    init() {
+        this.loadSystemStatus();
+        this.startAutoUpdate();
+        this.setupEventListeners();
+    }
+
+    async loadSystemStatus() {
+        try {
+            const response = await fetch('/api/ats/system/global-status/');
+            const data = await response.json();
+            
+            if (data.success) {
+                this.updateDashboard(data.data);
+            } else {
+                console.error('Error cargando estado del sistema:', data.error);
+            }
+        } catch (error) {
+            console.error('Error en la petición:', error);
+        }
+    }
+
+    updateDashboard(data) {
+        // Actualizar carga del sistema
+        this.updateSystemLoad(data.system_load);
+        
+        // Actualizar métricas generales
+        document.getElementById('active-operations').textContent = data.active_operations;
+        document.getElementById('queue-length').textContent = data.queue_length;
+        document.getElementById('ml-available').textContent = data.ml_system_available ? 'Sí' : 'No';
+        
+        // Actualizar rate limits
+        this.updateRateLimits(data.global_rate_limits);
+        
+        // Actualizar estado de módulos
+        this.updateModuleStatus(data.module_status);
+        
+        // Actualizar sistema de actualizaciones
+        this.updateUpdateSystem(data.update_system);
+        
+        // Actualizar métricas de rendimiento
+        this.updatePerformanceMetrics(data.system_metrics);
+    }
+
+    updateSystemLoad(load) {
+        const display = document.getElementById('system-load-display');
+        const indicator = document.getElementById('load-indicator');
+        
+        display.textContent = load.toUpperCase();
+        
+        // Actualizar indicador visual
+        indicator.className = 'load-indicator';
+        switch (load) {
+            case 'low':
+                indicator.classList.add('load-low');
+                break;
+            case 'medium':
+                indicator.classList.add('load-medium');
+                break;
+            case 'high':
+                indicator.classList.add('load-high');
+                break;
+            case 'critical':
+                indicator.classList.add('load-critical');
+                break;
+        }
+    }
+
+    updateRateLimits(rateLimits) {
+        const container = document.getElementById('rate-limits-container');
+        container.innerHTML = '';
+        
+        Object.entries(rateLimits).forEach(([type, info]) => {
+            const percentage = (info.current / info.limit) * 100;
+            const statusClass = percentage < 70 ? 'rate-limit-safe' : 
+                               percentage < 90 ? 'rate-limit-warning' : 'rate-limit-danger';
+            
+            const rateLimitHtml = `
+                <div class="col-md-4 mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <strong>${type.toUpperCase()}</strong>
+                        <span class="text-muted">${info.current}/${info.limit}</span>
+                    </div>
+                    <div class="rate-limit-bar">
+                        <div class="rate-limit-fill ${statusClass}" style="width: ${percentage}%"></div>
+                    </div>
+                    <small class="text-muted">Ventana: ${info.window}s</small>
+                </div>
+            `;
+            
+            container.innerHTML += rateLimitHtml;
+        });
+    }
+
+    updateModuleStatus(moduleStatus) {
+        const container = document.getElementById('module-status-container');
+        container.innerHTML = '';
+        
+        Object.entries(moduleStatus).forEach(([module, status]) => {
+            const statusClass = status.enabled ? 'module-enabled' : 'module-disabled';
+            const statusIcon = status.enabled ? 'fa-check-circle text-success' : 'fa-times-circle text-danger';
+            
+            const moduleHtml = `
+                <div class="col-md-6 col-lg-4">
+                    <div class="module-status ${statusClass}">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">${module.toUpperCase()}</h6>
+                                <small class="text-muted">
+                                    Operaciones: ${status.active_operations} | 
+                                    Errores: ${status.error_count}
+                                </small>
+                            </div>
+                            <i class="fas ${statusIcon}"></i>
+                        </div>
+                        <div class="mt-2">
+                            <small class="text-muted">
+                                Última actividad: ${status.last_activity ? new Date(status.last_activity).toLocaleString() : 'N/A'}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            container.innerHTML += moduleHtml;
+        });
+    }
+
+    updateUpdateSystem(updateSystem) {
+        document.getElementById('pending-updates').textContent = updateSystem.pending_updates;
+        document.getElementById('update-history').textContent = updateSystem.update_history_count;
+        
+        // Actualizar actualizaciones recientes
+        const recentContainer = document.getElementById('recent-updates');
+        recentContainer.innerHTML = '';
+        
+        updateSystem.recent_updates.forEach(update => {
+            const updateHtml = `
+                <div class="d-flex justify-content-between align-items-center mb-2 p-2 border-bottom">
+                    <div>
+                        <strong>${update.module}.${update.type}</strong>
+                        <br>
+                        <small class="text-muted">
+                            Trigger: <span class="update-trigger">${update.trigger}</span> | 
+                            Prioridad: ${update.priority}
+                        </small>
+                    </div>
+                    <small class="text-muted">${new Date(update.created_at).toLocaleString()}</small>
+                </div>
+            `;
+            
+            recentContainer.innerHTML += updateHtml;
+        });
+    }
+
+    updatePerformanceMetrics(metrics) {
+        document.getElementById('cpu-usage').textContent = `${(metrics.cpu_usage * 100).toFixed(1)}%`;
+        document.getElementById('memory-usage').textContent = `${(metrics.memory_usage * 100).toFixed(1)}%`;
+        document.getElementById('active-connections').textContent = metrics.active_connections;
+        document.getElementById('last-update').textContent = new Date(metrics.last_update).toLocaleString();
+    }
+
+    startAutoUpdate() {
+        setInterval(() => {
+            this.loadSystemStatus();
+        }, this.updateInterval);
+    }
+
+    setupEventListeners() {
+        // Event listeners para interacciones
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('module-status')) {
+                this.showModuleDetails(e.target);
+            }
+        });
+    }
+
+    showModuleDetails(element) {
+        // Mostrar detalles del módulo en modal
+        const modal = new bootstrap.Modal(document.getElementById('detailsModal'));
+        const modalContent = document.getElementById('modal-content');
+        
+        // Aquí se cargarían los detalles específicos del módulo
+        modalContent.innerHTML = '<p>Cargando detalles del módulo...</p>';
+        modal.show();
+    }
+}
+
+// Inicializar dashboard cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', () => {
+    new GlobalSystemDashboard();
+});
+</script>
+{% endblock %} 

@@ -1,0 +1,704 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Dashboard de Insights Estratégicos - Grupo huntRED®{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/apexcharts@3.41.0/dist/apexcharts.css" rel="stylesheet">
+<style>
+    .insight-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 20px;
+        color: white;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+    }
+    
+    .metric-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        border-left: 4px solid #667eea;
+    }
+    
+    .opportunity-card {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        border-radius: 12px;
+        padding: 15px;
+        margin-bottom: 15px;
+        color: white;
+    }
+    
+    .sector-trend {
+        background: white;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 15px;
+        border-left: 4px solid #4CAF50;
+    }
+    
+    .growth-indicator {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: bold;
+    }
+    
+    .growth-high { background: #4CAF50; color: white; }
+    .growth-medium { background: #FF9800; color: white; }
+    .growth-low { background: #F44336; color: white; }
+    
+    .chart-container {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    }
+    
+    .periodic-selector {
+        background: white;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    
+    .recommendation-item {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 10px;
+        border-left: 4px solid #007bff;
+    }
+    
+    .priority-high { border-left-color: #dc3545; }
+    .priority-medium { border-left-color: #ffc107; }
+    .priority-low { border-left-color: #28a745; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="insight-card">
+                <h1 class="text-white mb-0">
+                    <i class="fas fa-chart-line me-3"></i>
+                    Dashboard de Insights Estratégicos
+                </h1>
+                <p class="text-white-50 mb-0">Análisis inteligente de movimientos sectoriales y métricas globales</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Controles de Período -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="periodic-selector">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <h5 class="mb-0">Análisis Periódico</h5>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <select id="periodSelector" class="form-select d-inline-block w-auto">
+                            <option value="daily">Diario</option>
+                            <option value="weekly" selected>Semanal</option>
+                            <option value="monthly">Mensual</option>
+                        </select>
+                        <button id="refreshBtn" class="btn btn-primary ms-2">
+                            <i class="fas fa-sync-alt"></i> Actualizar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Métricas Globales -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h4 class="mb-3">📊 Métricas Globales</h4>
+        </div>
+        <div class="col-md-3">
+            <div class="metric-card">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="text-muted">Total Vacantes (30d)</h6>
+                        <h3 id="totalVacancies30d">0</h3>
+                    </div>
+                    <div class="text-end">
+                        <span class="growth-indicator growth-high" id="vacancyGrowth">+15%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="metric-card">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="text-muted">Nuevas Vacantes (30d)</h6>
+                        <h3 id="newVacancies30d">0</h3>
+                    </div>
+                    <div class="text-end">
+                        <span class="growth-indicator growth-medium" id="newVacancyGrowth">+8%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="metric-card">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="text-muted">Tasa de Éxito</h6>
+                        <h3 id="successRate">0%</h3>
+                    </div>
+                    <div class="text-end">
+                        <span class="growth-indicator growth-high" id="successGrowth">+5%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="metric-card">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="text-muted">Ingresos (30d)</h6>
+                        <h3 id="revenue30d">€0</h3>
+                    </div>
+                    <div class="text-end">
+                        <span class="growth-indicator growth-high" id="revenueGrowth">+12%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráficos Principales -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="chart-container">
+                <h5 class="mb-3">📈 Tendencias de Creación de Vacantes</h5>
+                <canvas id="vacancyTrendsChart" height="300"></canvas>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="chart-container">
+                <h5 class="mb-3">🎯 Distribución por Sector</h5>
+                <canvas id="sectorDistributionChart" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Análisis Sectorial -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h4 class="mb-3">🏭 Análisis de Movimientos Sectoriales</h4>
+        </div>
+        <div class="col-md-6">
+            <div class="chart-container">
+                <h5 class="mb-3">📊 Sectores en Crecimiento</h5>
+                <div id="growingSectorsList">
+                    <!-- Se llena dinámicamente -->
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="chart-container">
+                <h5 class="mb-3">💼 Oportunidades de Venta</h5>
+                <div id="salesOpportunitiesList">
+                    <!-- Se llena dinámicamente -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Métricas Locales vs Globales -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h4 class="mb-3">🌍 Comparativa Global vs Local</h4>
+        </div>
+        <div class="col-md-8">
+            <div class="chart-container">
+                <h5 class="mb-3">📊 Rendimiento por Región</h5>
+                <canvas id="regionalPerformanceChart" height="300"></canvas>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="chart-container">
+                <h5 class="mb-3">🏆 Top Regiones</h5>
+                <div id="topRegionsList">
+                    <!-- Se llena dinámicamente -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Análisis de Entorno -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h4 class="mb-3">🌐 Análisis del Entorno</h4>
+        </div>
+        <div class="col-md-3">
+            <div class="metric-card">
+                <h6 class="text-muted">Factores Económicos</h6>
+                <div id="economicFactors">
+                    <p class="mb-1"><strong>PIB:</strong> <span id="gdpGrowth">+2.5%</span></p>
+                    <p class="mb-1"><strong>Desempleo:</strong> <span id="unemploymentRate">12%</span></p>
+                    <p class="mb-0"><strong>Impacto:</strong> <span class="badge bg-success">Positivo</span></p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="metric-card">
+                <h6 class="text-muted">Tendencias Tech</h6>
+                <div id="techTrends">
+                    <p class="mb-1"><strong>IA/ML:</strong> <span class="badge bg-primary">Emergente</span></p>
+                    <p class="mb-1"><strong>Cloud:</strong> <span class="badge bg-info">Crecimiento</span></p>
+                    <p class="mb-0"><strong>Impacto:</strong> <span class="badge bg-success">Alto</span></p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="metric-card">
+                <h6 class="text-muted">Cambios Regulatorios</h6>
+                <div id="regulatoryChanges">
+                    <p class="mb-1"><strong>Protección Datos:</strong> <span class="badge bg-warning">Alto</span></p>
+                    <p class="mb-1"><strong>IA:</strong> <span class="badge bg-info">Bajo</span></p>
+                    <p class="mb-0"><strong>Impacto:</strong> <span class="badge bg-success">Oportunidad</span></p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="metric-card">
+                <h6 class="text-muted">Condiciones de Mercado</h6>
+                <div id="marketConditions">
+                    <p class="mb-1"><strong>Sentimiento:</strong> <span class="badge bg-success">Positivo</span></p>
+                    <p class="mb-1"><strong>Competencia:</strong> <span class="badge bg-warning">Alta</span></p>
+                    <p class="mb-0"><strong>Madurez:</strong> <span class="badge bg-info">Creciendo</span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rendimiento por Proceso -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h4 class="mb-3">⚙️ Rendimiento por Proceso</h4>
+        </div>
+        <div class="col-md-6">
+            <div class="chart-container">
+                <h5 class="mb-3">📊 Eficiencia de Procesos</h5>
+                <canvas id="processEfficiencyChart" height="300"></canvas>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="chart-container">
+                <h5 class="mb-3">🎯 Métricas de Proceso</h5>
+                <div id="processMetrics">
+                    <!-- Se llena dinámicamente -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recomendaciones del Equipo -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h4 class="mb-3">💡 Recomendaciones para el Equipo</h4>
+            <div id="teamRecommendations">
+                <!-- Se llena dinámicamente -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Insights Estratégicos -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h4 class="mb-3">🚀 Insights Estratégicos</h4>
+            <div id="strategicInsights">
+                <!-- Se llena dinámicamente -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Detalles -->
+<div class="modal fade" id="detailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle">Detalles del Análisis</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- Contenido dinámico -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/apexcharts@3.41.0/dist/apexcharts.min.js"></script>
+<script>
+class StrategicInsightsDashboard {
+    constructor() {
+        this.charts = {};
+        this.currentPeriod = 'weekly';
+        this.init();
+    }
+
+    async init() {
+        this.setupEventListeners();
+        await this.loadData();
+        this.initializeCharts();
+        this.updateDashboard();
+    }
+
+    setupEventListeners() {
+        document.getElementById('periodSelector').addEventListener('change', (e) => {
+            this.currentPeriod = e.target.value;
+            this.loadData();
+        });
+
+        document.getElementById('refreshBtn').addEventListener('click', () => {
+            this.loadData();
+        });
+    }
+
+    async loadData() {
+        try {
+            // Cargar datos de movimientos sectoriales
+            const sectorData = await this.fetchSectorMovements();
+            this.sectorData = sectorData;
+
+            // Cargar métricas globales/locales
+            const globalLocalData = await this.fetchGlobalLocalMetrics();
+            this.globalLocalData = globalLocalData;
+
+            // Cargar análisis de entorno
+            const environmentalData = await this.fetchEnvironmentalFactors();
+            this.environmentalData = environmentalData;
+
+            // Cargar insights periódicos
+            const periodicData = await this.fetchPeriodicInsights();
+            this.periodicData = periodicData;
+
+        } catch (error) {
+            console.error('Error cargando datos:', error);
+            this.showError('Error cargando datos del dashboard');
+        }
+    }
+
+    async fetchSectorMovements() {
+        const response = await fetch(`/api/ats/publish/analyzers/sector-movements/?period=${this.currentPeriod}`);
+        return await response.json();
+    }
+
+    async fetchGlobalLocalMetrics() {
+        const response = await fetch(`/api/ats/publish/analyzers/global-local-metrics/?period=${this.currentPeriod}`);
+        return await response.json();
+    }
+
+    async fetchEnvironmentalFactors() {
+        const response = await fetch(`/api/ats/publish/analyzers/environmental-factors/?period=${this.currentPeriod}`);
+        return await response.json();
+    }
+
+    async fetchPeriodicInsights() {
+        const response = await fetch(`/api/ats/publish/analyzers/periodic-insights/?period=${this.currentPeriod}`);
+        return await response.json();
+    }
+
+    initializeCharts() {
+        this.initializeVacancyTrendsChart();
+        this.initializeSectorDistributionChart();
+        this.initializeRegionalPerformanceChart();
+        this.initializeProcessEfficiencyChart();
+    }
+
+    initializeVacancyTrendsChart() {
+        const ctx = document.getElementById('vacancyTrendsChart').getContext('2d');
+        this.charts.vacancyTrends = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Total Vacantes',
+                    data: [],
+                    borderColor: '#667eea',
+                    backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                    tension: 0.4
+                }, {
+                    label: 'Nuevas Vacantes',
+                    data: [],
+                    borderColor: '#764ba2',
+                    backgroundColor: 'rgba(118, 75, 162, 0.1)',
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+
+    initializeSectorDistributionChart() {
+        const ctx = document.getElementById('sectorDistributionChart').getContext('2d');
+        this.charts.sectorDistribution = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: [],
+                datasets: [{
+                    data: [],
+                    backgroundColor: [
+                        '#667eea', '#764ba2', '#f093fb', '#f5576c',
+                        '#4facfe', '#00f2fe', '#43e97b', '#38f9d7'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                    }
+                }
+            }
+        });
+    }
+
+    initializeRegionalPerformanceChart() {
+        const ctx = document.getElementById('regionalPerformanceChart').getContext('2d');
+        this.charts.regionalPerformance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Tasa de Éxito',
+                    data: [],
+                    backgroundColor: '#667eea'
+                }, {
+                    label: 'Tasa de Crecimiento',
+                    data: [],
+                    backgroundColor: '#764ba2'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 1
+                    }
+                }
+            }
+        });
+    }
+
+    initializeProcessEfficiencyChart() {
+        const ctx = document.getElementById('processEfficiencyChart').getContext('2d');
+        this.charts.processEfficiency = new Chart(ctx, {
+            type: 'radar',
+            data: {
+                labels: ['Scraping', 'Procesamiento', 'Publicación', 'Marketing'],
+                datasets: [{
+                    label: 'Eficiencia',
+                    data: [0.85, 0.90, 0.82, 0.78],
+                    backgroundColor: 'rgba(102, 126, 234, 0.2)',
+                    borderColor: '#667eea',
+                    pointBackgroundColor: '#667eea'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    r: {
+                        beginAtZero: true,
+                        max: 1
+                    }
+                }
+            }
+        });
+    }
+
+    updateDashboard() {
+        this.updateGlobalMetrics();
+        this.updateSectorAnalysis();
+        this.updateRegionalComparison();
+        this.updateEnvironmentalAnalysis();
+        this.updateProcessPerformance();
+        this.updateTeamRecommendations();
+        this.updateStrategicInsights();
+    }
+
+    updateGlobalMetrics() {
+        if (this.globalLocalData?.global_metrics) {
+            const metrics = this.globalLocalData.global_metrics;
+            document.getElementById('totalVacancies30d').textContent = metrics.total_vacancies_30d?.toLocaleString() || '0';
+            document.getElementById('newVacancies30d').textContent = metrics.total_new_vacancies_30d?.toLocaleString() || '0';
+            document.getElementById('successRate').textContent = `${(metrics.success_rate_30d * 100).toFixed(1)}%`;
+            document.getElementById('revenue30d').textContent = `€${this.globalLocalData.payment_analysis?.total_revenue_30d?.toLocaleString() || '0'}`;
+        }
+    }
+
+    updateSectorAnalysis() {
+        if (this.sectorData?.growing_sectors) {
+            const growingSectorsList = document.getElementById('growingSectorsList');
+            growingSectorsList.innerHTML = this.sectorData.growing_sectors.map(sector => `
+                <div class="sector-trend">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h6 class="mb-1">${sector.sector}</h6>
+                        <span class="growth-indicator growth-${sector.opportunity_level}">
+                            ${(sector.growth_score * 100).toFixed(0)}%
+                        </span>
+                    </div>
+                    <p class="mb-1 text-muted">${sector.total_vacancies} vacantes</p>
+                    <small class="text-muted">${sector.active_domains} dominios activos</small>
+                </div>
+            `).join('');
+        }
+
+        if (this.sectorData?.sales_opportunities) {
+            const opportunitiesList = document.getElementById('salesOpportunitiesList');
+            opportunitiesList.innerHTML = this.sectorData.sales_opportunities.map(opportunity => `
+                <div class="opportunity-card">
+                    <h6 class="mb-1">${opportunity.sector}</h6>
+                    <p class="mb-1 small">${opportunity.description}</p>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="badge bg-${opportunity.priority === 'high' ? 'danger' : 'warning'}">${opportunity.priority}</span>
+                        <small>${opportunity.timeline}</small>
+                    </div>
+                </div>
+            `).join('');
+        }
+    }
+
+    updateRegionalComparison() {
+        if (this.globalLocalData?.local_metrics) {
+            const regions = Object.keys(this.globalLocalData.local_metrics);
+            const successRates = regions.map(r => this.globalLocalData.local_metrics[r].success_rate);
+            const growthRates = regions.map(r => this.globalLocalData.local_metrics[r].growth_rate);
+
+            this.charts.regionalPerformance.data.labels = regions;
+            this.charts.regionalPerformance.data.datasets[0].data = successRates;
+            this.charts.regionalPerformance.data.datasets[1].data = growthRates;
+            this.charts.regionalPerformance.update();
+
+            // Top regiones
+            const topRegions = regions
+                .map(r => ({ region: r, growth: this.globalLocalData.local_metrics[r].growth_rate }))
+                .sort((a, b) => b.growth - a.growth)
+                .slice(0, 5);
+
+            document.getElementById('topRegionsList').innerHTML = topRegions.map((region, index) => `
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span>${index + 1}. ${region.region}</span>
+                    <span class="growth-indicator growth-high">${(region.growth * 100).toFixed(1)}%</span>
+                </div>
+            `).join('');
+        }
+    }
+
+    updateEnvironmentalAnalysis() {
+        if (this.environmentalData?.economic_analysis) {
+            const economic = this.environmentalData.economic_analysis;
+            document.getElementById('gdpGrowth').textContent = `${(economic.gdp_growth_rate * 100).toFixed(1)}%`;
+            document.getElementById('unemploymentRate').textContent = `${(economic.unemployment_rate * 100).toFixed(1)}%`;
+        }
+    }
+
+    updateProcessPerformance() {
+        if (this.periodicData?.process_performance) {
+            const processes = this.periodicData.process_performance.processes;
+            document.getElementById('processMetrics').innerHTML = Object.entries(processes).map(([process, metrics]) => `
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h6 class="mb-1">${process.charAt(0).toUpperCase() + process.slice(1)}</h6>
+                        <span class="growth-indicator growth-${metrics.efficiency_score > 0.8 ? 'high' : metrics.efficiency_score > 0.6 ? 'medium' : 'low'}">
+                            ${(metrics.efficiency_score * 100).toFixed(0)}%
+                        </span>
+                    </div>
+                    <div class="progress mb-1" style="height: 6px;">
+                        <div class="progress-bar" style="width: ${metrics.efficiency_score * 100}%"></div>
+                    </div>
+                    <small class="text-muted">Éxito: ${(metrics.success_rate * 100).toFixed(1)}% | Duración: ${metrics.avg_duration}s</small>
+                </div>
+            `).join('');
+        }
+    }
+
+    updateTeamRecommendations() {
+        if (this.periodicData?.team_recommendations) {
+            document.getElementById('teamRecommendations').innerHTML = this.periodicData.team_recommendations.map(rec => `
+                <div class="recommendation-item priority-${rec.priority}">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h6 class="mb-1">${rec.title}</h6>
+                            <p class="mb-1 text-muted">${rec.description}</p>
+                            <p class="mb-1"><strong>Acción:</strong> ${rec.action}</p>
+                            <small class="text-muted"><strong>Impacto esperado:</strong> ${rec.expected_impact}</small>
+                        </div>
+                        <span class="badge bg-${rec.priority === 'high' ? 'danger' : rec.priority === 'medium' ? 'warning' : 'success'}">${rec.priority}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+    }
+
+    updateStrategicInsights() {
+        if (this.globalLocalData?.strategic_insights) {
+            document.getElementById('strategicInsights').innerHTML = this.globalLocalData.strategic_insights.map(insight => `
+                <div class="insight-card">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h5 class="mb-2">${insight.title}</h5>
+                            <p class="mb-2">${insight.description}</p>
+                            <p class="mb-0"><strong>Acción recomendada:</strong> ${insight.action}</p>
+                        </div>
+                        <span class="badge bg-${insight.priority === 'high' ? 'danger' : 'warning'}">${insight.priority}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+    }
+
+    showError(message) {
+        // Implementar notificación de error
+        console.error(message);
+    }
+}
+
+// Inicializar dashboard cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', () => {
+    new StrategicInsightsDashboard();
+});
+</script>
+{% endblock %} 

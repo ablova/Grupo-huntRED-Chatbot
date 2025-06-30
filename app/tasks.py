@@ -2385,3 +2385,36 @@ async def schedule_interview_tracking_task(interview_id: int) -> None:
         
     except Exception as e:
         logger.error(f"Error en schedule_interview_tracking_task: {str(e)}")
+
+import os
+import asyncio
+import httpx
+from django.core.cache import cache
+from celery import shared_task
+from django.conf import settings
+from app.models import Person, ChatState
+from app.utilidades.parser import CVParser
+
+SMARTRECRUITERS_API_URL = "https://api.smartrecruiters.com/v1"
+CACHE_TIMEOUT = 86400  # 24 horas
+PAGE_SIZE = 50  # Ajustable según throttling
+THROTTLE_SECONDS = 1.0
+
+from app.ats.integrations.smartrecruiters import SmartRecruitersImporter
+
+@shared_task(bind=True, queue='scraping')
+def import_candidates_from_smartrecruiters(self):
+    """
+    Tarea Celery para importar candidatos desde SmartRecruiters usando el importador dedicado.
+    """
+    logger = self.get_logger()
+    importer = SmartRecruitersImporter()
+    importer.logger = logger
+    loop = asyncio.get_event_loop()
+    total = loop.run_until_complete(importer.import_candidates())
+    logger.info(f"Importación finalizada. Total de candidatos importados: {total}")
+    # Apagado lógico: marcar estado en cache
+    cache.set("smartrecruiters:import_status", "completed", None)
+    # Notificar admins (puedes usar tu sistema de notificaciones)
+    # send_admin_notification(f"Importación de candidatos finalizada. Total: {total}")
+    return total

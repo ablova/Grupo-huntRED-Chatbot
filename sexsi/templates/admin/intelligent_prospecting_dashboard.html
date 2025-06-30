@@ -1,0 +1,726 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block extrastyle %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.css">
+<style>
+    :root {
+        --primary-color: #FF3300;
+        --secondary-color: #1F3544;
+        --success-color: #28a745;
+        --warning-color: #ffc107;
+        --danger-color: #dc3545;
+        --info-color: #17a2b8;
+        --light-color: #f8f9fa;
+        --dark-color: #343a40;
+    }
+
+    .dashboard-container {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 20px;
+    }
+
+    .dashboard-header {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 15px;
+        padding: 30px;
+        margin-bottom: 30px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
+
+    .dashboard-title {
+        color: var(--secondary-color);
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 10px;
+        text-align: center;
+    }
+
+    .dashboard-subtitle {
+        color: var(--primary-color);
+        font-size: 1.2rem;
+        text-align: center;
+        margin-bottom: 0;
+    }
+
+    .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+
+    .metric-card {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 15px;
+        padding: 25px;
+        text-align: center;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        border-left: 5px solid var(--primary-color);
+    }
+
+    .metric-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+    }
+
+    .metric-icon {
+        font-size: 3rem;
+        margin-bottom: 15px;
+        color: var(--primary-color);
+    }
+
+    .metric-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: var(--secondary-color);
+        margin-bottom: 5px;
+    }
+
+    .metric-label {
+        font-size: 1rem;
+        color: #6c757d;
+        font-weight: 500;
+    }
+
+    .metric-change {
+        font-size: 0.9rem;
+        margin-top: 10px;
+    }
+
+    .metric-change.positive {
+        color: var(--success-color);
+    }
+
+    .metric-change.negative {
+        color: var(--danger-color);
+    }
+
+    .content-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 30px;
+        margin-bottom: 30px;
+    }
+
+    .main-content {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 15px;
+        padding: 30px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
+
+    .sidebar {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 15px;
+        padding: 30px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
+
+    .section-title {
+        color: var(--secondary-color);
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid var(--primary-color);
+    }
+
+    .prospect-item {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 15px;
+        border-left: 4px solid var(--primary-color);
+        transition: all 0.3s ease;
+    }
+
+    .prospect-item:hover {
+        background: #e9ecef;
+        transform: translateX(5px);
+    }
+
+    .prospect-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+
+    .prospect-company {
+        font-weight: 600;
+        color: var(--secondary-color);
+        font-size: 1.1rem;
+    }
+
+    .prospect-score {
+        background: var(--primary-color);
+        color: white;
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    .prospect-details {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 10px;
+        margin-bottom: 15px;
+    }
+
+    .prospect-detail {
+        font-size: 0.9rem;
+        color: #6c757d;
+    }
+
+    .prospect-detail strong {
+        color: var(--secondary-color);
+    }
+
+    .prospect-actions {
+        display: flex;
+        gap: 10px;
+    }
+
+    .btn {
+        padding: 8px 16px;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        border: none;
+        cursor: pointer;
+        font-size: 0.9rem;
+    }
+
+    .btn-primary {
+        background: var(--primary-color);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #e62e00;
+        transform: translateY(-2px);
+    }
+
+    .btn-secondary {
+        background: var(--secondary-color);
+        color: white;
+    }
+
+    .btn-secondary:hover {
+        background: #152a38;
+        transform: translateY(-2px);
+    }
+
+    .btn-success {
+        background: var(--success-color);
+        color: white;
+    }
+
+    .btn-success:hover {
+        background: #218838;
+        transform: translateY(-2px);
+    }
+
+    .chart-container {
+        background: white;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    }
+
+    .chart-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: var(--secondary-color);
+        margin-bottom: 15px;
+        text-align: center;
+    }
+
+    .opportunity-item {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 10px;
+        border-left: 4px solid var(--success-color);
+    }
+
+    .opportunity-title {
+        font-weight: 600;
+        color: var(--secondary-color);
+        margin-bottom: 5px;
+    }
+
+    .opportunity-company {
+        font-size: 0.9rem;
+        color: #6c757d;
+        margin-bottom: 5px;
+    }
+
+    .opportunity-value {
+        font-weight: 600;
+        color: var(--success-color);
+        font-size: 1.1rem;
+    }
+
+    .campaign-item {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 10px;
+        border-left: 4px solid var(--info-color);
+    }
+
+    .campaign-name {
+        font-weight: 600;
+        color: var(--secondary-color);
+        margin-bottom: 5px;
+    }
+
+    .campaign-status {
+        display: inline-block;
+        padding: 3px 8px;
+        border-radius: 12px;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+
+    .status-active {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .status-draft {
+        background: #fff3cd;
+        color: #856404;
+    }
+
+    .status-completed {
+        background: #d1ecf1;
+        color: #0c5460;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 10px;
+        margin-top: 20px;
+        justify-content: center;
+    }
+
+    .btn-large {
+        padding: 12px 24px;
+        font-size: 1rem;
+    }
+
+    .loading {
+        display: none;
+        text-align: center;
+        padding: 20px;
+    }
+
+    .loading i {
+        font-size: 2rem;
+        color: var(--primary-color);
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .alert {
+        padding: 15px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+    }
+
+    .alert-danger {
+        background: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+
+    .alert-success {
+        background: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+
+    @media (max-width: 768px) {
+        .content-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .metrics-grid {
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        }
+        
+        .dashboard-title {
+            font-size: 2rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    {% if error %}
+    <div class="alert alert-danger">
+        <i class="fas fa-exclamation-triangle"></i>
+        Error: {{ error }}
+    </div>
+    {% endif %}
+
+    <div class="dashboard-header">
+        <h1 class="dashboard-title">
+            <i class="fas fa-brain"></i> Dashboard de Prospección Inteligente
+        </h1>
+        <p class="dashboard-subtitle">
+            Análisis avanzado de dominios y oportunidades de cross-selling con IA
+        </p>
+    </div>
+
+    <!-- Métricas Rápidas -->
+    <div class="metrics-grid">
+        <div class="metric-card">
+            <div class="metric-icon">
+                <i class="fas fa-globe"></i>
+            </div>
+            <div class="metric-value">{{ quick_metrics.total_domains }}</div>
+            <div class="metric-label">Dominios Analizados</div>
+            <div class="metric-change positive">
+                <i class="fas fa-arrow-up"></i> +12% este mes
+            </div>
+        </div>
+
+        <div class="metric-card">
+            <div class="metric-icon">
+                <i class="fas fa-rocket"></i>
+            </div>
+            <div class="metric-value">{{ quick_metrics.high_potential_count }}</div>
+            <div class="metric-label">Alto Potencial</div>
+            <div class="metric-change positive">
+                <i class="fas fa-arrow-up"></i> +8% esta semana
+            </div>
+        </div>
+
+        <div class="metric-card">
+            <div class="metric-icon">
+                <i class="fas fa-search"></i>
+            </div>
+            <div class="metric-value">{{ quick_metrics.active_prospecting }}</div>
+            <div class="metric-label">Prospección Activa</div>
+            <div class="metric-change positive">
+                <i class="fas fa-arrow-up"></i> +15% este mes
+            </div>
+        </div>
+
+        <div class="metric-card">
+            <div class="metric-icon">
+                <i class="fas fa-handshake"></i>
+            </div>
+            <div class="metric-value">{{ quick_metrics.cross_sell_opportunities }}</div>
+            <div class="metric-label">Cross-Selling</div>
+            <div class="metric-change positive">
+                <i class="fas fa-arrow-up"></i> +22% este mes
+            </div>
+        </div>
+    </div>
+
+    <div class="content-grid">
+        <!-- Contenido Principal -->
+        <div class="main-content">
+            <h2 class="section-title">
+                <i class="fas fa-chart-line"></i> Prospectos de Alto Potencial
+            </h2>
+
+            {% if high_potential_prospects %}
+                {% for prospect in high_potential_prospects %}
+                <div class="prospect-item">
+                    <div class="prospect-header">
+                        <div class="prospect-company">{{ prospect.company_name }}</div>
+                        <div class="prospect-score">{{ prospect.prospect_score }}/100</div>
+                    </div>
+                    
+                    <div class="prospect-details">
+                        <div class="prospect-detail">
+                            <strong>Industria:</strong> {{ prospect.get_industry_display }}
+                        </div>
+                        <div class="prospect-detail">
+                            <strong>Vacantes Activas:</strong> {{ prospect.active_vacancies }}
+                        </div>
+                        <div class="prospect-detail">
+                            <strong>Score AURA:</strong> {{ prospect.aura_score }}
+                        </div>
+                        <div class="prospect-detail">
+                            <strong>Último Contacto:</strong> 
+                            {% if prospect.last_contact_date %}
+                                {{ prospect.last_contact_date|date:"d/m/Y" }}
+                            {% else %}
+                                Nunca
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="prospect-actions">
+                        <a href="{% url 'admin:domain_analysis_detail' prospect.id %}" class="btn btn-primary">
+                            <i class="fas fa-eye"></i> Ver Detalles
+                        </a>
+                        <a href="{% url 'admin:create_prospecting_opportunity' prospect.id %}" class="btn btn-success">
+                            <i class="fas fa-plus"></i> Crear Oportunidad
+                        </a>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    No hay prospectos de alto potencial disponibles.
+                </div>
+            {% endif %}
+
+            <!-- Gráfico de Análisis -->
+            <div class="chart-container">
+                <h3 class="chart-title">Análisis por Industria</h3>
+                <canvas id="industryChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <h2 class="section-title">
+                <i class="fas fa-handshake"></i> Cross-Selling
+            </h2>
+
+            {% if cross_sell_opportunities %}
+                {% for opportunity in cross_sell_opportunities %}
+                <div class="opportunity-item">
+                    <div class="opportunity-title">{{ opportunity.title }}</div>
+                    <div class="opportunity-company">{{ opportunity.usage_analysis.domain_analysis.company_name }}</div>
+                    <div class="opportunity-value">${{ opportunity.estimated_value|floatformat:0 }}</div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    No hay oportunidades de cross-selling identificadas.
+                </div>
+            {% endif %}
+
+            <h2 class="section-title">
+                <i class="fas fa-bullhorn"></i> Campañas Activas
+            </h2>
+
+            {% if active_campaigns %}
+                {% for campaign in active_campaigns %}
+                <div class="campaign-item">
+                    <div class="campaign-name">{{ campaign.name }}</div>
+                    <div class="campaign-status status-active">{{ campaign.get_status_display }}</div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    No hay campañas activas.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Botones de Acción -->
+    <div class="action-buttons">
+        <button class="btn btn-primary btn-large" onclick="analyzeDomains()">
+            <i class="fas fa-search"></i> Analizar Dominios
+        </button>
+        <button class="btn btn-secondary btn-large" onclick="analyzeUsage()">
+            <i class="fas fa-chart-bar"></i> Analizar Uso
+        </button>
+        <button class="btn btn-success btn-large" onclick="generateCampaigns()">
+            <i class="fas fa-magic"></i> Generar Campañas
+        </button>
+    </div>
+
+    <!-- Loading -->
+    <div class="loading" id="loading">
+        <i class="fas fa-spinner"></i>
+        <p>Procesando...</p>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script>
+// Gráfico de Industrias
+const industryCtx = document.getElementById('industryChart').getContext('2d');
+const industryChart = new Chart(industryCtx, {
+    type: 'doughnut',
+    data: {
+        labels: ['Tecnología', 'Finanzas', 'Salud', 'Manufactura', 'Retail', 'Otros'],
+        datasets: [{
+            data: [30, 25, 15, 12, 10, 8],
+            backgroundColor: [
+                '#FF6384',
+                '#36A2EB',
+                '#FFCE56',
+                '#4BC0C0',
+                '#9966FF',
+                '#FF9F40'
+            ],
+            borderWidth: 2,
+            borderColor: '#fff'
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: {
+                    padding: 20,
+                    usePointStyle: true
+                }
+            }
+        }
+    }
+});
+
+// Funciones AJAX
+function showLoading() {
+    document.getElementById('loading').style.display = 'block';
+}
+
+function hideLoading() {
+    document.getElementById('loading').style.display = 'none';
+}
+
+function showAlert(message, type = 'success') {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type}`;
+    alertDiv.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-triangle'}"></i> ${message}`;
+    
+    const container = document.querySelector('.dashboard-container');
+    container.insertBefore(alertDiv, container.firstChild);
+    
+    setTimeout(() => {
+        alertDiv.remove();
+    }, 5000);
+}
+
+async function analyzeDomains() {
+    showLoading();
+    try {
+        const response = await fetch('{% url "admin:analyze_domains_ajax" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: 'business_unit='
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showAlert(`Análisis completado: ${result.total_domains_analyzed} dominios analizados`);
+            setTimeout(() => {
+                location.reload();
+            }, 2000);
+        } else {
+            showAlert(result.error, 'danger');
+        }
+    } catch (error) {
+        showAlert('Error en el análisis: ' + error.message, 'danger');
+    } finally {
+        hideLoading();
+    }
+}
+
+async function analyzeUsage() {
+    showLoading();
+    try {
+        const response = await fetch('{% url "admin:analyze_usage_ajax" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: 'business_unit='
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showAlert(`Análisis de uso completado: ${result.total_clients_analyzed} clientes analizados`);
+            setTimeout(() => {
+                location.reload();
+            }, 2000);
+        } else {
+            showAlert(result.error, 'danger');
+        }
+    } catch (error) {
+        showAlert('Error en el análisis: ' + error.message, 'danger');
+    } finally {
+        hideLoading();
+    }
+}
+
+async function generateCampaigns() {
+    showLoading();
+    try {
+        const response = await fetch('{% url "admin:generate_campaigns_ajax" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: 'target_type=mixed'
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showAlert(`Campañas generadas: ${result.campaigns_generated} campañas creadas`);
+            setTimeout(() => {
+                location.reload();
+            }, 2000);
+        } else {
+            showAlert(result.error, 'danger');
+        }
+    } catch (error) {
+        showAlert('Error generando campañas: ' + error.message, 'danger');
+    } finally {
+        hideLoading();
+    }
+}
+
+// Actualizar datos en tiempo real
+setInterval(async () => {
+    try {
+        const response = await fetch('{% url "admin:get_dashboard_data_ajax" %}');
+        const result = await response.json();
+        
+        if (result.success) {
+            // Actualizar métricas
+            document.querySelector('.metric-value').textContent = result.total_domains;
+        }
+    } catch (error) {
+        console.error('Error actualizando datos:', error);
+    }
+}, 30000); // Actualizar cada 30 segundos
+</script>
+
+{% csrf_token %}
+{% endblock %} 

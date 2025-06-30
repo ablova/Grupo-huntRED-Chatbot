@@ -5,6 +5,9 @@
 from django.urls import path
 from app.ats.views.proposals.views import ProposalViews
 from app.ats.views.proposals.signature_views import ProposalSignatureView
+from . import views
+
+app_name = 'proposals'
 
 urlpatterns = [
     # Vistas principales de propuestas
@@ -14,4 +17,10 @@ urlpatterns = [
     # Vistas de firma
     path('proposals/sign/<int:proposal_id>/', ProposalSignatureView.as_view(), name='proposal_sign'),
     path('proposals/sign/status/<int:proposal_id>/', ProposalSignatureView.as_view(), name='proposal_sign_status'),
+    
+    # URLs para edición inline ultra mejorada
+    path('client/<int:client_id>/update-info/', views.update_client_info, name='update_client_info'),
+    path('company/<int:company_id>/update-contacts/', views.update_company_contacts, name='update_company_contacts'),
+    path('company/<int:company_id>/add-invitee/', views.add_invitee, name='add_invitee'),
+    path('company/<int:company_id>/remove-invitee/', views.remove_invitee, name='remove_invitee'),
 ]

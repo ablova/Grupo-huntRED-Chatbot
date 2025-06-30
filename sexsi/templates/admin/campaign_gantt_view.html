@@ -1,0 +1,875 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Gantt Chart de Campañas - huntRED®{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/dhtmlx-gantt@8.0.6/codebase/dhtmlxgantt.css">
+<style>
+    .gantt-container {
+        height: 600px;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .gantt-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 8px 8px 0 0;
+    }
+    
+    .gantt-controls {
+        background: #f8f9fa;
+        padding: 15px;
+        border-bottom: 1px solid #e0e0e0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    
+    .gantt-filters {
+        display: flex;
+        gap: 15px;
+        align-items: center;
+    }
+    
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+    
+    .filter-group label {
+        font-size: 12px;
+        font-weight: 600;
+        color: #555;
+    }
+    
+    .filter-group select,
+    .filter-group input {
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+    
+    .gantt-actions {
+        display: flex;
+        gap: 10px;
+    }
+    
+    .btn-gantt {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-primary {
+        background: #667eea;
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background: #5a6fd8;
+    }
+    
+    .btn-success {
+        background: #28a745;
+        color: white;
+    }
+    
+    .btn-success:hover {
+        background: #218838;
+    }
+    
+    .btn-warning {
+        background: #ffc107;
+        color: #212529;
+    }
+    
+    .btn-warning:hover {
+        background: #e0a800;
+    }
+    
+    .btn-danger {
+        background: #dc3545;
+        color: white;
+    }
+    
+    .btn-danger:hover {
+        background: #c82333;
+    }
+    
+    .gantt-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .stat-card {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        border-left: 4px solid #667eea;
+    }
+    
+    .stat-title {
+        font-size: 14px;
+        color: #666;
+        margin-bottom: 8px;
+    }
+    
+    .stat-value {
+        font-size: 24px;
+        font-weight: 700;
+        color: #333;
+    }
+    
+    .stat-change {
+        font-size: 12px;
+        margin-top: 5px;
+    }
+    
+    .stat-positive {
+        color: #28a745;
+    }
+    
+    .stat-negative {
+        color: #dc3545;
+    }
+    
+    .gantt-toolbar {
+        background: #f8f9fa;
+        padding: 10px 15px;
+        border-bottom: 1px solid #e0e0e0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .toolbar-left {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+    
+    .toolbar-right {
+        display: flex;
+        gap: 10px;
+    }
+    
+    .zoom-controls {
+        display: flex;
+        gap: 5px;
+    }
+    
+    .zoom-btn {
+        padding: 5px 10px;
+        border: 1px solid #ddd;
+        background: white;
+        border-radius: 3px;
+        cursor: pointer;
+        font-size: 12px;
+    }
+    
+    .zoom-btn:hover {
+        background: #f0f0f0;
+    }
+    
+    .zoom-btn.active {
+        background: #667eea;
+        color: white;
+        border-color: #667eea;
+    }
+    
+    .task-details {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: white;
+        padding: 30px;
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        z-index: 1000;
+        max-width: 500px;
+        width: 90%;
+        display: none;
+    }
+    
+    .task-details.show {
+        display: block;
+    }
+    
+    .task-details h3 {
+        margin-bottom: 20px;
+        color: #333;
+        border-bottom: 2px solid #667eea;
+        padding-bottom: 10px;
+    }
+    
+    .task-field {
+        margin-bottom: 15px;
+    }
+    
+    .task-field label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 5px;
+        color: #555;
+    }
+    
+    .task-field input,
+    .task-field select,
+    .task-field textarea {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+    
+    .task-field textarea {
+        height: 80px;
+        resize: vertical;
+    }
+    
+    .task-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+        margin-top: 20px;
+    }
+    
+    .overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        z-index: 999;
+        display: none;
+    }
+    
+    .overlay.show {
+        display: block;
+    }
+    
+    .loading {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 200px;
+        font-size: 16px;
+        color: #666;
+    }
+    
+    .error-message {
+        background: #f8d7da;
+        color: #721c24;
+        padding: 15px;
+        border-radius: 4px;
+        margin-bottom: 20px;
+        border: 1px solid #f5c6cb;
+    }
+    
+    .success-message {
+        background: #d4edda;
+        color: #155724;
+        padding: 15px;
+        border-radius: 4px;
+        margin-bottom: 20px;
+        border: 1px solid #c3e6cb;
+    }
+    
+    @media (max-width: 768px) {
+        .gantt-controls {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        
+        .gantt-filters {
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .gantt-actions {
+            justify-content: center;
+        }
+        
+        .gantt-stats {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="gantt-header">
+        <h1><i class="fas fa-chart-gantt"></i> Gantt Chart de Campañas de Marketing</h1>
+        <p class="mb-0">Gestión visual y calendarización avanzada de campañas huntRED®</p>
+    </div>
+    
+    <!-- Estadísticas -->
+    <div class="gantt-stats">
+        <div class="stat-card">
+            <div class="stat-title">Campañas Activas</div>
+            <div class="stat-value" id="active-campaigns">0</div>
+            <div class="stat-change stat-positive">+12% vs mes anterior</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-title">Tareas Pendientes</div>
+            <div class="stat-value" id="pending-tasks">0</div>
+            <div class="stat-change stat-negative">-5% vs mes anterior</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-title">Progreso General</div>
+            <div class="stat-value" id="overall-progress">0%</div>
+            <div class="stat-change stat-positive">+8% vs mes anterior</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-title">ROI Promedio</div>
+            <div class="stat-value" id="avg-roi">0%</div>
+            <div class="stat-change stat-positive">+15% vs mes anterior</div>
+        </div>
+    </div>
+    
+    <!-- Controles -->
+    <div class="gantt-controls">
+        <div class="gantt-filters">
+            <div class="filter-group">
+                <label>Unidad de Negocio</label>
+                <select id="business-unit-filter">
+                    <option value="">Todas las unidades</option>
+                    <option value="recruitment">Recruitment</option>
+                    <option value="consulting">Consulting</option>
+                    <option value="training">Training</option>
+                    <option value="technology">Technology</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Tipo de Campaña</label>
+                <select id="campaign-type-filter">
+                    <option value="">Todos los tipos</option>
+                    <option value="genia">GenIA</option>
+                    <option value="aura">AURA</option>
+                    <option value="chatbot">Chatbot</option>
+                    <option value="cross-selling">Cross-selling</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Estado</label>
+                <select id="status-filter">
+                    <option value="">Todos los estados</option>
+                    <option value="planning">Planificación</option>
+                    <option value="active">Activa</option>
+                    <option value="paused">Pausada</option>
+                    <option value="completed">Completada</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Rango de Fechas</label>
+                <input type="date" id="start-date" placeholder="Fecha inicio">
+            </div>
+            <div class="filter-group">
+                <label>&nbsp;</label>
+                <input type="date" id="end-date" placeholder="Fecha fin">
+            </div>
+        </div>
+        
+        <div class="gantt-actions">
+            <button class="btn-gantt btn-primary" onclick="loadGanttData()">
+                <i class="fas fa-sync-alt"></i> Actualizar
+            </button>
+            <button class="btn-gantt btn-success" onclick="addNewTask()">
+                <i class="fas fa-plus"></i> Nueva Tarea
+            </button>
+            <button class="btn-gantt btn-warning" onclick="exportGantt()">
+                <i class="fas fa-download"></i> Exportar
+            </button>
+        </div>
+    </div>
+    
+    <!-- Toolbar del Gantt -->
+    <div class="gantt-toolbar">
+        <div class="toolbar-left">
+            <span><strong>Vista:</strong></span>
+            <div class="zoom-controls">
+                <button class="zoom-btn" onclick="gantt.setScale('day')">Día</button>
+                <button class="zoom-btn active" onclick="gantt.setScale('week')">Semana</button>
+                <button class="zoom-btn" onclick="gantt.setScale('month')">Mes</button>
+                <button class="zoom-btn" onclick="gantt.setScale('quarter')">Trimestre</button>
+            </div>
+        </div>
+        
+        <div class="toolbar-right">
+            <button class="btn-gantt btn-primary" onclick="gantt.showLightbox()">
+                <i class="fas fa-edit"></i> Editar
+            </button>
+            <button class="btn-gantt btn-danger" onclick="deleteSelectedTask()">
+                <i class="fas fa-trash"></i> Eliminar
+            </button>
+        </div>
+    </div>
+    
+    <!-- Contenedor del Gantt -->
+    <div class="gantt-container" id="gantt_container"></div>
+    
+    <!-- Mensajes -->
+    <div id="message-container"></div>
+</div>
+
+<!-- Modal de Detalles de Tarea -->
+<div class="overlay" id="overlay"></div>
+<div class="task-details" id="task-details">
+    <h3>Detalles de la Tarea</h3>
+    <form id="task-form">
+        <div class="task-field">
+            <label for="task-name">Nombre de la Tarea</label>
+            <input type="text" id="task-name" name="name" required>
+        </div>
+        <div class="task-field">
+            <label for="task-type">Tipo</label>
+            <select id="task-type" name="type" required>
+                <option value="task">Tarea</option>
+                <option value="project">Proyecto</option>
+                <option value="milestone">Hito</option>
+            </select>
+        </div>
+        <div class="task-field">
+            <label for="task-start">Fecha de Inicio</label>
+            <input type="datetime-local" id="task-start" name="start_date" required>
+        </div>
+        <div class="task-field">
+            <label for="task-end">Fecha de Fin</label>
+            <input type="datetime-local" id="task-end" name="end_date" required>
+        </div>
+        <div class="task-field">
+            <label for="task-progress">Progreso (%)</label>
+            <input type="number" id="task-progress" name="progress" min="0" max="100" value="0">
+        </div>
+        <div class="task-field">
+            <label for="task-priority">Prioridad</label>
+            <select id="task-priority" name="priority">
+                <option value="low">Baja</option>
+                <option value="medium" selected>Media</option>
+                <option value="high">Alta</option>
+                <option value="critical">Crítica</option>
+            </select>
+        </div>
+        <div class="task-field">
+            <label for="task-assignee">Asignado a</label>
+            <input type="text" id="task-assignee" name="assignee">
+        </div>
+        <div class="task-field">
+            <label for="task-description">Descripción</label>
+            <textarea id="task-description" name="description"></textarea>
+        </div>
+        <div class="task-actions">
+            <button type="button" class="btn-gantt btn-danger" onclick="closeTaskDetails()">Cancelar</button>
+            <button type="submit" class="btn-gantt btn-success">Guardar</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/dhtmlx-gantt@8.0.6/codebase/dhtmlxgantt.js"></script>
+<script>
+    // Configuración global
+    let gantt;
+    let currentTaskId = null;
+    
+    // Inicialización
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeGantt();
+        loadGanttData();
+        setupEventListeners();
+    });
+    
+    function initializeGantt() {
+        // Configuración del Gantt
+        gantt.config.date_format = "%Y-%m-%d %H:%i";
+        gantt.config.scale_unit = "week";
+        gantt.config.date_scale = "%d %M";
+        gantt.config.subscales = [
+            {unit: "day", step: 1, date: "%j"}
+        ];
+        
+        // Configuración de columnas
+        gantt.config.columns = [
+            {name: "text", label: "Tarea", width: 200, tree: true},
+            {name: "start_date", label: "Inicio", width: 100, align: "center"},
+            {name: "end_date", label: "Fin", width: 100, align: "center"},
+            {name: "progress", label: "Progreso", width: 80, align: "center", template: function(obj) {
+                return Math.round(obj.progress * 100) + "%";
+            }},
+            {name: "assignee", label: "Asignado", width: 100, align: "center"},
+            {name: "priority", label: "Prioridad", width: 80, align: "center", template: function(obj) {
+                const priorities = {
+                    'low': '<span class="badge badge-secondary">Baja</span>',
+                    'medium': '<span class="badge badge-info">Media</span>',
+                    'high': '<span class="badge badge-warning">Alta</span>',
+                    'critical': '<span class="badge badge-danger">Crítica</span>'
+                };
+                return priorities[obj.priority] || '';
+            }}
+        ];
+        
+        // Configuración de tareas
+        gantt.config.work_time = true;
+        gantt.config.correct_work_time = true;
+        gantt.config.auto_scheduling = true;
+        gantt.config.auto_scheduling_strict = false;
+        
+        // Configuración de enlaces
+        gantt.config.links = {
+            finish_to_start: "0",
+            start_to_start: "1",
+            finish_to_finish: "2",
+            start_to_finish: "3"
+        };
+        
+        // Configuración de colores
+        gantt.templates.task_class = function(start, end, task) {
+            let classes = [];
+            
+            if (task.priority === 'critical') classes.push('critical-task');
+            if (task.priority === 'high') classes.push('high-priority-task');
+            if (task.progress === 1) classes.push('completed-task');
+            if (task.progress > 0 && task.progress < 1) classes.push('in-progress-task');
+            
+            return classes.join(' ');
+        };
+        
+        // Configuración de tooltips
+        gantt.templates.tooltip_text = function(start, end, task) {
+            return `<b>Tarea:</b> ${task.text}<br/>
+                    <b>Inicio:</b> ${gantt.templates.tooltip_date_format(start)}<br/>
+                    <b>Fin:</b> ${gantt.templates.tooltip_date_format(end)}<br/>
+                    <b>Progreso:</b> ${Math.round(task.progress * 100)}%<br/>
+                    <b>Asignado:</b> ${task.assignee || 'Sin asignar'}<br/>
+                    <b>Prioridad:</b> ${task.priority}`;
+        };
+        
+        // Inicializar Gantt
+        gantt.init("gantt_container");
+        
+        // Eventos
+        gantt.attachEvent("onTaskClick", function(id) {
+            showTaskDetails(id);
+            return true;
+        });
+        
+        gantt.attachEvent("onAfterTaskAdd", function(id, task) {
+            saveTask(task);
+        });
+        
+        gantt.attachEvent("onAfterTaskUpdate", function(id, task) {
+            updateTask(id, task);
+        });
+        
+        gantt.attachEvent("onAfterTaskDelete", function(id) {
+            deleteTask(id);
+        });
+    }
+    
+    function setupEventListeners() {
+        // Filtros
+        document.getElementById('business-unit-filter').addEventListener('change', loadGanttData);
+        document.getElementById('campaign-type-filter').addEventListener('change', loadGanttData);
+        document.getElementById('status-filter').addEventListener('change', loadGanttData);
+        document.getElementById('start-date').addEventListener('change', loadGanttData);
+        document.getElementById('end-date').addEventListener('change', loadGanttData);
+        
+        // Formulario de tarea
+        document.getElementById('task-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            saveTaskFromForm();
+        });
+        
+        // Overlay
+        document.getElementById('overlay').addEventListener('click', closeTaskDetails);
+    }
+    
+    async function loadGanttData() {
+        try {
+            showLoading();
+            
+            const filters = {
+                business_unit: document.getElementById('business-unit-filter').value,
+                campaign_type: document.getElementById('campaign-type-filter').value,
+                status: document.getElementById('status-filter').value,
+                start_date: document.getElementById('start-date').value,
+                end_date: document.getElementById('end-date').value
+            };
+            
+            const response = await fetch('/admin/ats/publish/gantt/data/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify(filters)
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                gantt.clearAll();
+                gantt.parse(data.data);
+                updateStats(data.stats);
+                hideLoading();
+            } else {
+                showError(data.error || 'Error cargando datos del Gantt');
+            }
+            
+        } catch (error) {
+            console.error('Error cargando datos:', error);
+            showError('Error de conexión al cargar datos');
+        }
+    }
+    
+    function updateStats(stats) {
+        document.getElementById('active-campaigns').textContent = stats.active_campaigns || 0;
+        document.getElementById('pending-tasks').textContent = stats.pending_tasks || 0;
+        document.getElementById('overall-progress').textContent = (stats.overall_progress || 0) + '%';
+        document.getElementById('avg-roi').textContent = (stats.avg_roi || 0) + '%';
+    }
+    
+    function addNewTask() {
+        currentTaskId = null;
+        document.getElementById('task-form').reset();
+        document.getElementById('task-start').value = new Date().toISOString().slice(0, 16);
+        document.getElementById('task-end').value = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16);
+        showTaskDetails();
+    }
+    
+    function showTaskDetails(taskId = null) {
+        if (taskId) {
+            const task = gantt.getTask(taskId);
+            if (task) {
+                currentTaskId = taskId;
+                populateTaskForm(task);
+            }
+        }
+        
+        document.getElementById('overlay').classList.add('show');
+        document.getElementById('task-details').classList.add('show');
+    }
+    
+    function closeTaskDetails() {
+        document.getElementById('overlay').classList.remove('show');
+        document.getElementById('task-details').classList.remove('show');
+        currentTaskId = null;
+    }
+    
+    function populateTaskForm(task) {
+        document.getElementById('task-name').value = task.text || '';
+        document.getElementById('task-type').value = task.type || 'task';
+        document.getElementById('task-start').value = task.start_date ? new Date(task.start_date).toISOString().slice(0, 16) : '';
+        document.getElementById('task-end').value = task.end_date ? new Date(task.end_date).toISOString().slice(0, 16) : '';
+        document.getElementById('task-progress').value = Math.round((task.progress || 0) * 100);
+        document.getElementById('task-priority').value = task.priority || 'medium';
+        document.getElementById('task-assignee').value = task.assignee || '';
+        document.getElementById('task-description').value = task.description || '';
+    }
+    
+    async function saveTaskFromForm() {
+        try {
+            const formData = new FormData(document.getElementById('task-form'));
+            const taskData = {
+                id: currentTaskId || gantt.uid(),
+                text: formData.get('name'),
+                type: formData.get('type'),
+                start_date: new Date(formData.get('start_date')),
+                end_date: new Date(formData.get('end_date')),
+                progress: parseInt(formData.get('progress')) / 100,
+                priority: formData.get('priority'),
+                assignee: formData.get('assignee'),
+                description: formData.get('description')
+            };
+            
+            if (currentTaskId) {
+                await updateTask(currentTaskId, taskData);
+            } else {
+                await saveTask(taskData);
+            }
+            
+            closeTaskDetails();
+            loadGanttData();
+            
+        } catch (error) {
+            console.error('Error guardando tarea:', error);
+            showError('Error guardando la tarea');
+        }
+    }
+    
+    async function saveTask(task) {
+        try {
+            const response = await fetch('/admin/ats/publish/gantt/task/save/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify(task)
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showSuccess('Tarea guardada exitosamente');
+            } else {
+                showError(data.error || 'Error guardando la tarea');
+            }
+            
+        } catch (error) {
+            console.error('Error guardando tarea:', error);
+            showError('Error de conexión al guardar tarea');
+        }
+    }
+    
+    async function updateTask(id, task) {
+        try {
+            task.id = id;
+            
+            const response = await fetch('/admin/ats/publish/gantt/task/update/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify(task)
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showSuccess('Tarea actualizada exitosamente');
+            } else {
+                showError(data.error || 'Error actualizando la tarea');
+            }
+            
+        } catch (error) {
+            console.error('Error actualizando tarea:', error);
+            showError('Error de conexión al actualizar tarea');
+        }
+    }
+    
+    async function deleteTask(id) {
+        try {
+            const response = await fetch('/admin/ats/publish/gantt/task/delete/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({id: id})
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showSuccess('Tarea eliminada exitosamente');
+            } else {
+                showError(data.error || 'Error eliminando la tarea');
+            }
+            
+        } catch (error) {
+            console.error('Error eliminando tarea:', error);
+            showError('Error de conexión al eliminar tarea');
+        }
+    }
+    
+    function deleteSelectedTask() {
+        const selected = gantt.getSelected();
+        if (selected) {
+            if (confirm('¿Estás seguro de que quieres eliminar esta tarea?')) {
+                gantt.deleteTask(selected);
+            }
+        } else {
+            showError('No hay tarea seleccionada');
+        }
+    }
+    
+    function exportGantt() {
+        try {
+            const data = gantt.serialize();
+            const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'gantt_campaigns_' + new Date().toISOString().slice(0, 10) + '.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showSuccess('Gantt exportado exitosamente');
+        } catch (error) {
+            console.error('Error exportando Gantt:', error);
+            showError('Error exportando el Gantt');
+        }
+    }
+    
+    function showLoading() {
+        const container = document.getElementById('gantt_container');
+        container.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Cargando datos...</div>';
+    }
+    
+    function hideLoading() {
+        // El Gantt se inicializa automáticamente
+    }
+    
+    function showSuccess(message) {
+        showMessage(message, 'success');
+    }
+    
+    function showError(message) {
+        showMessage(message, 'error');
+    }
+    
+    function showMessage(message, type) {
+        const container = document.getElementById('message-container');
+        const div = document.createElement('div');
+        div.className = type === 'success' ? 'success-message' : 'error-message';
+        div.innerHTML = message;
+        
+        container.appendChild(div);
+        
+        setTimeout(() => {
+            div.remove();
+        }, 5000);
+    }
+    
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+</script>
+{% endblock %} 

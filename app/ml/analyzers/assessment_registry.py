@@ -18,6 +18,10 @@ class AssessmentType(Enum):
     CULTURAL = "cultural"
     PROFESSIONAL = "professional"
     TALENT = "talent"
+    MOBILITY = "mobility"
+    GENERATIONAL = "generational"
+    LEADERSHIP = "leadership"
+    MOTIVATIONAL = "motivational"
     INTEGRATED = "integrated"
 
 @dataclass

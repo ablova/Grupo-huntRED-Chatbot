@@ -382,3 +382,13 @@ path('aura/recommendations/', AuraRecommendationsView.as_view(), name='aura_reco
 path('aura/networking/', AuraNetworkingView.as_view(), name='aura_networking'),
 path('aura/organizational/', AuraOrganizationalView.as_view(), name='aura_organizational'),
 path('aura/gpt/', AuraGPTAssistantView.as_view(), name='aura_gpt_assistant'),
+
+# ------------------------
+# 📌 RUTAS DE EDICIÓN INLINE ULTRA MEJORADA
+# ------------------------
+urlpatterns += [
+    path('proposals/client/<int:client_id>/update-info/', views.proposals.views.update_client_info, name='update_client_info'),
+    path('proposals/company/<int:company_id>/update-contacts/', views.proposals.views.update_company_contacts, name='update_company_contacts'),
+    path('proposals/company/<int:company_id>/add-invitee/', views.proposals.views.add_invitee, name='add_invitee'),
+    path('proposals/company/<int:company_id>/remove-invitee/', views.proposals.views.remove_invitee, name='remove_invitee'),
+]

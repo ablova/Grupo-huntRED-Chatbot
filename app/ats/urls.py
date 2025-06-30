@@ -81,4 +81,15 @@ urlpatterns += [
     path('aura/influencers/', aura_influencers_view, name='aura_influencers'),
     path('aura/validate-experience/', validate_experience_view, name='validate_experience'),
     path('aura/settings/', aura_settings_view, name='aura_settings'),
-] 
+]
+
+# URLs del sistema global
+path('system/global-dashboard/', views.global_system_views.global_system_dashboard, name='global_system_dashboard'),
+path('api/system/global-status/', views.global_system_views.get_global_system_status, name='get_global_system_status'),
+path('api/system/request-update/', views.global_system_views.request_system_update, name='request_system_update'),
+path('api/system/optimize/', views.global_system_views.optimize_system_performance, name='optimize_system_performance'),
+path('api/system/module/<str:module_type>/', views.global_system_views.get_module_details, name='get_module_details'),
+path('api/system/rate-limits/', views.global_system_views.get_rate_limit_status, name='get_rate_limit_status'),
+path('api/system/update-history/', views.global_system_views.get_update_history, name='get_update_history'),
+path('api/system/ml-operation/', views.global_system_views.execute_ml_operation, name='execute_ml_operation'),
+path('api/system/health/', views.global_system_views.get_system_health, name='get_system_health'), 

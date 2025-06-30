@@ -234,19 +234,34 @@ class MenuSystem:
 # Inicializar el sistema de menú global
 menu_system = MenuSystem()
 
-# Registrar menús por defecto
+# Registrar menús por defecto con TODAS las capacidades
 menu_system \
     .register_menu("evaluations", "🎯 Evaluaciones", 
                   "Completa evaluaciones para mejorar tu perfil", "📊",
-                  business_units=["huntred", "huntred_executive", "huntu"]) \
+                  business_units=["huntred", "huntred_executive", "huntu", "amigro"]) \
     .register_menu("profile", "👤 Mi Perfil", 
                   "Gestiona tu perfil profesional", "👤",
-                  business_units=["huntred", "huntred_executive", "huntu"]) \
+                  business_units=["huntred", "huntred_executive", "huntu", "amigro"]) \
     .register_menu("jobs", "🔍 Buscar Empleo", 
                   "Encuentra trabajos específicos", "💼",
-                  business_units=["huntred", "huntred_executive", "huntu"])
+                  business_units=["huntred", "huntred_executive", "huntu", "amigro"]) \
+    .register_menu("salary", "💰 Calculadora de Salario", 
+                  "Calcula salarios netos y brutos", "💰",
+                  business_units=["huntred", "huntred_executive", "huntu", "amigro"]) \
+    .register_menu("application", "📝 Mi Aplicación", 
+                  "Gestiona tus aplicaciones y seguimiento", "📝",
+                  business_units=["huntred", "huntred_executive", "huntu", "amigro"]) \
+    .register_menu("interviews", "🎤 Entrevistas", 
+                  "Gestiona tus entrevistas programadas", "🎤",
+                  business_units=["huntred", "huntred_executive", "huntu", "amigro"]) \
+    .register_menu("matchmaking", "🎯 Matchmaking", 
+                  "Descubre oportunidades personalizadas", "🎯",
+                  business_units=["huntred", "huntred_executive", "huntu", "amigro"]) \
+    .register_menu("support", "🆘 Soporte", 
+                  "Obtén ayuda y soporte", "🆘",
+                  business_units=["huntred", "huntred_executive", "huntu", "amigro", "sexsi"])
 
-# Registrar evaluaciones
+# Registrar evaluaciones completas
 menu_system \
     .register_assessment(
         "cultural_fit",
@@ -256,7 +271,7 @@ menu_system \
         "evaluations",
         "handle_cultural_fit_assessment",
         ["can_take_assessments"],
-        ["huntred", "huntred_executive", "huntu"]
+        ["huntred", "huntred_executive", "huntu", "amigro"]
     ) \
     .register_assessment(
         "professional_dna",
@@ -266,7 +281,7 @@ menu_system \
         "evaluations",
         "handle_professional_dna_assessment",
         ["can_take_assessments"],
-        ["huntred", "huntred_executive", "huntu"]
+        ["huntred", "huntred_executive", "huntu", "amigro"]
     ) \
     .register_assessment(
         "personality",
@@ -276,7 +291,222 @@ menu_system \
         "evaluations",
         "handle_personality_assessment",
         ["can_take_assessments"],
-        ["huntred", "huntred_executive", "huntu"]
+        ["huntred", "huntred_executive", "huntu", "amigro"]
+    ) \
+    .register_assessment(
+        "mobility_analysis",
+        "🚀 Análisis de Movilidad",
+        "Evalúa tu disposición y capacidad para la movilidad laboral",
+        "🚀",
+        "evaluations",
+        "handle_mobility_assessment",
+        ["can_take_assessments"],
+        ["amigro"]
+    ) \
+    .register_assessment(
+        "generational_analysis",
+        "👥 Análisis Generacional",
+        "Descubre cómo tu generación influye en tu perfil laboral",
+        "👥",
+        "evaluations",
+        "handle_generational_assessment",
+        ["can_take_assessments"],
+        ["amigro"]
+    ) \
+    .register_assessment(
+        "motivational_analysis",
+        "💪 Análisis Motivacional",
+        "Identifica tus motivadores principales en el trabajo",
+        "💪",
+        "evaluations",
+        "handle_motivational_assessment",
+        ["can_take_assessments"],
+        ["huntred", "huntred_executive", "huntu", "amigro"]
+    ) \
+    .register_assessment(
+        "leadership_style",
+        "👑 Estilo de Liderazgo",
+        "Descubre tu estilo de liderazgo natural y potencial",
+        "👑",
+        "evaluations",
+        "handle_leadership_assessment",
+        ["can_take_assessments"],
+        ["huntred", "huntred_executive"]
+    )
+
+# Registrar workflows de aplicación
+menu_system \
+    .register_workflow(
+        "apply_vacancy",
+        "📝 Aplicar a Vacante",
+        "Inicia el proceso de aplicación a una vacante específica",
+        "📝",
+        "application",
+        "handle_apply_vacancy_workflow",
+        ["can_apply"],
+        ["huntred", "huntred_executive", "huntu", "amigro"]
+    ) \
+    .register_workflow(
+        "track_application",
+        "📊 Seguimiento de Aplicación",
+        "Revisa el estado de tus aplicaciones activas",
+        "📊",
+        "application",
+        "handle_track_application_workflow",
+        ["can_track"],
+        ["huntred", "huntred_executive", "huntu", "amigro"]
+    ) \
+    .register_workflow(
+        "update_profile",
+        "✏️ Actualizar Perfil",
+        "Actualiza tu información profesional",
+        "✏️",
+        "profile",
+        "handle_update_profile_workflow",
+        ["can_update_profile"],
+        ["huntred", "huntred_executive", "huntu", "amigro"]
+    )
+
+# Registrar acciones de cálculo de salario
+menu_system \
+    .register_action(
+        "net_to_gross",
+        "💵 Neto a Bruto",
+        "Calcula el salario bruto a partir del neto",
+        "💵",
+        "salary",
+        "handle_net_to_gross_calculation",
+        ["can_calculate_salary"],
+        ["huntred", "huntred_executive", "huntu", "amigro"]
+    ) \
+    .register_action(
+        "gross_to_net",
+        "💵 Bruto a Neto",
+        "Calcula el salario neto a partir del bruto",
+        "💵",
+        "salary",
+        "handle_gross_to_net_calculation",
+        ["can_calculate_salary"],
+        ["huntred", "huntred_executive", "huntu", "amigro"]
+    ) \
+    .register_action(
+        "benefits_calculator",
+        "🎁 Calculadora de Beneficios",
+        "Calcula el valor total de tu paquete de beneficios",
+        "🎁",
+        "salary",
+        "handle_benefits_calculation",
+        ["can_calculate_salary"],
+        ["huntred", "huntred_executive", "huntu", "amigro"]
+    )
+
+# Registrar acciones de entrevistas
+menu_system \
+    .register_action(
+        "schedule_interview",
+        "📅 Agendar Entrevista",
+        "Programa una nueva entrevista",
+        "📅",
+        "interviews",
+        "handle_schedule_interview",
+        ["can_schedule_interview"],
+        ["huntred", "huntred_executive", "huntu", "amigro"]
+    ) \
+    .register_action(
+        "reschedule_interview",
+        "🔄 Reprogramar Entrevista",
+        "Cambia la fecha de una entrevista programada",
+        "🔄",
+        "interviews",
+        "handle_reschedule_interview",
+        ["can_reschedule_interview"],
+        ["huntred", "huntred_executive", "huntu", "amigro"]
+    ) \
+    .register_action(
+        "cancel_interview",
+        "❌ Cancelar Entrevista",
+        "Cancela una entrevista programada",
+        "❌",
+        "interviews",
+        "handle_cancel_interview",
+        ["can_cancel_interview"],
+        ["huntred", "huntred_executive", "huntu", "amigro"]
+    ) \
+    .register_action(
+        "interview_preparation",
+        "📚 Preparación para Entrevista",
+        "Obtén consejos y recursos para prepararte",
+        "📚",
+        "interviews",
+        "handle_interview_preparation",
+        ["can_prepare_interview"],
+        ["huntred", "huntred_executive", "huntu", "amigro"]
+    )
+
+# Registrar acciones de matchmaking
+menu_system \
+    .register_action(
+        "find_matches",
+        "🎯 Encontrar Coincidencias",
+        "Descubre oportunidades que coinciden con tu perfil",
+        "🎯",
+        "matchmaking",
+        "handle_find_matches",
+        ["can_find_matches"],
+        ["huntred", "huntred_executive", "huntu", "amigro"]
+    ) \
+    .register_action(
+        "update_preferences",
+        "⚙️ Actualizar Preferencias",
+        "Modifica tus preferencias de búsqueda",
+        "⚙️",
+        "matchmaking",
+        "handle_update_preferences",
+        ["can_update_preferences"],
+        ["huntred", "huntred_executive", "huntu", "amigro"]
+    ) \
+    .register_action(
+        "save_job_alert",
+        "🔔 Crear Alerta de Trabajo",
+        "Recibe notificaciones de nuevas oportunidades",
+        "🔔",
+        "matchmaking",
+        "handle_save_job_alert",
+        ["can_create_alerts"],
+        ["huntred", "huntred_executive", "huntu", "amigro"]
+    )
+
+# Registrar acciones de soporte
+menu_system \
+    .register_action(
+        "contact_support",
+        "📞 Contactar Soporte",
+        "Habla directamente con nuestro equipo de soporte",
+        "📞",
+        "support",
+        "handle_contact_support",
+        ["can_contact_support"],
+        ["huntred", "huntred_executive", "huntu", "amigro", "sexsi"]
+    ) \
+    .register_action(
+        "faq",
+        "❓ Preguntas Frecuentes",
+        "Encuentra respuestas a preguntas comunes",
+        "❓",
+        "support",
+        "handle_faq",
+        ["can_access_faq"],
+        ["huntred", "huntred_executive", "huntu", "amigro", "sexsi"]
+    ) \
+    .register_action(
+        "report_issue",
+        "🐛 Reportar Problema",
+        "Reporta un problema técnico o de servicio",
+        "🐛",
+        "support",
+        "handle_report_issue",
+        ["can_report_issues"],
+        ["huntred", "huntred_executive", "huntu", "amigro", "sexsi"]
     )
 
 # Funciones helper

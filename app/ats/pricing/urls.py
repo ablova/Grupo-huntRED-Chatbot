@@ -10,6 +10,7 @@ sistema de retroalimentación para comprender por qué los clientes contratan o 
 from django.urls import path
 from app.ats.pricing import views
 from app.ats.pricing import feedback_views
+from app.ats.pricing.views import update_company_contacts
 
 app_name = 'pricing'
 
@@ -109,4 +110,5 @@ urlpatterns = [
     path('wordpress/sync/', views.wordpress_sync_dashboard, name='wordpress_sync_dashboard'),
     path('wordpress/sync/all/', views.sync_all_wordpress, name='sync_all_wordpress'),
     path('wordpress/sync/pricing/', views.sync_pricing_wordpress, name='sync_pricing_wordpress'),
+    path('company/<int:company_id>/update-contacts/', update_company_contacts, name='update_company_contacts'),
 ]

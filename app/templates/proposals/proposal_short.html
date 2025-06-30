@@ -63,6 +63,24 @@
             <li>Vigencia: 15 días naturales.</li>
             <li>Para dudas o ajustes, contáctanos a <a href="mailto:hola@huntred.com">hola@huntred.com</a></li>
         </ul>
+
+        <div class="section-title">Contactos Clave y Notificaciones</div>
+        <table class="summary-table">
+            <tr><th>Firmante de propuesta</th><td>{{ company.signer.nombre }} ({{ company.signer.company_email }})</td></tr>
+            <tr><th>Responsable de pagos</th><td>{{ company.payment_responsible.nombre }} ({{ company.payment_responsible.company_email }})</td></tr>
+            <tr><th>Responsable fiscal</th><td>{{ company.fiscal_responsible.nombre }} ({{ company.fiscal_responsible.company_email }})</td></tr>
+            <tr><th>Responsable del proceso</th><td>{{ company.process_responsible.nombre }} ({{ company.process_responsible.company_email }})</td></tr>
+            <tr><th>Invitados a reportes</th><td>
+                {% for p in company.report_invitees.all %}
+                    {{ p.nombre }} ({{ p.company_email }}){% if not forloop.last %}, {% endif %}
+                {% empty %}No hay invitados definidos.{% endfor %}
+            </td></tr>
+            <tr><th>Preferencias de notificación</th><td>
+                {% if company.notification_preferences %}
+                    <pre style="font-size: 0.95em; background: #f8f8f8; padding: 8px; border-radius: 4px;">{{ company.notification_preferences|safe }}</pre>
+                {% else %}No definidas.{% endif %}
+            </td></tr>
+        </table>
     </div>
     <div class="footer">
         <span>© {{ year }} Grupo huntRED®. Todos los derechos reservados.</span>

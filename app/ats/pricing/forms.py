@@ -14,7 +14,7 @@ from django.forms.widgets import TextInput, Textarea, Select, CheckboxInput, Num
 from django.db.models import Q
 
 from app.models import (
-    BusinessUnit, Opportunity, Contact, Company, 
+    BusinessUnit, Opportunity, Person, Company, 
     TalentAnalysisRequest
 )
 from app.ats.pricing.models import (
@@ -36,7 +36,7 @@ class Talent360RequestForm(forms.ModelForm):
     )
     
     contact = forms.ModelChoiceField(
-        queryset=Contact.objects.all(),
+        queryset=Person.objects.all(),
         label="Contacto",
         required=False,
         widget=Select(attrs={'class': 'form-select select2'})
@@ -105,7 +105,7 @@ class Talent360RequestForm(forms.ModelForm):
         if 'company' in self.data:
             try:
                 company_id = int(self.data.get('company'))
-                self.fields['contact'].queryset = Contact.objects.filter(company_id=company_id)
+                self.fields['contact'].queryset = Person.objects.filter(company_id=company_id)
             except (ValueError, TypeError):
                 pass
     
@@ -163,9 +163,17 @@ class Talent360RequestForm(forms.ModelForm):
 class CompanyForm(forms.ModelForm):
     """Formulario para crear/editar empresas."""
     
+    signer = forms.ModelChoiceField(queryset=Person.objects.all(), required=False, label="Firmante de propuesta")
+    payment_responsible = forms.ModelChoiceField(queryset=Person.objects.all(), required=False, label="Responsable de pagos")
+    fiscal_responsible = forms.ModelChoiceField(queryset=Person.objects.all(), required=False, label="Responsable fiscal")
+    process_responsible = forms.ModelChoiceField(queryset=Person.objects.all(), required=False, label="Responsable del proceso")
+    report_invitees = forms.ModelMultipleChoiceField(queryset=Person.objects.all(), required=False, label="Invitados a reportes")
+    notification_preferences = forms.CharField(required=False, label="Preferencias de notificación", widget=Textarea(attrs={'class': 'form-control', 'rows': 2}))
+
     class Meta:
         model = Company
-        fields = ['name', 'legal_name', 'tax_id', 'industry', 'size', 'website', 'address', 'city', 'state', 'country']
+        fields = ['name', 'legal_name', 'tax_id', 'industry', 'size', 'website', 'address', 'city', 'state', 'country',
+                  'signer', 'payment_responsible', 'fiscal_responsible', 'process_responsible', 'report_invitees', 'notification_preferences']
         widgets = {
             'name': TextInput(attrs={'class': 'form-control'}),
             'legal_name': TextInput(attrs={'class': 'form-control'}),
@@ -177,22 +185,6 @@ class CompanyForm(forms.ModelForm):
             'city': TextInput(attrs={'class': 'form-control'}),
             'state': TextInput(attrs={'class': 'form-control'}),
             'country': Select(attrs={'class': 'form-select'}),
-        }
-
-
-class ContactForm(forms.ModelForm):
-    """Formulario para crear/editar contactos."""
-    
-    class Meta:
-        model = Contact
-        fields = ['name', 'position', 'email', 'phone', 'company', 'is_primary']
-        widgets = {
-            'name': TextInput(attrs={'class': 'form-control'}),
-            'position': TextInput(attrs={'class': 'form-control'}),
-            'email': TextInput(attrs={'class': 'form-control', 'type': 'email'}),
-            'phone': TextInput(attrs={'class': 'form-control'}),
-            'company': Select(attrs={'class': 'form-select select2'}),
-            'is_primary': CheckboxInput(attrs={'class': 'form-check-input'}),
         }
 
 

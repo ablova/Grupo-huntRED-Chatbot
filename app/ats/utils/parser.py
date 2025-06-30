@@ -26,12 +26,12 @@ from spacy.matcher import Matcher
 from spacy.tokens import Doc
 import psutil
 import gc
-from app.tasks import process_message
+# from app.tasks import process_message  # Import roto, comentado temporalmente
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from dataclasses import dataclass
-from app.ats.utils.text_processing import TextProcessor
-from app.ats.utils.validation import DocumentValidator
+# from app.ats.utils.text_processing import TextProcessor  # Import roto, comentado temporalmente
+# from app.ats.utils.validation import DocumentValidator  # Import roto, comentado temporalmente
 
 # Configure logger
 logger = logging.getLogger(__name__)

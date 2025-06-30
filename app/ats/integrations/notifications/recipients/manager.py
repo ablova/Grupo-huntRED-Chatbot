@@ -290,6 +290,46 @@ class ManagerNotifier:
             channels=['email']
         )
     
+    async def send_weekly_report(self, report_data, recipients=None, context_extra=None):
+        context = {
+            'manager': {'name': self.manager.nombre},
+            'report': report_data
+        }
+        if context_extra:
+            context.update(context_extra)
+        if recipients is None:
+            recipients = [self.manager]
+        results = {}
+        for recipient in recipients:
+            results[recipient.email] = await self.notification_service.send_notification(
+                recipient=recipient,
+                template_name='weekly_report',
+                context=context,
+                channels=['email'],
+                business_unit=self.business_unit
+            )
+        return results
+
+    async def send_internal_payment_alert(self, alert_type, client, due_date, amount, context_extra=None):
+        context = {
+            'manager': {'name': self.manager.nombre},
+            'client': {'name': client.nombre},
+            'alert': {
+                'type': alert_type,
+                'due_date': due_date,
+                'amount': amount
+            }
+        }
+        if context_extra:
+            context.update(context_extra)
+        return await self.notification_service.send_notification(
+            recipient=self.manager,
+            template_name='internal_payment_alert',
+            context=context,
+            channels=['email', 'whatsapp'],
+            business_unit=self.business_unit
+        )
+    
     # Helper methods
     
     async def _get_business_unit_context(self) -> Dict[str, str]:

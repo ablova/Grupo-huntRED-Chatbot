@@ -1,0 +1,392 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es" data-theme="{{ theme|default:'default' }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    
+    <!-- Meta tags dinámicos -->
+    <title>{% block title %}Grupo huntRED® - Sistema Unificado{% endblock %}</title>
+    <meta name="description" content="{% block description %}Sistema avanzado de reclutamiento y gestión de talento{% endblock %}">
+    <meta name="keywords" content="{% block keywords %}reclutamiento, talento, huntRED, IA, automatización{% endblock %}">
+    
+    <!-- Open Graph -->
+    <meta property="og:title" content="{% block og_title %}{{ block.super }}{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}{{ block.super }}{% endblock %}">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ request.build_absolute_uri }}">
+    <meta property="og:image" content="{% static 'images/huntred-logo.png' %}">
+    
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{% block twitter_title %}{{ block.super }}{% endblock %}">
+    <meta name="twitter:description" content="{% block twitter_description %}{{ block.super }}{% endblock %}">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="{% static 'images/favicon.ico' %}">
+    <link rel="apple-touch-icon" href="{% static 'images/apple-touch-icon.png' %}">
+    
+    <!-- Preload crítico -->
+    <link rel="preload" href="{% static 'css/modern-ui-system.css' %}" as="style">
+    <link rel="preload" href="{% static 'fonts/inter.css' %}" as="style">
+    
+    <!-- CSS Crítico -->
+    <style>
+        /* CSS crítico inline para renderizado rápido */
+        :root {
+            --primary-500: #2563eb;
+            --secondary-500: #10b981;
+            --accent-500: #f59e0b;
+            --bg-primary: #ffffff;
+            --text-primary: #1f2937;
+            --border-color: #e5e7eb;
+        }
+        
+        [data-theme="dark"] {
+            --bg-primary: #0a0a0a;
+            --text-primary: #ffffff;
+            --border-color: #404040;
+        }
+        
+        * {
+            box-sizing: border-box;
+        }
+        
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+        
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: linear-gradient(135deg, var(--primary-500), var(--secondary-500));
+        }
+        
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+    
+    <!-- CSS Principal -->
+    <link rel="stylesheet" href="{% static 'css/modern-ui-system.css' %}">
+    <link rel="stylesheet" href="{% static 'css/advanced-ui.css' %}">
+    <link rel="stylesheet" href="{% static 'fonts/inter.css' %}">
+    <link rel="stylesheet" href="{% static 'vendor/fontawesome/css/all.min.css' %}">
+    
+    <!-- CSS específico de página -->
+    {% block extra_css %}{% endblock %}
+    
+    <!-- Configuración del tema -->
+    <script>
+        // Configuración del sistema unificado
+        window.HuntREDConfig = {
+            theme: '{{ theme|default:"default" }}',
+            enableAnimations: {{ enable_animations|default:"true" }},
+            enableResponsive: {{ enable_responsive|default:"true" }},
+            enableDarkMode: {{ enable_dark_mode|default:"true" }},
+            apiEndpoint: '{{ api_endpoint|default:"/api/" }}',
+            csrfToken: '{{ csrf_token }}',
+            sessionId: '{{ session_id|default:"" }}'
+        };
+        
+        // Detectar preferencia de tema
+        if (window.HuntREDConfig.enableDarkMode) {
+            const savedTheme = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            
+            if (savedTheme) {
+                document.documentElement.setAttribute('data-theme', savedTheme);
+            } else if (prefersDark) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            }
+        }
+    </script>
+</head>
+
+<body class="modern-body">
+    <!-- Loading inicial -->
+    <div id="loading-screen" class="loading">
+        <div class="loading-spinner"></div>
+    </div>
+    
+    <!-- Contenido principal -->
+    <div id="app" class="app-container" style="display: none;">
+        <!-- Header -->
+        {% block header %}
+        <header class="header-modern">
+            <div class="header-container">
+                <div class="header-brand">
+                    <img src="{% static 'images/GhuntRED.png' %}" alt="Grupo huntRED®" class="brand-logo">
+                    <span class="brand-text">Grupo huntRED®</span>
+                </div>
+                
+                <nav class="header-nav">
+                    {% block navigation %}
+                    <a href="{% url 'dashboard' %}" class="nav-link">
+                        <i class="fas fa-tachometer-alt"></i>
+                        <span>Dashboard</span>
+                    </a>
+                    <a href="{% url 'candidates' %}" class="nav-link">
+                        <i class="fas fa-users"></i>
+                        <span>Candidatos</span>
+                    </a>
+                    <a href="{% url 'jobs' %}" class="nav-link">
+                        <i class="fas fa-briefcase"></i>
+                        <span>Vacantes</span>
+                    </a>
+                    <a href="{% url 'analytics' %}" class="nav-link">
+                        <i class="fas fa-chart-line"></i>
+                        <span>Analytics</span>
+                    </a>
+                    {% endblock %}
+                </nav>
+                
+                <div class="header-actions">
+                    <!-- Theme Toggle -->
+                    {% if enable_dark_mode %}
+                    <button id="theme-toggle" class="btn-modern btn-ghost btn-sm">
+                        <i class="fas fa-moon dark-icon"></i>
+                        <i class="fas fa-sun light-icon" style="display: none;"></i>
+                    </button>
+                    {% endif %}
+                    
+                    <!-- User Menu -->
+                    <div class="user-menu">
+                        <button class="user-menu-toggle">
+                            <img src="{% static 'images/avatar-default.png' %}" alt="Usuario" class="user-avatar">
+                            <span class="user-name">{{ user.get_full_name|default:user.username }}</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                        
+                        <div class="user-menu-dropdown">
+                            <a href="{% url 'profile' %}" class="dropdown-item">
+                                <i class="fas fa-user"></i>
+                                <span>Perfil</span>
+                            </a>
+                            <a href="{% url 'settings' %}" class="dropdown-item">
+                                <i class="fas fa-cog"></i>
+                                <span>Configuración</span>
+                            </a>
+                            <hr class="dropdown-divider">
+                            <a href="{% url 'logout' %}" class="dropdown-item">
+                                <i class="fas fa-sign-out-alt"></i>
+                                <span>Cerrar Sesión</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+        {% endblock %}
+        
+        <!-- Sidebar -->
+        {% block sidebar %}
+        <aside class="sidebar-modern">
+            <div class="sidebar-content">
+                <nav class="sidebar-nav">
+                    <div class="nav-section">
+                        <h3 class="nav-section-title">Principal</h3>
+                        <a href="{% url 'dashboard' %}" class="nav-item">
+                            <i class="fas fa-tachometer-alt"></i>
+                            <span>Dashboard</span>
+                        </a>
+                        <a href="{% url 'overview' %}" class="nav-item">
+                            <i class="fas fa-chart-pie"></i>
+                            <span>Vista General</span>
+                        </a>
+                    </div>
+                    
+                    <div class="nav-section">
+                        <h3 class="nav-section-title">Reclutamiento</h3>
+                        <a href="{% url 'candidates' %}" class="nav-item">
+                            <i class="fas fa-users"></i>
+                            <span>Candidatos</span>
+                        </a>
+                        <a href="{% url 'jobs' %}" class="nav-item">
+                            <i class="fas fa-briefcase"></i>
+                            <span>Vacantes</span>
+                        </a>
+                        <a href="{% url 'applications' %}" class="nav-item">
+                            <i class="fas fa-file-alt"></i>
+                            <span>Aplicaciones</span>
+                        </a>
+                        <a href="{% url 'interviews' %}" class="nav-item">
+                            <i class="fas fa-calendar-check"></i>
+                            <span>Entrevistas</span>
+                        </a>
+                    </div>
+                    
+                    <div class="nav-section">
+                        <h3 class="nav-section-title">Inteligencia</h3>
+                        <a href="{% url 'aura' %}" class="nav-item">
+                            <i class="fas fa-brain"></i>
+                            <span>AURA</span>
+                        </a>
+                        <a href="{% url 'genia' %}" class="nav-item">
+                            <i class="fas fa-robot"></i>
+                            <span>GenIA</span>
+                        </a>
+                        <a href="{% url 'scraping' %}" class="nav-item">
+                            <i class="fas fa-spider"></i>
+                            <span>Scraping</span>
+                        </a>
+                    </div>
+                    
+                    <div class="nav-section">
+                        <h3 class="nav-section-title">Analytics</h3>
+                        <a href="{% url 'analytics' %}" class="nav-item">
+                            <i class="fas fa-chart-line"></i>
+                            <span>Métricas</span>
+                        </a>
+                        <a href="{% url 'reports' %}" class="nav-item">
+                            <i class="fas fa-file-chart-line"></i>
+                            <span>Reportes</span>
+                        </a>
+                        <a href="{% url 'insights' %}" class="nav-item">
+                            <i class="fas fa-lightbulb"></i>
+                            <span>Insights</span>
+                        </a>
+                    </div>
+                </nav>
+            </div>
+        </aside>
+        {% endblock %}
+        
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Breadcrumbs -->
+            {% block breadcrumbs %}
+            <nav class="breadcrumb-modern">
+                <ol class="breadcrumb-list">
+                    <li class="breadcrumb-item">
+                        <a href="{% url 'dashboard' %}">Inicio</a>
+                    </li>
+                    {% block breadcrumb_items %}{% endblock %}
+                </ol>
+            </nav>
+            {% endblock %}
+            
+            <!-- Page Header -->
+            {% block page_header %}
+            <div class="page-header">
+                <div class="page-header-content">
+                    <h1 class="page-title">{% block page_title %}Página{% endblock %}</h1>
+                    <p class="page-description">{% block page_description %}{% endblock %}</p>
+                </div>
+                
+                <div class="page-header-actions">
+                    {% block page_actions %}{% endblock %}
+                </div>
+            </div>
+            {% endblock %}
+            
+            <!-- Content -->
+            <div class="content-wrapper">
+                {% block content %}
+                <!-- Contenido específico de la página -->
+                {% endblock %}
+            </div>
+        </main>
+    </div>
+    
+    <!-- Notifications Container -->
+    <div id="notification-container" class="notification-container"></div>
+    
+    <!-- Modals Container -->
+    <div id="modal-container" class="modal-container"></div>
+    
+    <!-- JavaScript Principal -->
+    <script src="{% static 'js/utils.js' %}"></script>
+    <script src="{% static 'js/modern-ui-system.js' %}"></script>
+    <script src="{% static 'js/analytics.js' %}"></script>
+    
+    <!-- JavaScript específico de página -->
+    {% block extra_js %}{% endblock %}
+    
+    <!-- Inicialización -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Ocultar loading y mostrar app
+            document.getElementById('loading-screen').style.display = 'none';
+            document.getElementById('app').style.display = 'block';
+            
+            // Inicializar sistema moderno
+            if (window.ModernUI) {
+                window.ModernUI.init();
+            }
+            
+            // Inicializar analytics
+            if (window.Analytics) {
+                window.Analytics.init();
+            }
+            
+            // Configurar theme toggle
+            const themeToggle = document.getElementById('theme-toggle');
+            if (themeToggle) {
+                themeToggle.addEventListener('click', function() {
+                    const currentTheme = document.documentElement.getAttribute('data-theme');
+                    const newTheme = currentTheme === 'dark' ? 'default' : 'dark';
+                    
+                    document.documentElement.setAttribute('data-theme', newTheme);
+                    localStorage.setItem('theme', newTheme);
+                    
+                    // Actualizar iconos
+                    const darkIcon = themeToggle.querySelector('.dark-icon');
+                    const lightIcon = themeToggle.querySelector('.light-icon');
+                    
+                    if (newTheme === 'dark') {
+                        darkIcon.style.display = 'none';
+                        lightIcon.style.display = 'inline';
+                    } else {
+                        darkIcon.style.display = 'inline';
+                        lightIcon.style.display = 'none';
+                    }
+                });
+            }
+            
+            // Configurar user menu
+            const userMenuToggle = document.querySelector('.user-menu-toggle');
+            const userMenuDropdown = document.querySelector('.user-menu-dropdown');
+            
+            if (userMenuToggle && userMenuDropdown) {
+                userMenuToggle.addEventListener('click', function() {
+                    userMenuDropdown.classList.toggle('show');
+                });
+                
+                // Cerrar al hacer click fuera
+                document.addEventListener('click', function(e) {
+                    if (!userMenuToggle.contains(e.target)) {
+                        userMenuDropdown.classList.remove('show');
+                    }
+                });
+            }
+            
+            // Track página
+            if (window.Analytics) {
+                window.Analytics.trackPageView();
+            }
+        });
+    </script>
+    
+    <!-- Configuración adicional -->
+    {% block extra_config %}{% endblock %}
+</body>
+</html> 

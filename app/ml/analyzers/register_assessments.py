@@ -100,6 +100,70 @@ def register_assessments():
         )
     )
     
+    # Registrar assessment de movilidad (Amigro)
+    assessment_registry.register_assessment(
+        AssessmentType.MOBILITY,
+        None,  # TODO: Implementar MobilityAssessment
+        AssessmentMetadata(
+            type=AssessmentType.MOBILITY,
+            name="Análisis de Movilidad",
+            description="Evalúa disposición y capacidad para la movilidad laboral",
+            version="1.0.0",
+            required_fields=["responses", "mobility_preferences"],
+            output_fields=["mobility_score", "preferences", "recommendations"],
+            ml_model="mobility_model",
+            dependencies=[]
+        )
+    )
+    
+    # Registrar assessment generacional (Amigro)
+    assessment_registry.register_assessment(
+        AssessmentType.GENERATIONAL,
+        None,  # TODO: Implementar GenerationalAssessment
+        AssessmentMetadata(
+            type=AssessmentType.GENERATIONAL,
+            name="Análisis Generacional",
+            description="Descubre cómo tu generación influye en tu perfil laboral",
+            version="1.0.0",
+            required_fields=["responses", "generation"],
+            output_fields=["generational_traits", "work_style", "insights"],
+            ml_model="generational_model",
+            dependencies=[]
+        )
+    )
+    
+    # Registrar assessment de liderazgo (huntRED Executive)
+    assessment_registry.register_assessment(
+        AssessmentType.LEADERSHIP,
+        None,  # TODO: Implementar LeadershipAssessment
+        AssessmentMetadata(
+            type=AssessmentType.LEADERSHIP,
+            name="Estilo de Liderazgo",
+            description="Descubre tu estilo de liderazgo natural y potencial",
+            version="1.0.0",
+            required_fields=["responses", "leadership_experience"],
+            output_fields=["leadership_style", "strengths", "development_areas"],
+            ml_model="leadership_model",
+            dependencies=["personality", "professional"]
+        )
+    )
+    
+    # Registrar assessment motivacional
+    assessment_registry.register_assessment(
+        AssessmentType.MOTIVATIONAL,
+        None,  # TODO: Implementar MotivationalAssessment
+        AssessmentMetadata(
+            type=AssessmentType.MOTIVATIONAL,
+            name="Análisis Motivacional",
+            description="Identifica tus motivadores principales en el trabajo",
+            version="1.0.0",
+            required_fields=["responses", "work_preferences"],
+            output_fields=["motivators", "drivers", "recommendations"],
+            ml_model="motivational_model",
+            dependencies=[]
+        )
+    )
+    
     logger.info("Assessments registrados exitosamente")
 
 def register_ml_models():
@@ -121,17 +185,84 @@ def register_ml_models():
     integrated_model = IntegratedModel()
     assessment_registry.register_ml_model("integrated_analysis", integrated_model)
     
+    # Registrar modelo de talento
+    talent_model = TalentModel()
+    assessment_registry.register_ml_model("talent_model", talent_model)
+    
+    # Registrar modelos específicos por Business Unit
+    try:
+        from app.ml.core.models.assessments.mobility_model import MobilityModel
+        mobility_model = MobilityModel()
+        assessment_registry.register_ml_model("mobility_model", mobility_model)
+    except ImportError:
+        logger.warning("MobilityModel no disponible")
+    
+    try:
+        from app.ml.core.models.assessments.generational_model import GenerationalModel
+        generational_model = GenerationalModel()
+        assessment_registry.register_ml_model("generational_model", generational_model)
+    except ImportError:
+        logger.warning("GenerationalModel no disponible")
+    
+    try:
+        from app.ml.core.models.assessments.leadership_model import LeadershipModel
+        leadership_model = LeadershipModel()
+        assessment_registry.register_ml_model("leadership_model", leadership_model)
+    except ImportError:
+        logger.warning("LeadershipModel no disponible")
+    
+    try:
+        from app.ml.core.models.assessments.motivational_model import MotivationalModel
+        motivational_model = MotivationalModel()
+        assessment_registry.register_ml_model("motivational_model", motivational_model)
+    except ImportError:
+        logger.warning("MotivationalModel no disponible")
+    
     logger.info("Modelos ML registrados exitosamente")
 
 def initialize_assessment_system():
-    """Inicializa el sistema de assessments."""
+    """Inicializa todo el sistema de assessments."""
     try:
+        # Registrar assessments
         register_assessments()
+        
+        # Registrar modelos ML
         register_ml_models()
+        
+        # Verificar integridad del sistema
+        verify_system_integrity()
+        
         logger.info("Sistema de assessments inicializado exitosamente")
+        return True
+        
     except Exception as e:
         logger.error(f"Error inicializando sistema de assessments: {str(e)}")
-        raise
+        return False
+
+def verify_system_integrity():
+    """Verifica la integridad del sistema de assessments."""
+    try:
+        # Verificar que todos los assessments tengan sus modelos ML correspondientes
+        for assessment_type in AssessmentType:
+            metadata = assessment_registry.get_assessment_metadata(assessment_type)
+            if metadata and metadata.ml_model:
+                model = assessment_registry.get_ml_model(metadata.ml_model)
+                if not model:
+                    logger.warning(f"Assessment {assessment_type.value} requiere modelo ML '{metadata.ml_model}' no registrado")
+        
+        # Verificar dependencias
+        for assessment_type in AssessmentType:
+            metadata = assessment_registry.get_assessment_metadata(assessment_type)
+            if metadata and metadata.dependencies:
+                for dep in metadata.dependencies:
+                    dep_metadata = assessment_registry.get_assessment_metadata(AssessmentType(dep))
+                    if not dep_metadata:
+                        logger.warning(f"Assessment {assessment_type.value} depende de '{dep}' no registrado")
+        
+        logger.info("Verificación de integridad del sistema completada")
+        
+    except Exception as e:
+        logger.error(f"Error en verificación de integridad: {str(e)}")
 
 if __name__ == "__main__":
     initialize_assessment_system() 

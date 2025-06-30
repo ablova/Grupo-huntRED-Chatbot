@@ -2312,7 +2312,7 @@
                 `;
 
                 // Calculate ROI
-                const avgSalary = {{ pricing.items|first.salary_parameters.max|default:50000 }};
+                const avgSalary = 50000;
                 const badHireCost = avgSalary * 5;
                 const roiPercentage = totalInvestment > 0 ? ((badHireCost - totalInvestment) / totalInvestment * 100).toFixed(2) : 0;
 
@@ -4024,5 +4024,23 @@
         });
     });
 </script>
+
+<div class="section-title" style="margin-top: 32px; color: #b00; font-size: 1.2em; font-weight: bold;">Contactos Clave y Notificaciones</div>
+<table class="summary-table" style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
+    <tr><th>Firmante de propuesta</th><td>{{ company.signer.nombre }} ({{ company.signer.company_email }})</td></tr>
+    <tr><th>Responsable de pagos</th><td>{{ company.payment_responsible.nombre }} ({{ company.payment_responsible.company_email }})</td></tr>
+    <tr><th>Responsable fiscal</th><td>{{ company.fiscal_responsible.nombre }} ({{ company.fiscal_responsible.company_email }})</td></tr>
+    <tr><th>Responsable del proceso</th><td>{{ company.process_responsible.nombre }} ({{ company.process_responsible.company_email }})</td></tr>
+    <tr><th>Invitados a reportes</th><td>
+        {% for p in company.report_invitees.all %}
+            {{ p.nombre }} ({{ p.company_email }}){% if not forloop.last %}, {% endif %}
+        {% empty %}No hay invitados definidos.{% endfor %}
+    </td></tr>
+    <tr><th>Preferencias de notificación</th><td>
+        {% if company.notification_preferences %}
+            <pre style="font-size: 0.95em; background: #f8f8f8; padding: 8px; border-radius: 4px;">{{ company.notification_preferences|safe }}</pre>
+        {% else %}No definidas.{% endif %}
+    </td></tr>
+</table>
 </body>
 </html>

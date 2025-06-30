@@ -117,7 +117,13 @@ def create_proposal(request):
     context = {
         'templates': ProposalTemplate.objects.filter(
             business_unit__in=request.user.business_units.all()
-        )
+        ),
+        'signer': request.user.signer,
+        'payment_responsible': request.user.payment_responsible,
+        'fiscal_responsible': request.user.fiscal_responsible,
+        'process_responsible': request.user.process_responsible,
+        'report_invitees': request.user.report_invitees,
+        'notification_preferences': request.user.notification_preferences,
     }
     return render(request, 'pricing/create_proposal.html', context)
 
@@ -132,7 +138,13 @@ def proposal_detail(request, proposal_id):
     )
     context = {
         'proposal': proposal,
-        'sections': proposal.secciones.all().order_by('orden')
+        'sections': proposal.secciones.all().order_by('orden'),
+        'signer': proposal.oportunidad.empleador.persona.signer,
+        'payment_responsible': proposal.oportunidad.empleador.persona.payment_responsible,
+        'fiscal_responsible': proposal.oportunidad.empleador.persona.fiscal_responsible,
+        'process_responsible': proposal.oportunidad.empleador.persona.process_responsible,
+        'report_invitees': proposal.oportunidad.empleador.persona.report_invitees,
+        'notification_preferences': proposal.oportunidad.empleador.persona.notification_preferences,
     }
     return render(request, 'pricing/proposal_detail.html', context)
 
@@ -257,6 +269,12 @@ class Talent360RequestCreateView(LoginRequiredMixin, CreateView):
         # Formularios para crear empresa y contacto en la misma vista
         context['company_form'] = CompanyForm()
         context['contact_form'] = ContactForm()
+        context['signer'] = self.request.user.signer
+        context['payment_responsible'] = self.request.user.payment_responsible
+        context['fiscal_responsible'] = self.request.user.fiscal_responsible
+        context['process_responsible'] = self.request.user.process_responsible
+        context['report_invitees'] = self.request.user.report_invitees
+        context['notification_preferences'] = self.request.user.notification_preferences
         return context
     
     def form_valid(self, form):
@@ -1701,3 +1719,26 @@ def sync_pricing_wordpress(request):
         messages.error(request, f'Error en sincronización: {str(e)}')
     
     return redirect('pricing:wordpress_sync_dashboard')
+
+
+@login_required
+def update_company_contacts(request, company_id):
+    company = get_object_or_404(Company, id=company_id)
+    if not (request.user.is_superuser or request.user.is_staff or request.user == company.account_manager):
+        messages.error(request, "No tienes permisos para editar los contactos de esta empresa.")
+        return redirect(request.META.get('HTTP_REFERER', '/'))
+
+    if request.method == 'POST':
+        form = CompanyForm(request.POST, instance=company)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Contactos y notificaciones actualizados correctamente.")
+            return redirect(request.META.get('HTTP_REFERER', '/'))
+    else:
+        form = CompanyForm(instance=company)
+
+    return render(request, 'proposals/proposal_template.html', {
+        'company': company,
+        'form': form,
+        # Agrega aquí otros contextos necesarios para la propuesta
+    })

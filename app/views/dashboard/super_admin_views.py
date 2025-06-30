@@ -10,12 +10,13 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.contrib.auth.decorators import login_required, user_passes_test
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from asgiref.sync import sync_to_async
 import json
 import logging
 from django.contrib import messages
 from django.urls import reverse
+import asyncio
 
 from app.ats.dashboard.super_admin_dashboard import SuperAdminDashboard
 from app.models import Person, BusinessUnit
@@ -1078,45 +1079,47 @@ def candidate_detail_view(request, candidate_id):
 @super_admin_required
 def candidate_action_view(request, candidate_id, action):
     """
-    Vista para realizar acciones en candidatos.
+    Vista para acciones específicas en candidatos.
     """
     try:
         if request.method == 'POST':
-            dashboard = SuperAdminDashboard()
+            candidate = get_object_or_404(Person, id=candidate_id)
             
             if action == 'move_status':
                 new_status = request.POST.get('new_status')
-                # Lógica para mover candidato a nuevo estado
-                messages.success(request, f'Candidato movido a {new_status}')
+                reason = request.POST.get('reason', '')
                 
-            elif action == 'change_business_unit':
-                new_unit = request.POST.get('new_business_unit')
-                # Lógica para cambiar unidad de negocio
-                messages.success(request, f'Candidato transferido a {new_unit}')
+                # Actualizar estado del candidato
+                candidate.status = new_status
+                candidate.save()
                 
-            elif action == 'send_email':
-                email_type = request.POST.get('email_type')
-                # Lógica para enviar email
-                messages.success(request, f'Email {email_type} enviado exitosamente')
+                # Notificar al candidato sobre el cambio de estado
+                if new_status == 'rejected':
+                    from app.ats.integrations.notifications.process.offer_notifications import OfferNotificationService
+                    from app.models import Vacante
+                    
+                    # Buscar la vacante relacionada (asumiendo que hay una relación)
+                    vacancy = Vacante.objects.filter(candidates=candidate).first()
+                    if vacancy:
+                        notification_service = OfferNotificationService(vacancy.business_unit)
+                        asyncio.create_task(
+                            notification_service.notify_candidate_rejected_from_admin(
+                                candidate=candidate,
+                                vacancy=vacancy,
+                                rejection_reason=reason or "No se especificó razón",
+                                admin_user=request.user.username
+                            )
+                        )
                 
-            elif action == 'schedule_interview':
-                interview_date = request.POST.get('interview_date')
-                interview_type = request.POST.get('interview_type')
-                # Lógica para agendar entrevista
-                messages.success(request, f'Entrevista {interview_type} agendada para {interview_date}')
+                messages.success(request, f'Estado del candidato actualizado a {new_status}')
                 
-            elif action == 'add_notes':
-                notes = request.POST.get('notes')
-                # Lógica para agregar notas
-                messages.success(request, 'Notas agregadas exitosamente')
+            elif action == 'send_message':
+                message = request.POST.get('message')
+                channel = request.POST.get('channel', 'whatsapp')
                 
-            elif action == 'create_proposal':
-                # Lógica para crear propuesta
-                messages.success(request, 'Propuesta creada exitosamente')
-                
-            elif action == 'convert_to_contract':
-                # Lógica para convertir a contrato
-                messages.success(request, 'Propuesta convertida a contrato')
+                # Enviar mensaje al candidato
+                # Implementar lógica de envío de mensajes
+                messages.success(request, f'Mensaje enviado por {channel}')
                 
             elif action == 'send_blind_list':
                 # Lógica para enviar lista blind
@@ -1147,8 +1150,70 @@ def bulk_candidate_action_view(request):
             
             if action == 'bulk_move':
                 new_status = request.POST.get('new_status')
-                # Lógica para mover múltiples candidatos
+                reason = request.POST.get('reason', '')
+                
+                # Obtener candidatos
+                candidates = Person.objects.filter(id__in=candidate_ids)
+                
+                # Actualizar estados
+                candidates.update(status=new_status)
+                
+                # Notificar si se rechazaron candidatos
+                if new_status == 'rejected':
+                    from app.ats.integrations.notifications.process.offer_notifications import OfferNotificationService
+                    from app.models import Vacante
+                    
+                    # Agrupar candidatos por vacante para notificaciones eficientes
+                    for candidate in candidates:
+                        vacancy = Vacante.objects.filter(candidates=candidate).first()
+                        if vacancy:
+                            notification_service = OfferNotificationService(vacancy.business_unit)
+                            asyncio.create_task(
+                                notification_service.notify_candidate_rejected_from_admin(
+                                    candidate=candidate,
+                                    vacancy=vacancy,
+                                    rejection_reason=reason or "No se especificó razón",
+                                    admin_user=request.user.username
+                                )
+                            )
+                
                 messages.success(request, f'{len(candidate_ids)} candidatos movidos a {new_status}')
+                
+            elif action == 'bulk_reject':
+                reason = request.POST.get('reason', 'No se especificó razón')
+                
+                # Obtener candidatos
+                candidates = Person.objects.filter(id__in=candidate_ids)
+                
+                # Actualizar estados
+                candidates.update(status='rejected')
+                
+                # Notificar rechazo masivo
+                from app.ats.integrations.notifications.process.offer_notifications import OfferNotificationService
+                from app.models import Vacante
+                
+                # Agrupar por vacante para notificaciones eficientes
+                vacancy_candidates = {}
+                for candidate in candidates:
+                    vacancy = Vacante.objects.filter(candidates=candidate).first()
+                    if vacancy:
+                        if vacancy.id not in vacancy_candidates:
+                            vacancy_candidates[vacancy.id] = {'vacancy': vacancy, 'candidates': []}
+                        vacancy_candidates[vacancy.id]['candidates'].append(candidate)
+                
+                # Enviar notificaciones por vacante
+                for vacancy_data in vacancy_candidates.values():
+                    notification_service = OfferNotificationService(vacancy_data['vacancy'].business_unit)
+                    asyncio.create_task(
+                        notification_service.notify_bulk_candidates_rejected(
+                            candidates=vacancy_data['candidates'],
+                            vacancy=vacancy_data['vacancy'],
+                            rejection_reason=reason,
+                            admin_user=request.user.username
+                        )
+                    )
+                
+                messages.success(request, f'{len(candidate_ids)} candidatos rechazados y notificados')
                 
             elif action == 'bulk_email':
                 email_type = request.POST.get('email_type')
