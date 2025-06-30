@@ -6143,3 +6143,72 @@ class Service(models.Model):
             contract_amount=total_amount,
             service_type=self.service_type
         )
+
+class EnhancedNetworkGamificationProfile(models.Model):
+    """
+    Perfil avanzado de gamificación para cada persona.
+    Unifica puntos, nivel, experiencia, logros, badges, engagement, historial y timestamps.
+    """
+    person = models.OneToOneField('Person', on_delete=models.CASCADE, related_name='enhancednetworkgamificationprofile')
+    points = models.IntegerField(default=0)
+    level = models.IntegerField(default=1)
+    experience = models.IntegerField(default=0)
+    skill_endorsements = models.IntegerField(default=0)
+    network_expansion_level = models.IntegerField(default=0)
+    badges = models.ManyToManyField('Badge', blank=True, related_name='gamification_profiles')
+    achievements = models.JSONField(default=list, blank=True, help_text="Lista de logros desbloqueados")
+    engagement_score = models.FloatField(default=0.0)
+    last_activity = models.DateTimeField(auto_now=True)
+    history = models.JSONField(default=list, blank=True, help_text="Historial de actividades de gamificación")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def award_points(self, points, reason=None, metadata=None):
+        self.points += points
+        self.experience += points
+        self.save()
+        if reason or metadata:
+            self.add_history('award_points', points, reason, metadata)
+
+    def update_profile(self, skills=None, experience=None, education=None):
+        # Lógica para actualizar perfil gamificado
+        self.last_activity = timezone.now()
+        self.save()
+        self.add_history('update_profile', 0, 'profile_update', {'skills': skills, 'experience': experience, 'education': education})
+
+    def check_achievements(self):
+        # Lógica para verificar logros (placeholder, implementar según reglas)
+        return []
+
+    def award_achievements(self, achievements):
+        for ach in achievements:
+            if ach not in self.achievements:
+                self.achievements.append(ach)
+        self.save()
+        self.add_history('award_achievements', 0, 'achievement', {'achievements': achievements})
+
+    def update_ranking(self):
+        # Lógica para actualizar ranking global (placeholder)
+        pass
+
+    def add_history(self, action, points, reason, metadata):
+        entry = {
+            'timestamp': timezone.now().isoformat(),
+            'action': action,
+            'points': points,
+            'reason': reason,
+            'metadata': metadata
+        }
+        self.history.append(entry)
+        self.save()
+
+    class Meta:
+        verbose_name = "Perfil de Gamificación Avanzado"
+        verbose_name_plural = "Perfiles de Gamificación Avanzados"
+        indexes = [
+            models.Index(fields=['points', 'level']),
+            models.Index(fields=['engagement_score']),
+        ]
+
+    def __str__(self):
+        return f"Gamificación de {self.person}"

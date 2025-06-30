@@ -1,3 +1,4 @@
+# app/ats/integrations/services/gamification/advanced_gamification.py
 """
 GAMIFICACIÓN AVANZADA - Grupo huntRED®
 Sistema de gamificación con niveles dinámicos, competencias, recompensas inteligentes y analytics
@@ -15,6 +16,7 @@ from django.utils import timezone
 from django.core.cache import cache
 
 from .predictive_analytics import predictive_analytics
+from app.ats.integrations.services.gamification.achievement import Achievement
 
 logger = logging.getLogger(__name__)
 
@@ -27,17 +29,6 @@ class UserLevel:
     title: str
     badge: str
     unlocked_features: List[str]
-
-@dataclass
-class Achievement:
-    """Logro del usuario"""
-    id: str
-    name: str
-    description: str
-    icon: str
-    points: int
-    unlocked_at: datetime
-    rarity: str  # common, rare, epic, legendary
 
 @dataclass
 class Reward:

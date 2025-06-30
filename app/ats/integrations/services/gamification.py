@@ -28,6 +28,7 @@ from app.models import (
     UserChallenge
 )
 from app.ats.integrations.services import send_message
+from app.ats.integrations.services.gamification.achievement import Achievement
 
 logger = logging.getLogger(__name__)
 
@@ -136,34 +137,6 @@ class Level:
         self.name = name
         self.points_required = points_required
         self.rewards = rewards
-
-class Achievement:
-    """Clase para manejar logros"""
-    
-    def __init__(self, 
-                 achievement_type: AchievementType,
-                 name: str,
-                 description: str,
-                 points: int,
-                 requirements: Dict[str, Any],
-                 icon: str = None):
-        """
-        Inicializa un logro
-        
-        Args:
-            achievement_type: Tipo de logro
-            name: Nombre del logro
-            description: Descripción del logro
-            points: Puntos otorgados
-            requirements: Requisitos para desbloquear
-            icon: Icono del logro
-        """
-        self.achievement_type = achievement_type
-        self.name = name
-        self.description = description
-        self.points = points
-        self.requirements = requirements
-        self.icon = icon
 
 class GamificationService:
     """

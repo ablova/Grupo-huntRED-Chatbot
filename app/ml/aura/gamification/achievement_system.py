@@ -1,3 +1,4 @@
+# app/ml/aura/gamification/achievement_system.py
 """
 AURA - Sistema de Gamificación Avanzada
 Achievement System & Professional Growth Gamification
@@ -11,6 +12,7 @@ from enum import Enum
 import json
 import hashlib
 from app.ml.aura.graph_builder import GNNManager
+from app.ats.integrations.services.gamification.achievement import Achievement
 
 logger = logging.getLogger(__name__)
 
@@ -36,23 +38,6 @@ class BadgeRarity(Enum):
     RARE = "rare"
     EPIC = "epic"
     LEGENDARY = "legendary"
-
-
-@dataclass
-class Achievement:
-    """Definición de un logro"""
-    id: str
-    name: str
-    description: str
-    type: AchievementType
-    rarity: BadgeRarity
-    points: int
-    icon: str
-    requirements: Dict[str, Any]
-    rewards: Dict[str, Any]
-    is_hidden: bool = False
-    category: str = "general"
-    created_at: datetime = field(default_factory=datetime.now)
 
 
 @dataclass

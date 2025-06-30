@@ -39,11 +39,11 @@ from app.ats.integrations.services.assessment import (
 )
 
 from app.ats.integrations.services.gamification import (
-    Achievement,
     Badge,
     GamificationService,
     gamification_service
 )
+from app.ats.integrations.services.gamification.achievement import Achievement
 
 from app.ats.integrations.services.email import (
     EmailService,
