@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}AURA - Dashboard Unificado{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/aura-dashboard.css' %}">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.css">
+{% endblock %}
+
+{% block content %}
+<div class="aura-dashboard">
+    <div class="dashboard-header">
+        <div class="header-content">
+            <h1 class="dashboard-title">
+                <i class="fas fa-brain"></i>
+                AURA - Dashboard Unificado
+            </h1>
+            <p class="dashboard-subtitle">Visión 360° de IA Ética, Analítica y Organizacional</p>
+        </div>
+        <div class="header-actions">
+            <a href="{% url 'aura:ethical_dashboard' %}" class="btn btn-outline-primary">Ética</a>
+            <a href="{% url 'aura:dei_dashboard' %}" class="btn btn-outline-primary">DEI</a>
+            <a href="{% url 'aura:personality_dashboard' %}" class="btn btn-outline-primary">Personalidad</a>
+            <a href="{% url 'aura:cultural_dashboard' %}" class="btn btn-outline-primary">Cultural Fit</a>
+            <a href="{% url 'aura:motivators_dashboard' %}" class="btn btn-outline-primary">Motivadores</a>
+            <a href="{% url 'aura:generations_dashboard' %}" class="btn btn-outline-primary">Generaciones</a>
+            <a href="{% url 'aura:engagement_dashboard' %}" class="btn btn-outline-primary">Engagement</a>
+            <a href="{% url 'aura:security_dashboard' %}" class="btn btn-outline-primary">Seguridad</a>
+        </div>
+    </div>
+
+    <!-- KPIs Principales -->
+    <div class="metrics-grid">
+        <div class="metric-card">
+            <div class="metric-icon"><i class="fas fa-balance-scale"></i></div>
+            <div class="metric-content">
+                <h3 class="metric-value">{{ ethics_engine_score|floatformat:1 }}%</h3>
+                <p class="metric-label">Score Ético</p>
+            </div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-icon"><i class="fas fa-users"></i></div>
+            <div class="metric-content">
+                <h3 class="metric-value">{{ dei_score|floatformat:1 }}%</h3>
+                <p class="metric-label">DEI Score</p>
+            </div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-icon"><i class="fas fa-user-circle"></i></div>
+            <div class="metric-content">
+                <h3 class="metric-value">{{ personality_score|floatformat:1 }}%</h3>
+                <p class="metric-label">Personalidad</p>
+            </div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-icon"><i class="fas fa-users-cog"></i></div>
+            <div class="metric-content">
+                <h3 class="metric-value">{{ cultural_fit_score|floatformat:1 }}%</h3>
+                <p class="metric-label">Cultural Fit</p>
+            </div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-icon"><i class="fas fa-bolt"></i></div>
+            <div class="metric-content">
+                <h3 class="metric-value">{{ motivators_score|floatformat:1 }}%</h3>
+                <p class="metric-label">Motivadores</p>
+            </div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-icon"><i class="fas fa-layer-group"></i></div>
+            <div class="metric-content">
+                <h3 class="metric-value">{{ generations_score|floatformat:1 }}%</h3>
+                <p class="metric-label">Generaciones</p>
+            </div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-icon"><i class="fas fa-heart"></i></div>
+            <div class="metric-content">
+                <h3 class="metric-value">{{ engagement_score|floatformat:1 }}%</h3>
+                <p class="metric-label">Engagement</p>
+            </div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-icon"><i class="fas fa-shield-alt"></i></div>
+            <div class="metric-content">
+                <h3 class="metric-value">{{ security_score|floatformat:1 }}%</h3>
+                <p class="metric-label">Seguridad</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráficos y Analítica -->
+    <div class="charts-section">
+        <div class="chart-container">
+            <div class="chart-card">
+                <h3 class="chart-title"><i class="fas fa-chart-pie"></i> Distribución de Análisis por Módulo</h3>
+                <canvas id="moduleDistributionChart"></canvas>
+            </div>
+        </div>
+        <div class="chart-container">
+            <div class="chart-card">
+                <h3 class="chart-title"><i class="fas fa-chart-bar"></i> Scores por Dimensión</h3>
+                <canvas id="dimensionScoresChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Análisis Recientes -->
+    <div class="recent-analyses-section">
+        <h2 class="section-title"><i class="fas fa-history"></i> Análisis Recientes</h2>
+        <div class="analyses-table">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Tipo</th>
+                        <th>Score Global</th>
+                        <th>Confianza</th>
+                        <th>Módulos</th>
+                        <th>Tiempo</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for analysis in recent_analyses %}
+                    <tr>
+                        <td>{{ analysis.analysis_id }}</td>
+                        <td>{{ analysis.analysis_type }}</td>
+                        <td>
+                            <div class="score-bar">
+                                <div class="score-fill" style="width: {{ analysis.overall_score }}%"></div>
+                                <span>{{ analysis.overall_score|floatformat:1 }}%</span>
+                            </div>
+                        </td>
+                        <td>{{ analysis.confidence|floatformat:1 }}%</td>
+                        <td>{{ analysis.modules_used|join:", " }}</td>
+                        <td>{{ analysis.execution_time|floatformat:1 }}s</td>
+                        <td><span class="status-badge status-completed">Completado</span></td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" onclick="viewAnalysis('{{ analysis.analysis_id }}')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Ver Análisis -->
+<div class="modal fade" id="analysisModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Detalles del Análisis</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="analysisModalBody">
+                <!-- Contenido dinámico -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+<script src="{% static 'js/aura-dashboard.js' %}"></script>
+{% endblock %} 

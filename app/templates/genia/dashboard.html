@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Dashboard GenIA - Grupo huntRED{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.css">
+<style>
+    .genia-section { margin-bottom: 2.5rem; }
+    .insight-card { border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); margin-bottom: 1.5rem; }
+    .insight-title { font-weight: 600; font-size: 1.1rem; }
+    .insight-list { margin-bottom: 0; }
+    .summary-card { background: #f8f9fa; border-radius: 8px; padding: 1.5rem; margin-bottom: 2rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="h3">
+                <i class="fas fa-robot me-2 text-primary"></i>Dashboard GenIA
+            </h2>
+            <p class="text-muted">Insights avanzados de todos los módulos de Machine Learning y Analítica</p>
+        </div>
+        <div>
+            <span class="badge bg-info">{{ business_unit }}</span>
+        </div>
+    </div>
+
+    <!-- Resumen ejecutivo -->
+    <div class="summary-card">
+        <h4 class="mb-3"><i class="fas fa-lightbulb text-warning me-2"></i>Resumen Ejecutivo</h4>
+        <div class="row">
+            {% for key, value in summary.items %}
+                <div class="col-md-4 mb-2">
+                    <div class="insight-title text-primary">{{ key|capfirst }}</div>
+                    <ul class="insight-list">
+                        {% if value is list %}
+                            {% for item in value %}
+                                <li>{{ item }}</li>
+                            {% endfor %}
+                        {% else %}
+                            <li>{{ value }}</li>
+                        {% endif %}
+                    </ul>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Insights por categoría/analyzer -->
+    {% for category, insights in all_insights.items %}
+        <div class="genia-section">
+            <div class="insight-card p-4">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h5 class="insight-title text-secondary mb-0">
+                        <i class="fas fa-chart-bar me-2"></i>{{ category|capfirst }}
+                    </h5>
+                </div>
+                <div>
+                    {% if insights.error %}
+                        <div class="alert alert-danger">Error: {{ insights.error }}</div>
+                    {% elif insights is list %}
+                        <ul class="insight-list">
+                            {% for item in insights %}
+                                <li>{{ item }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% elif insights is dict %}
+                        <ul class="insight-list">
+                            {% for k, v in insights.items %}
+                                <li><strong>{{ k|capfirst }}:</strong> {{ v }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <div>{{ insights }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    {% endfor %}
+
+    <!-- Espacio para widgets y visualizaciones avanzadas (gráficos, paneles, etc.) -->
+    <div id="genia-widgets"></div>
+</div>
+{% endblock %} 

@@ -14,7 +14,7 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 from weasyprint import HTML
 
-from ....models import SuccessionPlan, Employee, Position
+from app.ats.chatbot.models import SuccessionPlan, Employee, Position
 from .analysis import SuccessionAnalysis
 
 logger = logging.getLogger(__name__)

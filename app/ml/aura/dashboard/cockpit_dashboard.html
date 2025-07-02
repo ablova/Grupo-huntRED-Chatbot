@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Cockpit Centralizado - huntRED Bruce Almighty{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.css">
+<style>
+    .cockpit-section { margin-bottom: 2.5rem; }
+    .cockpit-card { border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); margin-bottom: 1.5rem; }
+    .cockpit-title { font-weight: 600; font-size: 1.1rem; }
+    .cockpit-list { margin-bottom: 0; }
+    .summary-card { background: #f8f9fa; border-radius: 8px; padding: 1.5rem; margin-bottom: 2rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="h3">
+                <i class="fas fa-rocket me-2 text-primary"></i>Cockpit Centralizado
+            </h2>
+            <p class="text-muted">Insights, storytelling y métricas de uso de GPT en tiempo real</p>
+        </div>
+        <div>
+            <span class="badge bg-info">{{ business_unit }}</span>
+        </div>
+    </div>
+
+    <!-- Storytelling generado por GPT -->
+    <div class="summary-card">
+        <h4 class="mb-3"><i class="fas fa-lightbulb text-warning me-2"></i>Storytelling Inteligente</h4>
+        <div>{{ storytelling }}</div>
+    </div>
+
+    <!-- Insights clave de analyzers -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="cockpit-card p-4">
+                <h5 class="cockpit-title text-secondary mb-3">
+                    <i class="fas fa-user-times text-danger me-2"></i>Rotación
+                </h5>
+                <ul class="cockpit-list">
+                    {% for insight in analyzers_data.rotacion.summary %}
+                        <li>{{ insight }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="cockpit-card p-4">
+                <h5 class="cockpit-title text-secondary mb-3">
+                    <i class="fas fa-brain text-primary me-2"></i>Habilidades Emergentes
+                </h5>
+                <ul class="cockpit-list">
+                    {% for insight in analyzers_data.skills.summary %}
+                        <li>{{ insight }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Métricas de uso de GPT -->
+    <div class="cockpit-section">
+        <div class="cockpit-card p-4">
+            <h5 class="cockpit-title text-secondary mb-3">
+                <i class="fas fa-robot text-info me-2"></i>Métricas de Uso de GPT
+            </h5>
+            <div class="row">
+                <div class="col-md-3">
+                    <strong>Total de llamadas:</strong> {{ gpt_usage.total }}
+                </div>
+                <div class="col-md-3">
+                    <strong>Por proveedor:</strong>
+                    <ul>
+                        {% for provider, count in gpt_usage.by_provider.items %}
+                            <li>{{ provider }}: {{ count }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                <div class="col-md-3">
+                    <strong>Por canal:</strong>
+                    <ul>
+                        {% for channel, count in gpt_usage.by_channel.items %}
+                            <li>{{ channel }}: {{ count }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                <div class="col-md-3">
+                    <strong>Por unidad de negocio:</strong>
+                    <ul>
+                        {% for bu, count in gpt_usage.by_business_unit.items %}
+                            <li>{{ bu }}: {{ count }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+            <div class="row mt-3">
+                <div class="col-md-12">
+                    <strong>Por cliente:</strong>
+                    <ul class="row">
+                        {% for client, count in gpt_usage.by_client.items %}
+                            <li class="col-md-3">{{ client }}: {{ count }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

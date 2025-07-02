@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Dashboard Habilidades Emergentes - AURA Grupo huntRED{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.css">
+<style>
+    .skills-section { margin-bottom: 2.5rem; }
+    .skills-card { border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); margin-bottom: 1.5rem; }
+    .skills-title { font-weight: 600; font-size: 1.1rem; }
+    .skills-list { margin-bottom: 0; }
+    .summary-card { background: #f8f9fa; border-radius: 8px; padding: 1.5rem; margin-bottom: 2rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="h3">
+                <i class="fas fa-brain me-2 text-primary"></i>Dashboard Habilidades Emergentes
+            </h2>
+            <p class="text-muted">Skills en crecimiento, gaps y recomendaciones de upskilling/reskilling por segmento</p>
+        </div>
+        <div>
+            <span class="badge bg-info">{{ business_unit }}</span>
+        </div>
+    </div>
+
+    <!-- Resumen ejecutivo habilidades -->
+    <div class="summary-card">
+        <h4 class="mb-3"><i class="fas fa-lightbulb text-warning me-2"></i>Resumen Habilidades Emergentes</h4>
+        <ul class="skills-list">
+            {% for insight in skills_summary %}
+                <li>{{ insight }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <!-- Gráficos de skills en crecimiento y gaps -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <canvas id="skillsGrowthChart"></canvas>
+        </div>
+        <div class="col-md-6">
+            <canvas id="skillsGapChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Skills en declive -->
+    <div class="skills-section">
+        <div class="skills-card p-4">
+            <h5 class="skills-title text-secondary mb-3">
+                <i class="fas fa-arrow-down text-danger me-2"></i>Skills en Declive
+            </h5>
+            <ul class="skills-list">
+                {% for skill in skills_decline %}
+                    <li>{{ skill }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <!-- Recomendaciones de upskilling/reskilling -->
+    <div class="skills-section">
+        <div class="skills-card p-4">
+            <h5 class="skills-title text-secondary mb-3">
+                <i class="fas fa-graduation-cap text-success me-2"></i>Recomendaciones de Upskilling/Reskilling
+            </h5>
+            <ul class="skills-list">
+                {% for rec in skills_recommendations %}
+                    <li>{{ rec }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+    <script>
+        // Ejemplo de datos, reemplazar con datos reales del contexto
+        var skillsGrowthData = {
+            labels: ['Skill A', 'Skill B', 'Skill C', 'Skill D', 'Skill E'],
+            datasets: [{
+                label: 'Skills en Crecimiento',
+                data: [{{ skills_metrics.a }}, {{ skills_metrics.b }}, {{ skills_metrics.c }}, {{ skills_metrics.d }}, {{ skills_metrics.e }}],
+                backgroundColor: ['#36a2eb', '#ffce56', '#ff6384', '#4bc0c0', '#9966ff']
+            }]
+        };
+        var ctxGrowth = document.getElementById('skillsGrowthChart').getContext('2d');
+        new Chart(ctxGrowth, {
+            type: 'bar',
+            data: skillsGrowthData,
+            options: { responsive: true, plugins: { legend: { display: false } } }
+        });
+        var skillsGapData = {
+            labels: ['Industria A', 'División X', 'Gen Z', 'Rol 1', 'BU 1'],
+            datasets: [{
+                label: 'Gap de Skills',
+                data: [{{ skills_gap_metrics.ind_a }}, {{ skills_gap_metrics.div_x }}, {{ skills_gap_metrics.gen_z }}, {{ skills_gap_metrics.rol_1 }}, {{ skills_gap_metrics.bu_1 }}],
+                backgroundColor: ['#ff6384', '#36a2eb', '#ffce56', '#4bc0c0', '#9966ff']
+            }]
+        };
+        var ctxGap = document.getElementById('skillsGapChart').getContext('2d');
+        new Chart(ctxGap, {
+            type: 'bar',
+            data: skillsGapData,
+            options: { responsive: true, plugins: { legend: { display: false } } }
+        });
+    </script>
+</div>
+{% endblock %} 

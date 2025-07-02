@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from django.db.models import Count, Avg, Q, F, Value, IntegerField
 from django.db.models.functions import Coalesce
 
-from ....models import (
+from app.ats.chatbot.models import (
     Employee, 
     Position, 
     Assessment, 

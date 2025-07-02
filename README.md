@@ -7,6 +7,8 @@
     <em>Plataforma global de IA para reclutamiento, gestión de talento, automatización y crecimiento empresarial</em>
     <br>
     <strong>Versión 4.0 (2025)</strong>
+    <br>ai.huntred.com
+    ai.huntred.com/admin
   </p>
 </div>
 
@@ -84,6 +86,53 @@ flowchart TD
 **Descripción extendida:**
 Chatbot multicanal con IA híbrida (NLP local + GPT), workflows dinámicos, contexto persistente, integración con assessments, notificaciones y gamificación. Soporta flujos por BU, onboarding, entrevistas, feedback, y seguimiento automatizado.
 
+**Arquitectura del Sistema Chatbot (app/ats/chatbot/)**
+
+El sistema Chatbot está diseñado con una arquitectura modular altamente escalable:
+
+1. **Core (app/ats/chatbot/core/):**
+   - `conversation_manager.py`: Gestiona el ciclo de vida completo de conversaciones
+   - `intent_processor.py`: Procesa y clasifica intenciones del usuario
+   - `context_manager.py`: Mantiene el contexto conversacional
+   - `entity_extractor.py`: Extrae entidades y datos estructurados de mensajes
+   - `gpt.py`: Integración con motores GPT para procesamiento avanzado
+   - `intents_handler.py`: Gestiona respuestas según la intención detectada
+
+2. **NLP (app/ats/chatbot/nlp/):**
+   - `text_processor.py`: Preprocesamiento de texto (normalización, tokenización)
+   - `intent_classifier.py`: Clasificación de intenciones mediante ML
+   - `entity_recognition.py`: Reconocimiento de entidades nombradas (NER)
+   - `sentiment_analyzer.py`: Análisis de sentimiento en mensajes
+   - `language_detector.py`: Detección automática de idioma
+
+3. **Flow (app/ats/chatbot/flow/):**
+   - `flow_manager.py`: Orquestador de flujos conversacionales
+   - `flow_builder.py`: Constructor de flujos dinámicos
+   - `flow_validator.py`: Validación de integridad de flujos
+   - `state_machine.py`: Máquina de estados para navegación de flujos
+   - `flow_templates.py`: Plantillas predefinidas para flujos comunes
+
+4. **Handlers (app/ats/chatbot/handlers/):**
+   - `channel_handler.py`: Gestión abstracta de canales
+   - `whatsapp_handler.py`: Manejo específico de WhatsApp
+   - `telegram_handler.py`: Manejo específico de Telegram
+   - `web_handler.py`: Manejo específico de interfaz web
+   - `fallback_handler.py`: Sistema de derivación a humano
+
+5. **Integrations (app/ats/chatbot/integrations/):**
+   - `assessment_integration.py`: Conexión con sistema de evaluaciones
+   - `notification_integration.py`: Integración con sistema de notificaciones
+   - `ml_integration.py`: Integración con módulos ML (GenIA/AURA)
+   - `gamification_integration.py`: Integración con sistema de gamificación
+   - `calendar_integration.py`: Integración con sistemas de calendario
+
+6. **Workflow (app/ats/chatbot/workflow/):**
+   - `workflow_engine.py`: Motor de ejecución de workflows
+   - `workflow_designer.py`: Herramientas para diseño de workflows
+   - `trigger_manager.py`: Gestión de disparadores de workflow
+   - `action_executor.py`: Ejecutor de acciones programadas
+   - `condition_evaluator.py`: Evaluador de condiciones y reglas
+
 **Flujos y mejores prácticas:**
 - Definir intents y entidades por BU y rol.
 - Mantener contexto de usuario y estado conversacional.
@@ -117,6 +166,93 @@ Chatbot multicanal con IA híbrida (NLP local + GPT), workflows dinámicos, cont
 ---
 
 ### 2.2 Publish (ver sección 13.18 para detalle extendido)
+
+**Descripción extendida:**
+Motor centralizado para la gestión, calendarización y automatización de campañas multicanal, con integración de IA, retargeting, plantillas dinámicas y métricas avanzadas.
+
+**Arquitectura del Sistema Publish (app/ats/publish/)**
+
+El sistema Publish está estructurado con una arquitectura modular y escalable:
+
+1. **Core (app/ats/publish/core/):**
+   - `campaign_manager.py`: Gestor central de campañas multicanal
+   - `calendar_service.py`: Servicio de calendarización y programación
+   - `approval_workflow.py`: Flujos de aprobación y firma digital
+   - `budget_manager.py`: Gestión de presupuestos y optimización de gastos
+   - `version_control.py`: Control de versiones de campañas y contenidos
+   - `metrics_collector.py`: Recopilador centralizado de métricas
+
+2. **Content (app/ats/publish/content/):**
+   - `content_manager.py`: Gestor de contenidos para múltiples canales
+   - `template_engine.py`: Motor de plantillas personalizables
+   - `dynamic_content.py`: Generador de contenido dinámico
+   - `media_processor.py`: Procesador de imágenes y medios
+   - `content_validator.py`: Validación y optimización de contenido
+
+3. **Segmentation (app/ats/publish/segmentation/):**
+   - `segment_manager.py`: Gestor de segmentos de audiencia
+   - `targeting_engine.py`: Motor de targeting inteligente
+   - `audience_builder.py`: Constructor de audiencias
+   - `criteria_evaluator.py`: Evaluador de criterios de segmentación
+   - `ml_integration.py`: Integración con AURA para segmentación avanzada
+
+4. **Integrations (app/ats/publish/integrations/):**
+   - `linkedin_publisher.py`: Integración con LinkedIn
+   - `email_sender.py`: Sistema de envío de correo electrónico
+   - `web_publisher.py`: Publicación en sitios web y landing pages
+   - `social_media.py`: Integración con redes sociales
+   - `job_boards.py`: Publicación en bolsas de trabajo
+   - `messaging_integration.py`: Integración con sistemas de mensajería internos
+
+5. **Retargeting (app/ats/publish/retargeting/):**
+   - `retargeting_engine.py`: Motor de retargeting
+   - `audience_tracker.py`: Seguimiento de audiencias
+   - `conversion_optimizer.py`: Optimizador de conversiones
+   - `channel_selector.py`: Selector inteligente de canales
+   - `frequency_manager.py`: Gestor de frecuencia de contacto
+
+6. **Services (app/ats/publish/services/):**
+   - `analytics_service.py`: Servicio de analítica avanzada
+   - `reporting_service.py`: Generación de reportes personalizados
+   - `notification_service.py`: Servicio de notificaciones
+   - `recommendation_service.py`: Recomendaciones de optimización
+   - `sync_service.py`: Sincronización entre canales y plataformas
+
+**Flujos y mejores prácticas:**
+- Definir objetivos, segmentos y canales antes de diseñar campañas
+- Utilizar plantillas dinámicas y contenido personalizado
+- Implementar calendarización y fases de campaña
+- Monitorear métricas en tiempo real y optimizar continuamente
+- Mantener flujos de aprobación y auditoría
+
+**Endpoints principales:**
+| Método | Endpoint                              | Descripción                        |
+|--------|---------------------------------------|------------------------------------|  
+| GET    | /api/publish/campaigns/               | Listar campañas                    |
+| POST   | /api/publish/campaigns/               | Crear campaña                      |
+| POST   | /api/publish/campaigns/{id}/launch/   | Lanzar campaña                     |
+| GET    | /api/publish/campaigns/{id}/metrics/  | Métricas de campaña               |
+
+**Requerimientos de datos:**
+- Tabla campaigns: id, name, status, bu_id, created_by, start_date, end_date
+- Tabla campaign_content: id, campaign_id, channel, content, template_id
+- Tabla campaign_segments: id, campaign_id, segment_id, targeting_rules
+
+**Ejemplo de payload:**
+```json
+{
+  "name": "Lanzamiento Data Science Q3",
+  "segments": [5, 8],
+  "channels": ["linkedin", "email", "web"],
+  "start_date": "2025-07-15T10:00:00"
+}
+```
+
+**Relación con otros módulos:**
+- Integra con GenIA para generación de contenido
+- Utiliza AURA para segmentación avanzada y retargeting
+- Dispara workflows, notificaciones y assessments
+- Alimenta métricas y reportes de negocio
 
 ---
 
@@ -157,6 +293,98 @@ Gestión de transacciones, suscripciones, facturación y conciliación con Strip
 
 ### 2.4 Notifications (ver sección 13.19 para detalle extendido)
 
+**Descripción extendida:**
+Gestión de alertas y notificaciones automáticas multicanal (email, chat, SMS, push, Slack) con tracking de entregas, templating avanzado y reglas de distribución inteligentes. Soporta notificaciones en tiempo real, programadas y condicionadas por eventos.
+
+**Arquitectura del Sistema de Notificaciones**
+
+El sistema de notificaciones está estructurado con una arquitectura altamente modular:
+
+1. **Core (app/ats/notifications/)**
+   - `core.py`: Núcleo central del sistema de notificaciones
+   - `notification_manager.py`: Gestor unificado de notificaciones
+   - `strategic_notifications.py`: Notificaciones estratégicas basadas en reglas de negocio
+
+2. **Canales (app/ats/integrations/notifications/channels/)**
+   - `base.py`: Clase base abstracta para todos los canales
+   - `email.py`: Canal para notificaciones por correo electrónico
+   - `slack.py`: Canal para notificaciones a través de Slack
+   - `whatsapp.py`: Canal para notificaciones vía WhatsApp
+   - `telegram.py`: Canal para notificaciones a través de Telegram
+   - `sms.py`: Canal para notificaciones SMS usando el sistema interno de mensajería
+   - `instagram.py`: Canal para notificaciones vía Instagram
+   - `messenger.py`: Canal para notificaciones a través de Messenger
+   - `linkedin.py`: Canal para notificaciones en LinkedIn
+   - `x.py`: Canal para notificaciones en X (anteriormente Twitter)
+
+3. **Servicios (app/ats/integrations/notifications/services/)**
+   - `notification_service.py`: Servicio principal de notificaciones
+   - `template_service.py`: Gestión de plantillas para notificaciones
+   - `scheduler_service.py`: Programación y calendarización de notificaciones
+   - `tracking_service.py`: Seguimiento de entregas y análisis de efectividad
+   - `rule_engine.py`: Motor de reglas para envío condicional
+
+4. **Procesamiento (app/ats/integrations/notifications/process/)**
+   - `notification_processor.py`: Procesador central de notificaciones
+   - `priority_handler.py`: Gestión de prioridades y criticidad
+   - `rate_limiter.py`: Control de frecuencia de notificaciones
+   - `batch_processor.py`: Procesador de notificaciones masivas
+   - `throttling_service.py`: Servicio de limitación inteligente
+
+5. **Destinatarios (app/ats/integrations/notifications/recipients/)**
+   - `recipient_manager.py`: Gestión de destinatarios y grupos
+   - `preference_manager.py`: Gestión de preferencias de notificación
+   - `contact_resolver.py`: Resolución de información de contacto
+   - `opt_out_manager.py`: Gestión de bajas y preferencias de no recepción
+   - `group_manager.py`: Gestión de grupos y roles para notificaciones
+
+6. **Plantillas (app/ats/integrations/notifications/templates/)**
+   - `template_manager.py`: Gestión de plantillas
+   - `template_renderer.py`: Renderizador de contenido dinámico
+   - `personalization_engine.py`: Motor de personalización
+   - `multilingual_support.py`: Soporte multiidioma
+   - `media_attachment.py`: Gestión de adjuntos y contenido multimedia
+
+**Flujos y mejores prácticas:**
+- Utilizar plantillas estándar y personalización dinámica
+- Configurar canales prioritarios y canales de respaldo
+- Respetar preferencias de usuario y horarios adecuados
+- Monitorear tasas de entrega, apertura y respuesta
+- Implementar throttling para evitar saturación
+
+**Endpoints principales:**
+| Método | Endpoint                              | Descripción                        |
+|--------|---------------------------------------|------------------------------------|  
+| GET    | /api/notifications/                   | Listar notificaciones              |
+| POST   | /api/notifications/                   | Enviar notificación                |
+| GET    | /api/notifications/templates/         | Listar plantillas                  |
+| POST   | /api/notifications/bulk/              | Envío masivo                      |
+
+**Requerimientos de datos:**
+- Tabla notifications: id, recipient_id, channel, template_id, status, payload, sent_at
+- Tabla notification_templates: id, name, type, content, variables, channel
+- Tabla notification_preferences: user_id, channel, enabled, quiet_hours
+
+**Ejemplo de payload:**
+```json
+{
+  "recipient_id": 1045,
+  "template_id": 8,
+  "channel": "email",
+  "variables": {
+    "nombre": "Carlos",
+    "evento": "Entrevista Técnica",
+    "fecha": "2025-07-15T14:30:00"
+  },
+  "priority": "high"
+}
+```
+
+**Relación con otros módulos:**
+- Integra con todos los módulos principales del sistema
+- Es disparado por eventos de Chatbot, Publish, Payments y Assessments
+- Alimenta logs, análisis y reportes de engagement
+
 ---
 
 ### 2.5 Proposals
@@ -196,35 +424,149 @@ Generación, negociación y firma electrónica de propuestas comerciales y técn
 
 ### 2.6 Feedback & Assessments (ver sección 13.22 para detalle extendido)
 
----
-
-### 2.7 Referral
 **Descripción extendida:**
-Sistema de referidos con invitaciones, tracking, recompensas y analytics. Soporta campañas de referidos, ranking y gamificación.
+Sistema integral de evaluaciones técnicas, psicométricas, culturales y feedback 360°, con scoring automático e integración con analyzers ML. Soporta evaluaciones personalizadas por BU, rol y nivel, con procesos de seguimiento y recordatorios automáticos.
+
+**Arquitectura del Sistema Feedback & Assessments**
+
+El sistema está estructurado con una arquitectura modular:
+
+1. **Core (app/ats/feedback/)**
+   - `feedback_models.py`: Modelos de datos para evaluaciones y feedback
+   - `feedback_forms.py`: Generación y validación de formularios
+   - `feedback_views.py`: Vistas para la interacción con evaluaciones
+   - `process_views.py`: Vistas para procesamiento de resultados
+   - `views.py`: Vistas generales del sistema
+
+2. **Seguimiento y Recordatorios**
+   - `completion_tracker.py`: Monitoreo de finalización de evaluaciones
+   - `ongoing_tracker.py`: Seguimiento de evaluaciones en curso
+   - `reminder_system.py`: Sistema de recordatorios automáticos
+
+3. **Integración**
+   - `signals.py`: Señales para procesos automáticos
+   - `tasks.py`: Tareas programadas y asíncronas
+   - `celery_config.py`: Configuración para procesamiento en background
 
 **Flujos y mejores prácticas:**
-- Automatizar invitaciones y tracking de referidos.
-- Configurar recompensas y niveles de referidos.
-- Monitorear conversiones y ranking.
+- Diseñar evaluaciones con objetivos claros y medibles
+- Configurar recordatorios automáticos para maximizar tasas de completitud
+- Mantener histórico para análisis longitudinal
+- Validar resultados con revisión humana
+- Retroalimentar analyzers ML con resultados para mejorar precisión
 
 **Endpoints principales:**
 | Método | Endpoint                              | Descripción                        |
-|--------|---------------------------------------|------------------------------------|
+|--------|---------------------------------------|------------------------------------|  
+| GET    | /api/assessments/                     | Listar evaluaciones                |
+| POST   | /api/assessments/                     | Crear evaluación                   |
+| POST   | /api/assessments/{id}/submit/         | Enviar respuestas                  |
+| GET    | /api/assessments/{id}/results/        | Obtener resultados y scoring       |
+
+**Requerimientos de datos:**
+- Tabla assessments: id, candidate_id, type, status, created_at, updated_at
+- Tabla assessment_questions: id, assessment_id, question_id, respuesta, score
+- Tabla feedback: id, provider_id, subject_id, type, content, rating, timestamp
+
+**Ejemplo de payload:**
+```json
+{
+  "assessment_id": 456,
+  "candidate_id": 789,
+  "answers": [
+    {"question_id": 1, "answer": "SELECT * FROM users WHERE status = 'active';"},
+    {"question_id": 2, "answer": "React.useEffect(() => {}, []);"},
+    {"question_id": 3, "answer": 4}
+  ],
+  "time_taken": 1250
+}
+```
+
+**Relación con otros módulos:**
+- Integra directamente con Analyzers ML para scoring avanzado
+- Alimenta el perfil ML de candidatos y campañas
+- Dispara workflows, notificaciones y actualizaciones de perfiles
+### 2.7 Referral
+**Descripción extendida:**
+Sistema de referidos con invitaciones, tracking, recompensas y analytics. Soporta campañas de referidos, ranking y gamificación, con integración multicanal para máxima difusión y efectividad.
+
+**Arquitectura del Sistema Referral**
+
+El sistema está estructurado con una arquitectura centrada en conversiones:
+
+1. **Core (app/ats/referrals/)**
+   - `models.py`: Modelos de datos para referidos y recompensas
+   - `views.py`: Vistas para la interfaz de usuario y API
+   - `urls.py`: Rutas y endpoints del sistema
+   - `admin.py`: Configuración de panel administrativo
+   - `forms.py`: Formularios para creación y gestión de referidos
+
+2. **Servicios y Procesamiento**
+   - `services.py`: Lógica de negocio y flujos de trabajo
+   - `signals.py`: Señales para procesamiento automático
+
+3. **Plantillas**
+   - `templates/referrals/create.html`: Interfaz para creación de referidos
+   - `templates/referrals/dashboard.html`: Panel de control y estadísticas
+   - `templates/referrals/detail.html`: Vista detallada de referido
+
+**Características principales:**
+
+1. **Sistema de Invitaciones**
+   - Generación de enlaces únicos de referido
+   - Distribución multicanal (email, WhatsApp, SMS, redes sociales)
+   - Personalización de mensajes por canal y segmento
+
+2. **Tracking Avanzado**
+   - Seguimiento en tiempo real de conversiones
+   - Análisis de rendimiento por canal y campaña
+   - Atribución precisa de conversiones
+
+3. **Sistema de Recompensas**
+   - Recompensas monetarias y no monetarias
+   - Niveles de referido (básico, plata, oro, platino)
+   - Bonificaciones por hitos y campañas especiales
+
+4. **Analytics y Reportes**
+   - Dashboard en tiempo real
+   - Leaderboards y rankings
+   - Exportación de informes personalizados
+
+**Flujos y mejores prácticas:**
+- Automatizar invitaciones y tracking de referidos
+- Configurar recompensas escalonadas para maximizar conversión
+- Implementar recordatorios automáticos para referidos pendientes
+- Monitorear conversiones y ranking en tiempo real
+- Analizar rendimiento por canal y ajustar estrategias
+
+**Endpoints principales:**
+| Método | Endpoint                              | Descripción                        |
+|--------|---------------------------------------|------------------------------------|  
 | POST   | /api/referral/invite/                 | Enviar invitación                  |
 | GET    | /api/referral/track/                  | Tracking de referidos              |
 | GET    | /api/referral/leaderboard/            | Ranking de referidos               |
+| POST   | /api/referral/reward/claim/           | Reclamar recompensa                |
+| GET    | /api/referral/analytics/              | Estadísticas de rendimiento       |
 
 **Requerimientos de datos:**
-- Tabla referrals: id, referrer_id, referred_id, status, invited_at, converted_at.
-- Tabla rewards: id, referral_id, type, value, issued_at.
+- Tabla referrals: id, referrer_id, referred_id, status, channel, invited_at, converted_at
+- Tabla rewards: id, referral_id, type, value, status, issued_at, claimed_at
+- Tabla referral_campaigns: id, name, start_date, end_date, rules, rewards_config
 
 **Ejemplo de payload:**
 ```json
 {
   "referrer_id": 12,
-  "email": "nuevo@ejemplo.com"
+  "emails": ["contact1@example.com", "contact2@example.com"],
+  "phone_numbers": ["+525512345678", "+525587654321"],
+  "message": "Te invito a unirte a esta increíble plataforma",
+  "campaign_id": 5,
+  "channels": ["email", "whatsapp"],
+  "custom_link": "https://plataforma.com/r/ABC123"
 }
 ```
+
+---
 
 **Relación con otros módulos:**
 - Dispara notificaciones y gamificación.
@@ -234,36 +576,105 @@ Sistema de referidos con invitaciones, tracking, recompensas y analytics. Soport
 
 ### 2.8 Gamificación
 **Descripción extendida:**
-Sistema de niveles, logros, recompensas y leaderboard para motivar y retener usuarios. Soporta personalización por BU y tipo de usuario.
+Sistema de engagement y motivación basado en gamificación: puntos, insignias, niveles, leaderboards y recompensas. Integrado con referidos, asessments y feedback para potenciar la participación y fidelización de usuarios en todo el ecosistema.
+
+**Arquitectura del Sistema de Gamificación**
+
+El sistema está estructurado con una arquitectura event-driven:
+
+1. **Core (app/ats/gamification/)**
+   - `models.py`: Modelos de datos para puntos, insignias, niveles y recompensas
+   - `views.py`: Vistas para la interfaz de usuario y API
+   - `rules.py`: Reglas de gamificación y lógica de eventos
+   - `badges.py`: Definición y gestión de insignias
+   - `rewards.py`: Sistema de recompensas y canje
+
+2. **Procesamiento y Eventos**
+   - `event_processor.py`: Procesamiento de eventos del sistema
+   - `point_calculator.py`: Lógica de cálculo de puntos
+   - `level_manager.py`: Gestión de niveles y progreso
+   - `achievement_tracker.py`: Seguimiento de logros y desbloqueo de insignias
+
+3. **Integración**
+   - `signals.py`: Listeners para eventos del sistema
+   - `hooks.py`: Puntos de integración con otros módulos
+   - `notifications.py`: Notificaciones de gamificación
+
+**Características principales:**
+
+1. **Sistema de Puntos**
+   - Asignación dinámica basada en acciones del usuario
+   - Múltiples categorías de puntos (engagement, calidad, velocidad)
+   - Historial detallado de actividad y puntuación
+
+2. **Insignias y Logros**
+   - Más de 30 insignias desbloqueables
+   - Progresiones escalonadas (bronce, plata, oro, platino)
+   - Insignias especiales por campañas o eventos temporales
+
+3. **Niveles y Progresión**
+   - Sistema de niveles con requisitos incrementales
+   - Desbloqueo de funcionalidades por nivel
+   - Visualización clara del progreso y siguientes hitos
+
+4. **Leaderboards**
+   - Rankings globales, por empresa y por departamento
+   - Competiciones temporales y por categorías
+   - Filtros personalizables y timeframes variables
+
+5. **Recompensas**
+   - Catálogo de recompensas canjeables
+   - Recompensas virtuales y físicas
+   - Sistema de gestión de inventario y entrega
 
 **Flujos y mejores prácticas:**
-- Definir reglas de puntos y logros por acción.
-- Automatizar entrega de recompensas y notificaciones.
-- Monitorear engagement y churn.
+- Configurar reglas de puntuación y niveles adaptados a objetivos de negocio
+- Definir insignias y logros alcanzables pero desafiantes
+- Personalizar recompensas por nivel y segmento de usuario
+- Medir engagement, retención y correlación con KPIs de negocio
+- Mantener el balance entre competencia y colaboración
+- Actualizar regularmente insignias y recompensas para mantener interés
 
 **Endpoints principales:**
 | Método | Endpoint                              | Descripción                        |
-|--------|---------------------------------------|------------------------------------|
-| GET    | /api/gamification/levels/             | Listar niveles                     |
-| POST   | /api/gamification/achievements/       | Registrar logro                    |
-| GET    | /api/gamification/leaderboard/        | Leaderboard                        |
+|--------|---------------------------------------|------------------------------------|  
+| GET    | /api/gamification/profile/            | Perfil de gamificación            |
+| GET    | /api/gamification/leaderboard/        | Ranking global                     |
+| POST   | /api/gamification/claim-reward/       | Reclamar recompensa                |
+| GET    | /api/gamification/badges/             | Listar insignias disponibles       |
+| GET    | /api/gamification/rewards/            | Catálogo de recompensas           |
+| GET    | /api/gamification/history/            | Historial de actividad             |
 
 **Requerimientos de datos:**
-- Tabla levels: id, name, points_required, bu.
-- Tabla achievements: id, user_id, type, awarded_at.
-- Tabla leaderboard: id, user_id, score, rank.
+- Tabla user_points: id, user_id, category, amount, reason, timestamp
+- Tabla badges: id, name, description, image_url, requirements, category, level
+- Tabla user_badges: id, user_id, badge_id, earned_at
+- Tabla user_level: id, user_id, current_level, total_points, next_level_at
+- Tabla rewards: id, name, description, image_url, cost, stock, type
+- Tabla user_rewards: id, user_id, reward_id, claimed_at, status, delivery_info
 
 **Ejemplo de payload:**
 ```json
 {
-  "user_id": 77,
-  "achievement_type": "primer_aplicacion"
+  "user_id": 34,
+  "event_type": "assessment_completed",
+  "event_data": {
+    "assessment_id": 789,
+    "score": 95,
+    "time_taken": 1250,
+    "difficulty": "hard"
+  },
+  "timestamp": "2025-07-01T15:30:45Z"
 }
 ```
 
 **Relación con otros módulos:**
-- Se alimenta de acciones en Chatbot, Publish, Referral y Assessments.
-- Alimenta dashboards de engagement y retención.
+- Recibe eventos de Assessments, Feedback y Referrals para otorgar puntos e insignias
+- Alimenta el perfil ML para recomendaciones personalizadas de contenido y oportunidades
+- Integra con Notifications para alertas de logros y recompensas disponibles
+- Proporciona datos para analytics y optimización de campañas
+- Se alimenta de acciones en Chatbot, Publish, Referral y Assessments
+- Alimenta dashboards de engagement y retención
 
 ---
 
@@ -272,6 +683,47 @@ Sistema de niveles, logros, recompensas y leaderboard para motivar y retener usu
 ### 3.1 GenIA
 **Descripción extendida:**
 Motor de generación de contenido inteligente (textos, emails, posts, landing pages, preguntas de assessment, etc.) usando NLP avanzado y modelos generativos. Soporta personalización por BU, canal, idioma y fase de campaña.
+
+**Arquitectura de GenIA (app/ml/)**
+
+GenIA está organizado en varios módulos especializados:
+
+1. **Core (app/ml/core/):**
+   - `async_processing.py`: Manejo de procesamiento asíncrono para tareas de ML intensivas
+   - `data_cleaning.py`: Limpieza y normalización de datos previo al procesamiento
+   - `job_description_generator.py`: Generador de descripciones de trabajo personalizadas
+   - `content_optimizer.py`: Optimización de contenido generado para máximo engagement
+   - `template_engine.py`: Motor de plantillas dinámicas con variables contextuales
+   - `multilingual_processor.py`: Procesamiento multiidioma con traducciones automáticas
+
+2. **Analyzers (app/ml/analyzers/):** Conjunto de 29 analizadores especializados
+   - `base_analyzer.py` y `base.py`: Clases base para todos los analizadores
+   - Analizadores especializados como:
+     - `personality_analyzer.py`: Análisis de personalidad
+     - `professional_analyzer.py`: Evaluación profesional
+     - `cultural_analyzer.py`: Compatibilidad cultural
+     - `talent_analyzer.py`: Evaluación de talento
+     - `dei_analyzer.py`: Análisis de diversidad, equidad e inclusión
+     - `motivational_analyzer.py`: Análisis de factores motivacionales
+     - `integrated_analyzer.py`: Orquestación de múltiples analizadores
+   - `assessment_registry.py` y `register_assessments.py`: Sistema de registro y gestión de evaluaciones
+
+3. **Metrics (app/ml/metrics/):**
+   - `skill_metrics.py`: Evaluación cuantitativa de habilidades y competencias
+   - `engagement_metrics.py`: Métricas de engagement y efectividad del contenido
+   - `conversion_metrics.py`: Seguimiento de conversiones generadas por contenido
+   - `quality_metrics.py`: Evaluación automática de calidad del contenido generado
+
+4. **Data (app/ml/data/):**
+   - `data_loader.py`: Carga y preprocesamiento de datos para modelos de ML
+   - `data_augmentation.py`: Aumento y enriquecimiento de datos para entrenamiento
+   - `feature_extraction.py`: Extracción de características para modelos predictivos
+   - `embedding_manager.py`: Gestión de embeddings para representación semántica
+
+5. **Monitoring (app/ml/monitoring/):**
+   - `metrics.py`: Sistema de monitoreo de rendimiento para modelos de ML
+   - `drift_detection.py`: Detección de drift en datos y modelos
+   - `explainability.py`: Herramientas de explicabilidad para decisiones de modelos
 
 **Flujos y mejores prácticas:**
 - Usar plantillas dinámicas y variables contextuales.
@@ -306,6 +758,45 @@ Motor de generación de contenido inteligente (textos, emails, posts, landing pa
 **Descripción extendida:**
 Motor de segmentación avanzada y analítica predictiva. Realiza clustering, scoring, recomendaciones y retargeting inteligente. Soporta segmentación demográfica, profesional, comportamental y predictiva.
 
+**Arquitectura del Sistema AURA (app/ml/aura/)**
+
+AURA está estructurado como un sistema modular de alta complejidad con los siguientes componentes:
+
+1. **Núcleo Principal (app/ml/aura/)**
+   - `core.py`: Motor principal que coordina todos los componentes del sistema AURA
+     - `AuraEngine`: Clase principal con métodos para análisis holístico
+     - `AuraAnalysisType`: Enumeración de tipos de análisis (compatibility, energy_match, vibrational_alignment, etc.)
+   - `orchestrator.py`: Orquestador de flujos de análisis y procesos
+   - `integration_layer.py`: Capa de integración con el sistema principal huntRED
+   - `compatibility_engine.py`: Motor de evaluación de compatibilidad
+   - `recommendation_engine.py`: Sistema de recomendaciones inteligentes
+   - `aura_metrics.py`: Métricas específicas para evaluación de aura
+
+2. **Motores Especializados**
+   - `energy_analyzer.py`: Analizador de patrones energéticos
+   - `vibrational_matcher.py`: Evaluador de compatibilidad vibracional
+   - `holistic_assessor.py`: Evaluación integral multidimensional
+   - `graph_builder.py`: Constructor de grafos de relación y compatibilidad
+
+3. **Core Ético (app/ml/aura/core/)**
+   - `bias_detection.py`: Detección y mitigación de sesgos
+   - `ethics_engine.py`: Motor de evaluación ética
+   - `fairness_optimizer.py`: Optimizador de equidad en resultados
+   - `moral_reasoning.py`: Sistema de razonamiento moral
+
+4. **Modelos Avanzados (app/ml/aura/models/)**
+   - `gnn_models.py`: Modelos de redes neuronales de grafos
+   - `transformers_models.py`: Modelos basados en arquitecturas transformer
+   - `embedding_models.py`: Modelos para representación de entidades
+   - `custom_bert.py`: Implementación personalizada de BERT para dominio específico
+
+5. **Conectores Externos (app/ml/aura/connectors/)**
+   - `linkedin_connector.py`: Conector a LinkedIn
+   - `contacts_connector.py`: Conector a sistemas de contactos
+   - `icloud_connector.py`: Conector a servicios iCloud
+   - `crm_connector.py`: Conector a sistemas CRM
+   - `api_connector.py`: Conector genérico para APIs externas
+
 **Flujos y mejores prácticas:**
 - Actualizar segmentos periódicamente según resultados y feedback.
 - Usar A/B testing y cohortes para optimización.
@@ -329,6 +820,35 @@ Motor de segmentación avanzada y analítica predictiva. Realiza clustering, sco
   "rules": {"skills": ["Python", "ML"], "experiencia": ">5"}
 }
 ```
+
+**Características y Capacidades Clave de AURA:**
+
+1. **Análisis Multidimensional**: AURA evalúa candidatos en múltiples dimensiones:
+   - Compatibilidad profesional y técnica
+   - Alineación cultural y de valores
+   - Patrones energéticos y vibracionales
+   - Potencial de crecimiento y desarrollo
+   - Sinergia de equipo y colaboración
+
+2. **Proceso de Evaluación Holística**:
+   - Extracción y enriquecimiento de datos del candidato
+   - Análisis de compatibilidad con posiciones específicas
+   - Generación de insights personalizados
+   - Recomendaciones basadas en patrones energéticos y profesionales
+
+3. **Base Científica y Metodológica:**
+   - Algoritmos de grafos neuronales (GNN) para modelar relaciones complejas
+   - Técnicas avanzadas de procesamiento del lenguaje natural (NLP) para análisis semántico
+   - Sistemas de aprendizaje por refuerzo para mejora continua
+   - Modelos bayesianos para evaluación de incertidumbre y confianza
+   - Framework OCEAN para análisis de personalidad (Openness, Conscientiousness, Extraversion, Agreeableness, Neuroticism)
+
+4. **Sistema de Retroalimentación y Mejora Continua:**
+   - Retroalimentación explícita de consultores y reclutadores
+   - Métricas de éxito post-contratación
+   - Análisis de conversión y retención
+   - Validación cruzada con evaluaciones tradicionales
+   - Monitoreo constante de precisión y efectividad
 
 **Relación con otros módulos:**
 - Alimenta Publish, Chatbot, Assessments y el motor de retargeting.

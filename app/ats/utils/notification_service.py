@@ -433,14 +433,14 @@ class NotificationService:
         try:
             logger.info(f"SMS notification would be sent to {phone}: {message[:50]}...")
             
-            # Aquí iría la integración real con un servicio como Twilio, SNS, etc.
-            # Por ejemplo, con Twilio:
+            # Aquí iría la integración con el servicio interno o MessageBird
             """
-            from twilio.rest import Client
-            client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
-            sms = client.messages.create(
+            # Ejemplo de integración con sistema interno de mensajería:
+            from app.ats.integrations.messaging.secure_messenger import SecureMessenger
+            messenger = SecureMessenger()
+            sms = messenger.send_message(
                 body=message,
-                from_=settings.TWILIO_PHONE_NUMBER,
+                from_=settings.INTERNAL_SENDER_ID,
                 to=phone
             )
             sms_id = sms.sid

@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alerta de Costos Meta </title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .header {
+            background-color: #F44336;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            border-radius: 5px 5px 0 0;
+        }
+        .content {
+            padding: 20px;
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            border-top: none;
+            border-radius: 0 0 5px 5px;
+        }
+        .stats-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        .stats-table th, .stats-table td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+        .stats-table th {
+            background-color: #f2f2f2;
+        }
+        .stats-table tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .warning {
+            color: #F44336;
+            font-weight: bold;
+        }
+        .info-box {
+            background-color: #e3f2fd;
+            border-left: 5px solid #2196F3;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .footer {
+            margin-top: 30px;
+            font-size: 12px;
+            color: #666;
+            border-top: 1px solid #ddd;
+            padding-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Alerta de Costos Meta Conversations</h1>
+    </div>
+    
+    <div class="content">
+        <h2>Resumen de Alertas</h2>
+        <p>Se han detectado mensajes que pueden generar costos adicionales en la plataforma de Meta.</p>
+        
+        <div class="info-box">
+            <p><strong>Unidad de Negocio:</strong> {{ business_unit }}</p>
+            <p><strong>Fecha del Reporte:</strong> {{ date }}</p>
+            <p class="warning"><strong>Mensajes Fuera de Ventana 24h:</strong> {{ stats.total_count }}</p>
+        </div>
+        
+        <h3>Desglose por Categoría</h3>
+        <table class="stats-table">
+            <thead>
+                <tr>
+                    <th>Categoría</th>
+                    <th>Cantidad</th>
+                    <th>Costo Promedio</th>
+                    <th>Costo Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for category in stats.by_category %}
+                <tr>
+                    <td>{{ category.meta_pricing_category|default:"Sin clasificar" }}</td>
+                    <td>{{ category.count }}</td>
+                    <td>{% if category.avg_cost %}${{ category.avg_cost|floatformat:4 }}{% else %}N/A{% endif %}</td>
+                    <td>{% if category.total_cost %}${{ category.total_cost|floatformat:2 }}{% else %}N/A{% endif %}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4">No hay datos disponibles</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+        <h3>Plantillas Problemáticas</h3>
+        <p>Las siguientes plantillas tienen mensajes fuera de la ventana gratuita:</p>
+        <table class="stats-table">
+            <thead>
+                <tr>
+                    <th>Plantilla</th>
+                    <th>Cantidad</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for template in stats.by_template %}
+                <tr>
+                    <td>{{ template.template_name }}</td>
+                    <td>{{ template.count }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="2">No hay datos disponibles</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+        <h3>Recomendaciones</h3>
+        <ul>
+            <li>Revise los horarios de envío de las plantillas identificadas.</li>
+            <li>Considere reactivar conversaciones antes del vencimiento de la ventana de 24 horas.</li>
+            <li>Clasifique correctamente los mensajes como "service" o "utility" cuando sea posible.</li>
+            <li>Para mensajes de marketing, evalúe si otros canales (email, Telegram) son más económicos.</li>
+        </ul>
+        
+        <p><a href="{{ dashboard_url|default:'#' }}" style="display: inline-block; background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">Ver Panel Completo</a></p>
+    </div>
+    
+    <div class="footer">
+        <p>Este es un mensaje automático generado por el sistema de monitoreo de costos de Meta Conversations.</p>
+        <p>© {{ current_year }} Grupo HuntRED® - Todos los derechos reservados</p>
+    </div>
+</body>
+</html>

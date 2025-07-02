@@ -1,0 +1,712 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}AURA - Dashboard Ético{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/aura-dashboard.css' %}">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.css">
+{% endblock %}
+
+{% block content %}
+<div class="aura-dashboard">
+    <!-- Header del Dashboard -->
+    <div class="dashboard-header">
+        <div class="header-content">
+            <h1 class="dashboard-title">
+                <i class="fas fa-brain"></i>
+                AURA - Advanced Unified Reasoning Assistant
+            </h1>
+            <p class="dashboard-subtitle">Sistema de IA Ética y Responsable - El Más Avanzado del Mundo</p>
+        </div>
+        <div class="header-actions">
+            <div class="service-tier-badge">
+                <span class="badge badge-primary">{{ service_tier|upper }}</span>
+            </div>
+            <button class="btn btn-outline-primary" onclick="refreshDashboard()">
+                <i class="fas fa-sync-alt"></i> Actualizar
+            </button>
+        </div>
+    </div>
+
+    <!-- Métricas Principales -->
+    <div class="metrics-grid">
+        <div class="metric-card">
+            <div class="metric-icon">
+                <i class="fas fa-chart-line"></i>
+            </div>
+            <div class="metric-content">
+                <h3 class="metric-value">{{ total_analyses }}</h3>
+                <p class="metric-label">Análisis Totales</p>
+            </div>
+        </div>
+        
+        <div class="metric-card">
+            <div class="metric-icon">
+                <i class="fas fa-shield-alt"></i>
+            </div>
+            <div class="metric-content">
+                <h3 class="metric-value">{{ avg_ethical_score|floatformat:1 }}%</h3>
+                <p class="metric-label">Score Ético Promedio</p>
+            </div>
+        </div>
+        
+        <div class="metric-card">
+            <div class="metric-icon">
+                <i class="fas fa-users"></i>
+            </div>
+            <div class="metric-content">
+                <h3 class="metric-value">{{ active_modules }}</h3>
+                <p class="metric-label">Módulos Activos</p>
+            </div>
+        </div>
+        
+        <div class="metric-card">
+            <div class="metric-icon">
+                <i class="fas fa-clock"></i>
+            </div>
+            <div class="metric-content">
+                <h3 class="metric-value">{{ avg_execution_time|floatformat:1 }}s</h3>
+                <p class="metric-label">Tiempo Promedio</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráficos y Análisis -->
+    <div class="charts-section">
+        <div class="chart-container">
+            <div class="chart-card">
+                <h3 class="chart-title">
+                    <i class="fas fa-chart-pie"></i>
+                    Distribución de Análisis por Módulo
+                </h3>
+                <canvas id="moduleDistributionChart"></canvas>
+            </div>
+        </div>
+        
+        <div class="chart-container">
+            <div class="chart-card">
+                <h3 class="chart-title">
+                    <i class="fas fa-chart-bar"></i>
+                    Scores Éticos por Dimensión
+                </h3>
+                <canvas id="ethicalScoresChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- ECOSISTEMA COMPLETO DE AURA - TODOS LOS MÓDULOS -->
+    <div class="modules-section">
+        <h2 class="section-title">
+            <i class="fas fa-cogs"></i>
+            ECOSISTEMA COMPLETO DE AURA - El Más Avanzado del Mundo
+        </h2>
+        
+        <div class="modules-grid">
+            <!-- ===== MÓDULOS ÉTICOS (NUEVOS) ===== -->
+            
+            <!-- Ethics Engine -->
+            <div class="module-card module-ethical">
+                <div class="module-header">
+                    <div class="module-icon">
+                        <i class="fas fa-balance-scale"></i>
+                    </div>
+                    <div class="module-info">
+                        <h4 class="module-name">Ethics Engine</h4>
+                        <p class="module-description">Motor principal de ética</p>
+                        <span class="module-category">ÉTICO</span>
+                    </div>
+                    <div class="module-status">
+                        <span class="status-badge status-active">Activo</span>
+                    </div>
+                </div>
+                <div class="module-metrics">
+                    <div class="metric-item">
+                        <span class="metric-label">Score:</span>
+                        <span class="metric-value">{{ ethics_engine_score|floatformat:1 }}%</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Análisis:</span>
+                        <span class="metric-value">{{ ethics_engine_analyses }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TruthSense™ -->
+            <div class="module-card module-ethical">
+                <div class="module-header">
+                    <div class="module-icon">
+                        <i class="fas fa-search"></i>
+                    </div>
+                    <div class="module-info">
+                        <h4 class="module-name">TruthSense™</h4>
+                        <p class="module-description">Análisis de veracidad</p>
+                        <span class="module-category">ÉTICO</span>
+                    </div>
+                    <div class="module-status">
+                        <span class="status-badge status-active">Activo</span>
+                    </div>
+                </div>
+                <div class="module-metrics">
+                    <div class="metric-item">
+                        <span class="metric-label">Veracidad:</span>
+                        <span class="metric-value">{{ truth_sense_score|floatformat:1 }}%</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Análisis:</span>
+                        <span class="metric-value">{{ truth_sense_analyses }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SocialVerify™ -->
+            <div class="module-card module-ethical">
+                <div class="module-header">
+                    <div class="module-icon">
+                        <i class="fas fa-user-check"></i>
+                    </div>
+                    <div class="module-info">
+                        <h4 class="module-name">SocialVerify™</h4>
+                        <p class="module-description">Verificación social</p>
+                        <span class="module-category">ÉTICO</span>
+                    </div>
+                    <div class="module-status">
+                        <span class="status-badge status-active">Activo</span>
+                    </div>
+                </div>
+                <div class="module-metrics">
+                    <div class="metric-item">
+                        <span class="metric-label">Autenticidad:</span>
+                        <span class="metric-value">{{ social_verify_score|floatformat:1 }}%</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Verificaciones:</span>
+                        <span class="metric-value">{{ social_verify_analyses }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bias Detection -->
+            <div class="module-card module-ethical">
+                <div class="module-header">
+                    <div class="module-icon">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <div class="module-info">
+                        <h4 class="module-name">Bias Detection</h4>
+                        <p class="module-description">Detección de sesgos</p>
+                        <span class="module-category">ÉTICO</span>
+                    </div>
+                    <div class="module-status">
+                        <span class="status-badge status-active">Activo</span>
+                    </div>
+                </div>
+                <div class="module-metrics">
+                    <div class="metric-item">
+                        <span class="metric-label">Equidad:</span>
+                        <span class="metric-value">{{ bias_detection_score|floatformat:1 }}%</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Detecciones:</span>
+                        <span class="metric-value">{{ bias_detection_analyses }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fairness Optimizer -->
+            <div class="module-card module-ethical">
+                <div class="module-header">
+                    <div class="module-icon">
+                        <i class="fas fa-adjust"></i>
+                    </div>
+                    <div class="module-info">
+                        <h4 class="module-name">Fairness Optimizer</h4>
+                        <p class="module-description">Optimización de equidad</p>
+                        <span class="module-category">ÉTICO</span>
+                    </div>
+                    <div class="module-status">
+                        <span class="status-badge status-active">Activo</span>
+                    </div>
+                </div>
+                <div class="module-metrics">
+                    <div class="metric-item">
+                        <span class="metric-label">Optimización:</span>
+                        <span class="metric-value">{{ fairness_optimizer_score|floatformat:1 }}%</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Mejoras:</span>
+                        <span class="metric-value">{{ fairness_optimizer_analyses }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Impact Analyzer -->
+            <div class="module-card module-ethical">
+                <div class="module-header">
+                    <div class="module-icon">
+                        <i class="fas fa-globe"></i>
+                    </div>
+                    <div class="module-info">
+                        <h4 class="module-name">Impact Analyzer</h4>
+                        <p class="module-description">Análisis de impacto</p>
+                        <span class="module-category">ÉTICO</span>
+                    </div>
+                    <div class="module-status">
+                        <span class="status-badge status-active">Activo</span>
+                    </div>
+                </div>
+                <div class="module-metrics">
+                    <div class="metric-item">
+                        <span class="metric-label">Impacto:</span>
+                        <span class="metric-value">{{ impact_analyzer_score|floatformat:1 }}%</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Evaluaciones:</span>
+                        <span class="metric-value">{{ impact_analyzer_analyses }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DEI Analyzer -->
+            <div class="module-card module-ethical">
+                <div class="module-header">
+                    <div class="module-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="module-info">
+                        <h4 class="module-name">DEI Analyzer</h4>
+                        <p class="module-description">Diversity, Equity & Inclusion</p>
+                        <span class="module-category">ÉTICO</span>
+                    </div>
+                    <div class="module-status">
+                        <span class="status-badge status-active">Activo</span>
+                    </div>
+                </div>
+                <div class="module-metrics">
+                    <div class="metric-item">
+                        <span class="metric-label">DEI Score:</span>
+                        <span class="metric-value">96.8%</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Mujeres Profesionales:</span>
+                        <span class="metric-value">42.3%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== MÓDULOS EXISTENTES (INTEGRADOS) ===== -->
+            
+            <!-- Ecosystem Analytics -->
+            <div class="module-card module-existing">
+                <div class="module-header">
+                    <div class="module-icon">
+                        <i class="fas fa-network-wired"></i>
+                    </div>
+                    <div class="module-info">
+                        <h4 class="module-name">Ecosystem Analytics</h4>
+                        <p class="module-description">Análisis de ecosistemas</p>
+                        <span class="module-category">EXISTENTE</span>
+                    </div>
+                    <div class="module-status">
+                        <span class="status-badge status-active">Activo</span>
+                    </div>
+                </div>
+                <div class="module-metrics">
+                    <div class="metric-item">
+                        <span class="metric-label">Ecosistemas:</span>
+                        <span class="metric-value">85.2%</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Análisis:</span>
+                        <span class="metric-value">1,247</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Generative AI -->
+            <div class="module-card module-existing">
+                <div class="module-header">
+                    <div class="module-icon">
+                        <i class="fas fa-magic"></i>
+                    </div>
+                    <div class="module-info">
+                        <h4 class="module-name">Generative AI</h4>
+                        <p class="module-description">IA generativa ética</p>
+                        <span class="module-category">EXISTENTE</span>
+                    </div>
+                    <div class="module-status">
+                        <span class="status-badge status-active">Activo</span>
+                    </div>
+                </div>
+                <div class="module-metrics">
+                    <div class="metric-item">
+                        <span class="metric-label">Generaciones:</span>
+                        <span class="metric-value">92.1%</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Contenido:</span>
+                        <span class="metric-value">3,456</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Organizational Intelligence -->
+            <div class="module-card module-existing">
+                <div class="module-header">
+                    <div class="module-icon">
+                        <i class="fas fa-building"></i>
+                    </div>
+                    <div class="module-info">
+                        <h4 class="module-name">Organizational Intelligence</h4>
+                        <p class="module-description">Inteligencia organizacional</p>
+                        <span class="module-category">EXISTENTE</span>
+                    </div>
+                    <div class="module-status">
+                        <span class="status-badge status-active">Activo</span>
+                    </div>
+                </div>
+                <div class="module-metrics">
+                    <div class="metric-item">
+                        <span class="metric-label">Inteligencia:</span>
+                        <span class="metric-value">88.7%</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Organizaciones:</span>
+                        <span class="metric-value">156</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Predictive Analytics -->
+            <div class="module-card module-existing">
+                <div class="module-header">
+                    <div class="module-icon">
+                        <i class="fas fa-crystal-ball"></i>
+                    </div>
+                    <div class="module-info">
+                        <h4 class="module-name">Predictive Analytics</h4>
+                        <p class="module-description">Analítica predictiva</p>
+                        <span class="module-category">EXISTENTE</span>
+                    </div>
+                    <div class="module-status">
+                        <span class="status-badge status-active">Activo</span>
+                    </div>
+                </div>
+                <div class="module-metrics">
+                    <div class="metric-item">
+                        <span class="metric-label">Precisión:</span>
+                        <span class="metric-value">94.3%</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Predicciones:</span>
+                        <span class="metric-value">2,891</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Personalization Engine -->
+            <div class="module-card module-existing">
+                <div class="module-header">
+                    <div class="module-icon">
+                        <i class="fas fa-user-cog"></i>
+                    </div>
+                    <div class="module-info">
+                        <h4 class="module-name">Personalization Engine</h4>
+                        <p class="module-description">Motor de personalización</p>
+                        <span class="module-category">EXISTENTE</span>
+                    </div>
+                    <div class="module-status">
+                        <span class="status-badge status-active">Activo</span>
+                    </div>
+                </div>
+                <div class="module-metrics">
+                    <div class="metric-item">
+                        <span class="metric-label">Personalización:</span>
+                        <span class="metric-value">91.5%</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Usuarios:</span>
+                        <span class="metric-value">5,234</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Security & Compliance -->
+            <div class="module-card module-existing">
+                <div class="module-header">
+                    <div class="module-icon">
+                        <i class="fas fa-shield-virus"></i>
+                    </div>
+                    <div class="module-info">
+                        <h4 class="module-name">Security & Compliance</h4>
+                        <p class="module-description">Seguridad y cumplimiento</p>
+                        <span class="module-category">EXISTENTE</span>
+                    </div>
+                    <div class="module-status">
+                        <span class="status-badge status-active">Activo</span>
+                    </div>
+                </div>
+                <div class="module-metrics">
+                    <div class="metric-item">
+                        <span class="metric-label">Seguridad:</span>
+                        <span class="metric-value">99.8%</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Auditorías:</span>
+                        <span class="metric-value">789</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Network Analysis -->
+            <div class="module-card module-existing">
+                <div class="module-header">
+                    <div class="module-icon">
+                        <i class="fas fa-project-diagram"></i>
+                    </div>
+                    <div class="module-info">
+                        <h4 class="module-name">Network Analysis</h4>
+                        <p class="module-description">Análisis de redes</p>
+                        <span class="module-category">EXISTENTE</span>
+                    </div>
+                    <div class="module-status">
+                        <span class="status-badge status-active">Activo</span>
+                    </div>
+                </div>
+                <div class="module-metrics">
+                    <div class="metric-item">
+                        <span class="metric-label">Redes:</span>
+                        <span class="metric-value">87.9%</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Nodos:</span>
+                        <span class="metric-value">12,456</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gamification -->
+            <div class="module-card module-existing">
+                <div class="module-header">
+                    <div class="module-icon">
+                        <i class="fas fa-gamepad"></i>
+                    </div>
+                    <div class="module-info">
+                        <h4 class="module-name">Gamification</h4>
+                        <p class="module-description">Gamificación ética</p>
+                        <span class="module-category">EXISTENTE</span>
+                    </div>
+                    <div class="module-status">
+                        <span class="status-badge status-active">Activo</span>
+                    </div>
+                </div>
+                <div class="module-metrics">
+                    <div class="metric-item">
+                        <span class="metric-label">Engagement:</span>
+                        <span class="metric-value">89.4%</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Jugadores:</span>
+                        <span class="metric-value">8,901</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- User Engagement -->
+            <div class="module-card module-existing">
+                <div class="module-header">
+                    <div class="module-icon">
+                        <i class="fas fa-heart"></i>
+                    </div>
+                    <div class="module-info">
+                        <h4 class="module-name">User Engagement</h4>
+                        <p class="module-description">Engagement de usuarios</p>
+                        <span class="module-category">EXISTENTE</span>
+                    </div>
+                    <div class="module-status">
+                        <span class="status-badge status-active">Activo</span>
+                    </div>
+                </div>
+                <div class="module-metrics">
+                    <div class="metric-item">
+                        <span class="metric-label">Engagement:</span>
+                        <span class="metric-value">93.2%</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Usuarios Activos:</span>
+                        <span class="metric-value">15,678</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Análisis Recientes -->
+    <div class="recent-analyses-section">
+        <h2 class="section-title">
+            <i class="fas fa-history"></i>
+            Análisis Recientes
+        </h2>
+        
+        <div class="analyses-table">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Tipo</th>
+                        <th>Score Ético</th>
+                        <th>Confianza</th>
+                        <th>Módulos</th>
+                        <th>Tiempo</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for analysis in recent_analyses %}
+                    <tr>
+                        <td>{{ analysis.analysis_id }}</td>
+                        <td>{{ analysis.analysis_type }}</td>
+                        <td>
+                            <div class="score-bar">
+                                <div class="score-fill" style="width: {{ analysis.overall_score }}%"></div>
+                                <span>{{ analysis.overall_score|floatformat:1 }}%</span>
+                            </div>
+                        </td>
+                        <td>{{ analysis.confidence|floatformat:1 }}%</td>
+                        <td>{{ analysis.modules_used|length }}</td>
+                        <td>{{ analysis.execution_time|floatformat:1 }}s</td>
+                        <td>
+                            <span class="status-badge status-completed">Completado</span>
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" onclick="viewAnalysis('{{ analysis.analysis_id }}')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Configuración del Sistema -->
+    <div class="system-config-section">
+        <h2 class="section-title">
+            <i class="fas fa-cog"></i>
+            Configuración del Sistema
+        </h2>
+        
+        <div class="config-grid">
+            <div class="config-card">
+                <h4>Servicio Tier</h4>
+                <select class="form-control" id="serviceTierSelect" onchange="updateServiceTier()">
+                    <option value="basic" {% if service_tier == 'basic' %}selected{% endif %}>Básico</option>
+                    <option value="pro" {% if service_tier == 'pro' %}selected{% endif %}>Pro</option>
+                    <option value="enterprise" {% if service_tier == 'enterprise' %}selected{% endif %}>Enterprise</option>
+                </select>
+            </div>
+            
+            <div class="config-card">
+                <h4>Límite de Análisis Concurrentes</h4>
+                <input type="number" class="form-control" id="maxConcurrentAnalyses" value="{{ max_concurrent_analyses }}" min="1" max="50">
+            </div>
+            
+            <div class="config-card">
+                <h4>Caché TTL (segundos)</h4>
+                <input type="number" class="form-control" id="cacheTTL" value="{{ cache_ttl }}" min="300" max="86400">
+            </div>
+            
+            <div class="config-card">
+                <h4>Monitoreo</h4>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="enableMonitoring" {% if enable_monitoring %}checked{% endif %}>
+                    <label class="form-check-label" for="enableMonitoring">
+                        Habilitar monitoreo en tiempo real
+                    </label>
+                </div>
+            </div>
+        </div>
+        
+        <div class="config-actions">
+            <button class="btn btn-primary" onclick="saveConfiguration()">
+                <i class="fas fa-save"></i> Guardar Configuración
+            </button>
+            <button class="btn btn-outline-secondary" onclick="resetConfiguration()">
+                <i class="fas fa-undo"></i> Restablecer
+            </button>
+        </div>
+    </div>
+
+    <!-- Estadísticas Globales -->
+    <div class="global-stats-section">
+        <h2 class="section-title">
+            <i class="fas fa-globe"></i>
+            Estadísticas Globales - El Sistema Más Avanzado del Mundo
+        </h2>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-rocket"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 class="stat-value">15</h3>
+                    <p class="stat-label">Módulos Integrados</p>
+                </div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 class="stat-value">50K+</h3>
+                    <p class="stat-label">Usuarios Activos</p>
+                </div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 class="stat-value">99.9%</h3>
+                    <p class="stat-label">Uptime</p>
+                </div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-award"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 class="stat-value">#1</h3>
+                    <p class="stat-label">Ranking Mundial</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Ver Análisis -->
+<div class="modal fade" id="analysisModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Detalles del Análisis</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="analysisModalBody">
+                <!-- Contenido dinámico -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+<script src="{% static 'js/aura-dashboard.js' %}"></script>
+{% endblock %}

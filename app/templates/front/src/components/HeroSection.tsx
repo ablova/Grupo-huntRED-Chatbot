@@ -8,18 +8,18 @@ const HeroSection = () => {
 
   const slides = [
     {
-      title: "Grupo huntRED® y su Ecosistema de Inteligencia Artificial ",
-      subtitle: "Procesos de reclutamiento y desarollo organizacional mejorados",
-      description: "Potencia tu estructura mediante atracción de talento más preciso, acorde e integrado.",
-      cta: "Descubrir GenIA",
-      image: "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80",
-      icon: Sparkles,
-      color: "from-blue-600 to-cyan-600"
+      title: "GenIA & AURA: El Futuro de la IA",
+      subtitle: "Ecosistema completo de Inteligencia Artificial para transformar tu negocio",
+      description: "GenIA para la generación y creatividad, AURA para el desarrollo profesional. Una plataforma unificada que revoluciona la forma en que trabajas y creces.",
+      cta: "Explorar Ecosistema",
+      image: "https://images.unsplash.com/photo-1518770660439-4636190af475?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80",
+      icon: Brain,
+      color: "from-blue-600 to-purple-600"
     },
     {
       title: "GenIA: Inteligencia Artificial Generativa",
-      subtitle: "Chatbots conversacionales, matchmaking y workflows asistidos por AI",
-      description: "Ya sea en modo híbrido, o totalmente automatizado, mejoramos la atracción de talento y el conocimiento de las áreas.",
+      subtitle: "Chatbots conversacionales, generación de código y análisis creativo",
+      description: "Potencia tu creatividad con modelos de IA de última generación. Desde atención al cliente automatizada hasta asistencia en programación.",
       cta: "Descubrir GenIA",
       image: "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80",
       icon: Sparkles,
@@ -33,15 +33,6 @@ const HeroSection = () => {
       image: "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80",
       icon: Target,
       color: "from-purple-600 to-pink-600"
-    },
-    {
-      title: "GenIA & AURA: El Futuro de la IA",
-      subtitle: "Ecosistema completo de Inteligencia Artificial para transformar tu talento",
-      description: "GenIA para la atracción y creación de cultura, AURA para el desarrollo profesional. Una plataforma unificada que revoluciona la forma en que gestionamos RH.",
-      cta: "Explorar Ecosistema",
-      image: "https://images.unsplash.com/photo-1518770660439-4636190af475?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80",
-      icon: Brain,
-      color: "from-blue-600 to-purple-600"
     }
   ];
 

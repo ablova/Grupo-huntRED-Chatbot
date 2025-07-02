@@ -13,7 +13,7 @@ import asyncio
 
 from app.models import Person, BusinessUnit
 from app.ats.models import Person as Candidate, Vacancy as Job, Application
-from app.ml.aura.core import AuraEngine
+from app.ml.aura.aura import AuraEngine
 from app.ml.aura.connectors.linkedin_connector import LinkedInConnector
 
 logger = logging.getLogger(__name__)

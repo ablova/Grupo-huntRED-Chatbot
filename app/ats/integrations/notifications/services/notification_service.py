@@ -10,20 +10,23 @@ con opción de restringir a canales específicos cuando sea necesario.
 """
 from typing import Dict, Optional, List, Union, Type, Any, Set, Tuple
 from functools import lru_cache
+import re
 from django.conf import settings
 from django.template.loader import render_to_string
 from django.core.cache import cache
 from django.db.models import Prefetch
 from django.utils.module_loading import import_string
+from django.utils import timezone
 from app.models import (
-    Notification, NotificationChannel, Person, Feedback, BusinessUnit
+    Notification, NotificationChannel, Person, Feedback, BusinessUnit,
+    ChatMessage, MessageLog
 )
 from app.ats.utils import logger_utils
 from app.ats.integrations.notifications.channels.base import BaseNotificationChannel
 import logging
 import asyncio
 import uuid
-from datetime import timezone, timedelta
+from datetime import timedelta
 from asgiref.sync import sync_to_async
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -31,6 +34,27 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 CACHE_TIMEOUT = 3600  # 1 hora
 CHANNEL_CACHE_PREFIX = "notification_channels_"
 TEMPLATE_CACHE_PREFIX = "notification_template_"
+LAST_INTERACTION_CACHE_PREFIX = "last_interaction_"
+
+# Ventana de tiempo para mensajes gratis de Meta
+META_MESSAGE_WINDOW = 24 * 60 * 60  # 24 horas en segundos
+
+# Patrones para clasificación automática de mensajes
+SERVICE_PATTERNS = [
+    r'perfil', r'assessment', r'evaluación', r'vacante', r'aplicación', r'postulación',
+    r'proceso', r'entrevista', r'soporte', r'ayuda', r'consulta', r'pregunta', r'duda',
+    r'status', r'estado', r'progreso', r'feedback', r'resultado'
+]
+
+UTILITY_PATTERNS = [
+    r'recordatorio', r'notificación', r'aviso', r'alerta', r'actualización',
+    r'credencial', r'confirmación', r'verificación', r'código', r'cambio', r'actualizar'
+]
+
+MARKETING_PATTERNS = [
+    r'promoción', r'oferta', r'descuento', r'evento', r'invitación',
+    r'webinar', r'seminario', r'curso', r'workshop', r'taller', r'nueva función'
+]
 
 logger = logging.getLogger(__name__)
 
@@ -41,20 +65,40 @@ CHANNEL_MAP = {
         'priority': 40,
         'fallback': 'email'
     },
+    'email': {
+        'class': 'app.ats.integrations.notifications.channels.email.EmailNotificationChannel',
+        'priority': 35,
+        'fallback': None  # Email es el canal de último recurso
+    },
     'telegram': {
         'class': 'app.ats.integrations.notifications.channels.telegram.TelegramNotificationChannel',
         'priority': 30,
         'fallback': 'whatsapp'
     },
-    'email': {
-        'class': 'app.ats.integrations.notifications.channels.email.EmailNotificationChannel',
-        'priority': 20,
-        'fallback': None
-    },
     'sms': {
         'class': 'app.ats.integrations.notifications.channels.sms.SMSNotificationChannel',
+        'priority': 20,
+        'fallback': 'whatsapp'
+    },
+    'messenger': {
+        'class': 'app.ats.integrations.notifications.channels.messenger.MessengerNotificationChannel',
+        'priority': 15,
+        'fallback': 'whatsapp'
+    },
+    'instagram': {
+        'class': 'app.ats.integrations.notifications.channels.instagram.InstagramNotificationChannel',
+        'priority': 12,
+        'fallback': 'whatsapp'
+    },
+    'slack': {
+        'class': 'app.ats.integrations.notifications.channels.slack.SlackNotificationChannel',
         'priority': 10,
-        'fallback': 'email'
+        'fallback': 'whatsapp'
+    },
+    'x': {
+        'class': 'app.ats.integrations.notifications.channels.x.XNotificationChannel',
+        'priority': 5,
+        'fallback': 'whatsapp'
     }
 }
 
@@ -262,146 +306,7 @@ class NotificationService:
         context: Optional[Dict] = None,
         channels: Optional[List[str]] = None,
         business_unit: Optional[Union[str, BusinessUnit]] = None,
-        restrict_channels: Optional[List[str]] = None,
-        fallback_channels: Optional[Dict[str, List[str]]] = None,
-        fallback_timeout: int = 0,
-        priority: str = "normal"
-    ) -> Dict[str, bool]:
-        """
-        Envía una notificación al destinatario usando la plantilla especificada.
-        
-        Por defecto, la notificación se envía por todos los canales disponibles.
-        
-        Args:
-            recipient: Persona que recibirá la notificación
-            template_name: Nombre de la plantilla a utilizar
-            context: Contexto para la plantilla (opcional)
-            channels: Canales específicos a utilizar (opcional, por defecto todos)
-            business_unit: Unidad de negocio (opcional)
-            restrict_channels: Lista de canales a los que restringir (opuesto a channels)
-            fallback_channels: Mapa de canales de respaldo si falla el canal principal
-            fallback_timeout: Tiempo en segundos para esperar antes de usar canales de respaldo
-            priority: Prioridad de la notificación (low, normal, high)
-            
-        Returns:
-            Dict[str, bool]: Diccionario con el estado de envío por canal
-            
-        Ejemplos:
-            # Enviar por todos los canales disponibles
-            await notification_service.send_notification(
-                recipient=user,
-                template_name="welcome"
-            )
-            
-            # Restringir a canales específicos
-            await notification_service.send_notification(
-                recipient=user,
-                template_name="important_update",
-                channels=["email", "whatsapp"]
-            )
-            
-            # Usar canales de respaldo
-            await notification_service.send_notification(
-                recipient=user,
-                template_name="urgent",
-                channels=["telegram"],
-                fallback_channels={"telegram": ["email", "whatsapp"]},
-                fallback_timeout=3600,  # 1 hora
-                priority="high"
-            )
-        """
-        context = context or {}
-        notification_id = uuid.uuid4()
-        results = {}
-        
-        # Determinar canales a utilizar
-        if channels is None and restrict_channels is None:
-            # Por defecto, usar todos los canales disponibles
-            channels_to_use = await self.default_channels
-        elif channels is not None:
-            # Usar canales específicos si se proporcionan
-            channels_to_use = [c for c in channels if c in self._available_channels]
-        else:
-            # Usar todos los canales excepto los restringidos
-            channels_to_use = [c for c in await self.default_channels if c not in (restrict_channels or [])]
-        
-        # Obtener la instancia de BusinessUnit si se proporciona un nombre
-        if isinstance(business_unit, str):
-            try:
-                business_unit = await sync_to_async(BusinessUnit.objects.get)(name=business_unit)
-            except BusinessUnit.DoesNotExist:
-                self.logger.warning(f"Unidad de negocio no encontrada: {business_unit}")
-                business_unit = None
-        
-        # Usar la unidad de negocio del servicio si no se proporciona una
-        business_unit = business_unit or self.business_unit
-        
-        try:
-            # Renderizar plantilla
-            template_path = f"notifications/{template_name}.txt"
-            message = render_to_string(template_path, context)
-            
-            # Enviar por cada canal solicitado
-            results = []
-            for channel_name in channels:
-                channel = await self._get_channel(channel_name)
-                if not channel:
-                    self.logger.warning(f"Canal no disponible: {channel_name}")
-                    results.append(False)
-                    continue
-                
-                try:
-                    # Usar el método apropiado según el canal
-                    if channel_name == 'email':
-                        result = await channel.send(
-                            to=recipient.email,
-                            subject=context.get('subject', 'Notificación'),
-                            message=message,
-                            template_name=template_name,
-                            context=context
-                        )
-                    elif channel_name == 'whatsapp':
-                        result = await channel.send(
-                            to=recipient.phone,
-                            message=message,
-                            template_name=template_name,
-                            template_params=context
-                        )
-                    else:
-                        # Método genérico para otros canales
-                        result = await channel.send(
-                            to=getattr(recipient, channel_name, None) or recipient.phone,
-                            message=message,
-                            **context
-                        )
-                    
-                    results.append(bool(result))
-                    
-                except Exception as e:
-                    self.logger.error(f"Error enviando notificación por {channel_name}: {str(e)}", exc_info=True)
-                    results.append(False)
-            
-            # Registrar la notificación
-            await self._log_notification(
-                recipient=recipient,
-                template=template_name,
-                channels=channels,
-                business_unit=business_unit.name if business_unit else None
-            )
-            
-            return all(results)
-            
-        except Exception as e:
-            self.logger.error(f"Error enviando notificación: {str(e)}", exc_info=True)
-            return False
-    
-    async def send_template_notification(
-        self,
-        recipient: Person,
-        template_name: str,
-        context: Optional[Dict] = None,
-        channels: Optional[List[str]] = None,
-        business_unit: Optional[Union[str, BusinessUnit]] = None
+        flow_type: str = None
     ) -> bool:
         """
         Envía una notificación usando una plantilla predefinida.
@@ -412,6 +317,7 @@ class NotificationService:
             context: Contexto para la plantilla
             channels: Canales a utilizar (email, whatsapp, etc.)
             business_unit: Unidad de negocio (opcional)
+            flow_type: Tipo de flujo para clasificación automática
             
         Returns:
             bool: True si la notificación se envió correctamente
@@ -431,26 +337,137 @@ class NotificationService:
             template_name=template_name,
             context=context,
             channels=channels,
-            business_unit=business_unit
+            business_unit=business_unit,
+            flow_type=flow_type
         )
     
+    async def send_template_notification(
+        self,
+        recipient: Person,
+        template_name: str,
+        context: Optional[Dict] = None,
+        channels: Optional[List[str]] = None,
+        business_unit: Optional[Union[str, BusinessUnit]] = None,
+        flow_type: str = None
+    ) -> bool:
+        """
+        Alias avanzado de send_notification para compatibilidad y claridad semántica.
+        Permite enviar notificaciones usando plantillas, compatible con código legado y nuevas integraciones.
+        Args:
+            recipient: Persona que recibirá la notificación
+            template_name: Nombre de la plantilla a utilizar
+            context: Contexto para la plantilla
+            channels: Canales a utilizar (email, whatsapp, etc.)
+            business_unit: Unidad de negocio (opcional)
+            flow_type: Tipo de flujo para clasificación automática
+        Returns:
+            bool: True si la notificación se envió correctamente
+        """
+        return await self.send_notification(
+            recipient=recipient,
+            template_name=template_name,
+            context=context,
+            channels=channels,
+            business_unit=business_unit,
+            flow_type=flow_type
+        )
+    
+    def classify_message_content(self, content: str, context: Dict = None) -> Tuple[str, str, str]:
+        """
+        Clasifica automáticamente un mensaje según su contenido y contexto.
+        
+        Args:
+            content: Contenido del mensaje
+            context: Contexto adicional (flujo, tipo de usuario, etc.)
+            
+        Returns:
+            Tuple[str, str, str]: (modelo_precio, tipo, categoría)
+        """
+        content_lower = content.lower()
+        context = context or {}
+        flow_type = context.get('flow_type', '')
+        
+        # Clasificación basada en el flujo (tiene precedencia)
+        if flow_type in ['onboarding', 'profile_creation', 'assessment', 'feedback', 'support']:
+            return 'service', 'service_msg', 'service'
+            
+        # Clasificación basada en patrones de contenido
+        for pattern in SERVICE_PATTERNS:
+            if re.search(pattern, content_lower):
+                return 'service', 'service_msg', 'service'
+                
+        for pattern in UTILITY_PATTERNS:
+            if re.search(pattern, content_lower):
+                return 'utility', 'utility_msg', 'utility'
+                
+        for pattern in MARKETING_PATTERNS:
+            if re.search(pattern, content_lower):
+                return 'marketing', 'marketing_msg', 'marketing'
+        
+        # Por defecto, clasificar como servicio (más conservador para costos)
+        return 'service', 'service_msg', 'service'
+    
+    async def is_within_24h_window(self, phone_number: str, business_unit_id: int = None) -> bool:
+        """
+        Verifica si estamos dentro de la ventana de 24 horas desde la última interacción del usuario.
+        
+        Args:
+            phone_number: Número de teléfono del usuario
+            business_unit_id: ID opcional de la unidad de negocio
+            
+        Returns:
+            bool: True si estamos dentro de la ventana, False si no
+        """
+        cache_key = f"{LAST_INTERACTION_CACHE_PREFIX}{phone_number}"
+        last_interaction = cache.get(cache_key)
+        
+        if not last_interaction:
+            # Si no está en caché, buscar en la base de datos
+            try:
+                # Buscar último mensaje recibido (del usuario hacia nosotros)
+                latest_message = await sync_to_async(lambda: ChatMessage.objects.filter(
+                    chat__phone=phone_number,
+                    direction='INBOUND',
+                    business_unit_id=business_unit_id
+                ).order_by('-created_at').first())()  # noqa
+                
+                if latest_message:
+                    last_interaction = latest_message.created_at.timestamp()
+                    # Actualizar caché
+                    cache.set(cache_key, last_interaction, CACHE_TIMEOUT)
+                else:
+                    return False  # No hay mensajes previos del usuario
+            except Exception as e:
+                self.logger.error(f"Error verificando ventana de 24h: {str(e)}")
+                return False
+        
+        # Verificar si estamos dentro de la ventana de 24 horas
+        current_time = timezone.now().timestamp()
+        time_diff = current_time - last_interaction
+        
+        return time_diff < META_MESSAGE_WINDOW
+            
     async def _log_notification(
         self,
         recipient: Person,
         template: str,
         channels: List[str],
-        business_unit: Optional[str] = None
+        business_unit: Optional[str] = None,
+        context: Optional[Dict] = None
     ) -> None:
         """
-        Registra la notificación en la base de datos.
+        Registra la notificación en la base de datos con clasificación automática 
+        para optimización de costos de Meta.
         
         Args:
             recipient: Destinatario de la notificación
             template: Nombre de la plantilla utilizada
             channels: Canales por los que se envió
             business_unit: Unidad de negocio (opcional)
+            context: Contexto adicional para clasificación
         """
         try:
+            # Crear notificación básica
             notification = Notification(
                 recipient=recipient,
                 template=template,
@@ -460,6 +477,43 @@ class NotificationService:
                 sent_at=timezone.now()
             )
             await sync_to_async(notification.save)()
+            
+            # Para canales de Meta (WhatsApp, Instagram, Messenger), optimizar y clasificar
+            meta_channels = [ch for ch in channels if ch in ['whatsapp', 'instagram', 'messenger']]
+            if meta_channels and hasattr(recipient, 'phone'):
+                # Clasificar automáticamente
+                content = template  # Usar nombre de template como base para clasificación
+                model, msg_type, category = self.classify_message_content(content, context)
+                
+                # Verificar ventana de 24h solo para canales Meta
+                is_in_window = False
+                if recipient.phone:
+                    is_in_window = await self.is_within_24h_window(recipient.phone)
+                    
+                # Determinar costo
+                if is_in_window and model in ['service', 'utility']:
+                    cost = 0.0
+                else:
+                    cost = None  # Se determinará por Meta
+                
+                # Registrar en MessageLog para cada canal Meta
+                for channel in meta_channels:
+                    await sync_to_async(lambda: MessageLog.objects.create(
+                        business_unit=business_unit,
+                        channel=channel,
+                        template_name=template,
+                        meta_pricing_model=model,
+                        meta_pricing_type=msg_type,
+                        meta_pricing_category=category,
+                        meta_cost=cost,
+                        message_type=channel.upper(),
+                        phone=recipient.phone,
+                        meta_within_24h_window=is_in_window,
+                        flow_context=context.get('flow_type', '') if context else '',
+                        sent_at=timezone.now(),
+                        status='SENT'
+                    ))()
+                    
         except Exception as e:
             self.logger.error(f"Error registrando notificación: {str(e)}", exc_info=True)
 

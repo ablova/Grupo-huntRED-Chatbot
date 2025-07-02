@@ -166,7 +166,7 @@ class FeedbackNotificationService(BaseNotificationService):
     def send_whatsapp_to_pablo(self, message):
         """
         Envía un WhatsApp directo a Pablo (555218490291) con el mensaje proporcionado.
-        (Implementar integración real con API de WhatsApp Business o Twilio.)
+        (Implementar integración real con API oficial de WhatsApp Business.)
         """
         pass
 

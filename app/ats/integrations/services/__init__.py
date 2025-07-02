@@ -38,17 +38,16 @@ from app.ats.integrations.services.assessment import (
     assessment_service
 )
 
-from app.ats.integrations.services.gamification import (
-    Badge,
-    GamificationService,
-    gamification_service
-)
 from app.ats.integrations.services.gamification.achievement import Achievement
 
 from app.ats.integrations.services.email import (
     EmailService,
     email_service
 )
+
+from app.ats.integrations.notifications.channels.sms import SMSNotificationChannel as SMSService
+
+from app.ats.integrations.channels.whatsapp.services import WhatsAppService
 
 __all__ = [
     # Base
@@ -86,11 +85,14 @@ __all__ = [
 
     # Gamification
     'Achievement',
-    'Badge',
-    'GamificationService',
-    'gamification_service',
 
     # Email
     'EmailService',
-    'email_service'
+    'email_service',
+
+    # SMS
+    'SMSService',
+
+    # WhatsApp
+    'WhatsAppService'
 ] 

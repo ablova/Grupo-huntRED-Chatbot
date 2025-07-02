@@ -18,6 +18,19 @@ from app.models import (
 )
 from .mixins import AdminMixin, AuditMixin, ValidationMixin
 
+from django import forms
+
+class MessageBirdConfigForm(forms.Form):
+    """Formulario para configurar MessageBird"""
+    api_key = forms.CharField(label='API Key de MessageBird', required=True, 
+                             widget=forms.TextInput(attrs={'class': 'form-control'}))
+    from_number = forms.CharField(label='Número o nombre remitente', initial='huntRED',
+                                 widget=forms.TextInput(attrs={'class': 'form-control'}))
+    dlr_enabled = forms.BooleanField(label='Habilitar reportes de entrega', required=False, initial=True)
+    dlr_url = forms.URLField(label='URL webhook para reportes', required=False,
+                           widget=forms.URLInput(attrs={'class': 'form-control'}))
+    sandbox_mode = forms.BooleanField(label='Modo sandbox (sólo pruebas)', required=False, initial=False)
+
 class BusinessUnitAdmin(AdminMixin, AuditMixin, ValidationMixin, admin.ModelAdmin):
     """Administración de Business Units con funcionalidades extendidas"""
     
@@ -29,6 +42,13 @@ class BusinessUnitAdmin(AdminMixin, AuditMixin, ValidationMixin, admin.ModelAdmi
         'active_channels',
         'status'
     )
+    
+    actions = [
+        'export_as_csv', 
+        'activate_selected',
+        'deactivate_selected',
+        'configure_messagebird'
+    ]
     
     search_fields = (
         'name',
@@ -191,10 +211,57 @@ class BusinessUnitAdmin(AdminMixin, AuditMixin, ValidationMixin, admin.ModelAdmi
     def notify_business_unit_changes(self, business_unit, is_change):
         """Notifica cambios en la Business Unit"""
         action = 'actualizada' if is_change else 'creada'
-        messages.success(
-            request,
-            f'Business Unit {business_unit.name} {action} exitosamente.'
+        # Nota: Este mensaje se mostrará en la vista de admin mediante otro mecanismo
+
+    def configure_messagebird(self, request, queryset):
+        """Configura MessageBird para las unidades de negocio seleccionadas"""
+        if 'apply' in request.POST:
+            form = MessageBirdConfigForm(request.POST)
+            if form.is_valid():
+                # Obtener los datos del formulario
+                api_key = form.cleaned_data['api_key']
+                from_number = form.cleaned_data['from_number']
+                dlr_enabled = form.cleaned_data['dlr_enabled']
+                dlr_url = form.cleaned_data['dlr_url']
+                sandbox_mode = form.cleaned_data['sandbox_mode']
+                
+                # Crear la configuración
+                config = {
+                    'api_key': api_key,
+                    'from_number': from_number,
+                    'dlr_enabled': dlr_enabled,
+                    'dlr_url': dlr_url,
+                    'sandbox_mode': sandbox_mode
+                }
+                
+                # Configurar cada unidad de negocio seleccionada
+                count = 0
+                for business_unit in queryset:
+                    business_unit.set_integration_config('messagebird', config)
+                    count += 1
+                    
+                self.message_user(
+                    request, 
+                    f'Se ha configurado MessageBird para {count} unidades de negocio.',
+                    messages.SUCCESS
+                )
+                return HttpResponseRedirect(request.get_full_path())
+        else:
+            # Mostrar formulario de configuración
+            form = MessageBirdConfigForm()
+        
+        return render_to_string(
+            'admin/messagebird_config_form.html',
+            {
+                'title': 'Configurar MessageBird para SMS',
+                'queryset': queryset,
+                'form': form,
+                'action': 'configure_messagebird',
+            },
+            request=request,
         )
+        
+    configure_messagebird.short_description = "Configurar MessageBird para SMS"
 
 # Registrar el administrador
 admin.site.register(BusinessUnit, BusinessUnitAdmin)

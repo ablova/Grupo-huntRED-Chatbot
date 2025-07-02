@@ -14,9 +14,9 @@ from datetime import datetime, timedelta
 from django.db import transaction
 from django.utils import timezone
 
-from ....models import Employee, Position, Assessment, SuccessionPlan, SuccessionCandidate
-from ....services.ml_service import MLService
-from ....exceptions import InvalidAssessmentData, EmployeeNotFound, PositionNotFound
+from app.ats.chatbot.models import Employee, Position, Assessment, SuccessionPlan, SuccessionCandidate
+from app.ats.chatbot.services.ml_service import MLService
+from app.ats.chatbot.exceptions import InvalidAssessmentData, EmployeeNotFound, PositionNotFound
 
 logger = logging.getLogger(__name__)
 

@@ -1,6 +1,6 @@
-# app/chatbot/handlers/generational_handler.py
-from ..core.base_handler import BaseHandler
-from ...analytics.generational_processor import GenerationalAnalytics
+# app/ats/chatbot/handlers/generational_handler.py
+from app.ats.chatbot.core.base_handler import BaseHandler
+from app.ats.analytics.generational_processor import GenerationalAnalytics
 
 class GenerationalHandler(BaseHandler):
     def __init__(self):

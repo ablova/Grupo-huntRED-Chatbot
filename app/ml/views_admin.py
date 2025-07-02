@@ -28,6 +28,7 @@ from app.models import (
 )
 from app.ml.core.models.base import MatchmakingLearningSystem
 from app.ats.utils.logger_utils import get_module_logger
+from app.ml.genia_insights_service import GeniaInsightsService
 
 # Configurar logger
 logger = get_module_logger('ml_admin')
@@ -526,3 +527,21 @@ def api_dashboard_charts(request):
         cache.set(cache_key, chart_data, 1800)
     
     return JsonResponse(chart_data)
+
+@login_required
+@user_passes_test(is_consultant_or_admin)
+def genia_dashboard(request):
+    """
+    Dashboard unificado de GenIA: muestra insights y métricas de todos los analyzers y módulos ML.
+    """
+    business_unit = getattr(request.user, 'business_unit', None)
+    insights_service = GeniaInsightsService(business_unit=business_unit)
+    all_insights = insights_service.get_all_insights()
+    summary = insights_service.get_summary()
+    context = {
+        'all_insights': all_insights,
+        'summary': summary,
+        'page_title': 'Dashboard GenIA',
+        'business_unit': business_unit.name if business_unit else 'Todas',
+    }
+    return render(request, 'genia/dashboard.html', context)

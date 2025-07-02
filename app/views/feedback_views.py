@@ -12,8 +12,8 @@ from datetime import datetime, timedelta
 import asyncio
 from django.urls import reverse
 
-from ..models import FeedbackEntry
-from ..ml.feedback.feedback_system import FeedbackAggregator, ModelRetrainer
+from app.models import FeedbackEntry
+from app.ml.feedback.feedback_system import FeedbackAggregator, ModelRetrainer
 import json
 from app.models import Person, BusinessUnit, Vacante, User
 from app.ats.feedback.feedback_models import SkillFeedback

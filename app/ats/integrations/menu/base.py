@@ -13,7 +13,7 @@ import logging
 from django.core.cache import cache
 from django.conf import settings
 
-from ..base.services import BaseService
+from app.ats.integrations.base.services import BaseService
 from .options import (
     MENU_OPTIONS_BY_BU, 
     EVALUATIONS_MENU,

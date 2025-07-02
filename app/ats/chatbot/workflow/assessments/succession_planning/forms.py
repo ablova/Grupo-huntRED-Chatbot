@@ -3,8 +3,8 @@ from django.forms import ModelForm, Form
 from django.utils.translation import gettext_lazy as _
 from django.db.models import Q
 
-from ..models import Person, Vacante, BusinessUnit
-from .models import (
+from app.models import Person, Vacante, BusinessUnit
+from app.ats.chatbot.workflow.assessments.succession_planning.models import (
     ProfessionalDNA, 
     SuccessionPlan, 
     SuccessionCandidate, 

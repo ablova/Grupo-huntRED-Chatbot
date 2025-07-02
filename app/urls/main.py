@@ -35,6 +35,9 @@ urlpatterns = [
     # URLs de notificaciones
     path('notifications/', include('app.urls.notifications')),
     
+    # URLs de optimización de comunicación
+    path('communication/', include('app.urls.communication')),
+    
     # URLs de chatbot
     path('chatbot/', include('app.urls.chatbot')),
     

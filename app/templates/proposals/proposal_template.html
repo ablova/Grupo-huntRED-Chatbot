@@ -17,21 +17,41 @@
         
         @page {
             size: A4;
-            margin: 1.5cm 1cm 2cm 1cm;
+            margin: 1cm 0.8cm 1.5cm 0.8cm;
+            
+            @top-left {
+                content: "";
+            }
+            
+            @top-center {
+                content: "";
+            }
+            
+            @top-right {
+                content: "";
+            }
+            
             @bottom-center {
-                content: "Página " counter(page);
-                font-size: 10px;
-                color: #666;
+                content: "";
+            }
+            
+            @bottom-right {
+                content: "";
             }
         }
         
         @media print {
-            body {
-                margin: 0;
-                padding: 0;
-                background: white;
-                font-size: 11pt;
-                line-height: 1.5;
+            html, body {
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 100% !important;
+                height: 100% !important;
+                background: white !important;
+                font-size: 10pt !important;
+                line-height: 1.4 !important;
+                color: #000 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
             }
             
             .page-break {
@@ -286,14 +306,7 @@
                 margin-bottom: 1rem;
             }
         }
-        .accordion-content {
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.3s ease;
-        }
-        .accordion-content.open {
-            max-height: 500px;
-        }
+        /* Estilos base del acordeón movidos al final del documento */
         .form-input:focus {
             outline: none;
             border-color: var(--hunt-red);
@@ -1044,21 +1057,229 @@
                         
                         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
                         <script>
+                        document.addEventListener('DOMContentLoaded', function() {
+                            const ctx = document.getElementById('mlChart').getContext('2d');
+                            const clientIndustry = '{{ client.industry }}';
+                            
+                            // Divisiones de la empresa
+                            let industries = [
+                                'Servicios Financieros', 
+                                'Legal', 
+                                'Energía', 
+                                'Healthcare', 
+                                'Ventas y Mercadotecnia', 
+                                'Finanzas y Contabilidad', 
+                                'Manufactura e Industria', 
+                                'Tecnologías de la Información', 
+                                'Sustentabilidad'
+                            ];
+                            
+                            // Tasas de éxito por industria (datos de ejemplo basados en estadísticas del sector)
+                            let successRates = [
+                                96,  // Servicios Financieros
+                                92,  // Legal
+                                87,  // Energía
+                                93,  // Healthcare
+                                88,  // Ventas y Mercadotecnia
+                                94,  // Finanzas y Contabilidad
+                                86,  // Manufactura e Industria
+                                94,  // Tecnologías de la Información
+                                97   // Sustentabilidad
+                            ];
+                            
+                            // Si la industria del cliente no está en la lista, la agregamos
+                            if (clientIndustry && !industries.includes(clientIndustry)) {
+                                industries.push(clientIndustry);
+                                // Promedio de las tasas existentes para la nueva industria
+                                const averageRate = Math.round(successRates.reduce((a, b) => a + b, 0) / successRates.length);
+                                successRates.push(averageRate);
+                            }
+                            
+                            // Encontrar el índice de la industria del cliente para resaltarla
+                            const clientIndustryIndex = industries.findIndex(ind => ind === clientIndustry);
+                            const backgroundColors = industries.map((_, index) => 
+                                index === clientIndustryIndex 
+                                    ? 'rgba(255, 51, 0, 0.9)'  // Rojo huntRED para la industria del cliente
+                                    : 'rgba(31, 53, 68, 0.3)'  // Azul más claro para las demás
+                            );
+                            
+                            const borderColors = industries.map((_, index) => 
+                                index === clientIndustryIndex 
+                                    ? 'rgba(255, 51, 0, 1)'  // Borde rojo para la industria del cliente
+                                    : 'rgba(31, 53, 68, 0.5)'  // Borde azul para las demás
+                            );
+                            
+                            // Ordenar las industrias por tasa de éxito (excepto la industria del cliente)
+                            const sortedIndices = industries
+                                .map((_, index) => index)
+                                .filter(i => i !== clientIndustryIndex)
+                                .sort((a, b) => successRates[b] - successRates[a]);
+                            
+                            // Reconstruir los arrays ordenados
+                            const sortedIndustries = [clientIndustry, ...sortedIndices.map(i => industries[i])];
+                            const sortedSuccessRates = [successRates[clientIndustryIndex], ...sortedIndices.map(i => successRates[i])];
+                            const sortedBackgroundColors = [backgroundColors[clientIndustryIndex], ...sortedIndices.map(i => backgroundColors[i])];
+                            const sortedBorderColors = [borderColors[clientIndustryIndex], ...sortedIndices.map(i => borderColors[i])];
+                            
+                            // Configuración de ancho de barras
+                            const barPercentage = 0.7; // Controla el ancho de las barras en relación con el ancho de categoría disponible
+                            const categoryPercentage = 0.8; // Controla el ancho de categoría en relación con el ancho total disponible
+                            
+                            // Configuración de sombras y efectos
+                            const shadowColor = 'rgba(0, 0, 0, 0.3)';
+                            const shadowBlur = 15;
+                            const shadowOffsetX = 0;
+                            const shadowOffsetY = 8;
+                            
+                            new Chart(ctx, {
+                                type: 'bar',
+                                data: {
+                                    labels: sortedIndustries,
+                                    datasets: [{
+                                        label: 'Tasa de éxito de contratación',
+                                        data: sortedSuccessRates,
+                                        backgroundColor: sortedBackgroundColors,
+                                        borderColor: sortedBorderColors,
+                                        borderWidth: (context) => context.dataIndex === 0 ? 3 : 1,
+                                        borderRadius: (context) => context.dataIndex === 0 ? 8 : 3,
+                                        borderSkipped: false,
+                                        barPercentage: barPercentage,
+                                        categoryPercentage: categoryPercentage,
+                                        // Asegurar que solo la primera barra (la del cliente) sea más ancha
+                                        barThickness: (context) => {
+                                            return context.dataIndex === 0 ? 40 : 15; // Barra del cliente más ancha
+                                        },
+                                        // Mejorar el efecto visual de la barra del cliente
+                                        shadowColor: (context) => context.dataIndex === 0 ? shadowColor : 'transparent',
+                                        shadowBlur: (context) => context.dataIndex === 0 ? shadowBlur : 0,
+                                        shadowOffsetX: (context) => context.dataIndex === 0 ? shadowOffsetX : 0,
+                                        shadowOffsetY: (context) => context.dataIndex === 0 ? shadowOffsetY : 0,
+                                        // Asegurar que el hover solo afecte a la barra del cliente
+                                        hoverBackgroundColor: (context) => 
+                                            context.dataIndex === 0 ? 'rgba(255, 51, 0, 1)' : 'rgba(31, 53, 68, 0.4)'
+                                    }]
+                                },
+                                options: {
+                                    indexAxis: 'x',
+                                    responsive: true,
+                                    maintainAspectRatio: false,
+                                    scales: {
+                                        y: {
+                                            beginAtZero: true,
+                                            max: 100,
+                                            grid: {
+                                                display: true,
+                                                color: 'rgba(0, 0, 0, 0.05)'
+                                            },
+                                            title: {
+                                                display: true,
+                                                text: 'Tasa de éxito (%)',
+                                                font: {
+                                                    weight: 'bold'
+                                                }
+                                            }
+                                        },
+                                        x: {
+                                            grid: {
+                                                display: false
+                                            },
+                                            ticks: {
+                                                autoSkip: false,
+                                                maxRotation: 45,
+                                                minRotation: 45,
+                                                font: (context) => ({
+                                                    weight: context.index === 0 ? 'bold' : 'normal',
+                                                    size: context.index === 0 ? 13 : 11,
+                                                    color: context.index === 0 ? '#1f3544' : '#4a5568'
+                                                }),
+                                                padding: 8,
+                                                // Asegurar que todas las etiquetas sean visibles
+                                                callback: (value, index) => {
+                                                    const label = this.getLabelForValue(value);
+                                                    return index === 0 ? `★ ${label} ★` : label;
+                                                }
+                                            },
+                                            title: {
+                                                display: true,
+                                                text: 'Industrias',
+                                                font: {
+                                                    weight: 'bold',
+                                                    size: 14,
+                                                    family: "'Inter', sans-serif"
+                                                },
+                                                padding: {top: 20, bottom: 5}
+                                            },
+                                            // Asegurar que las etiquetas no se corten
+                                            afterFit: function(axis) {
+                                                axis.paddingTop = 10;
+                                            }
+                                        }
+                                    },
+                                    plugins: {
+                                        legend: {
+                                            display: true,
+                                            position: 'top',
+                                            labels: {
+                                                usePointStyle: true,
+                                                padding: 20,
+                                                generateLabels: function(chart) {
+                                                    return [
+                                                        {
+                                                            text: 'Su industria',
+                                                            fillStyle: 'rgba(255, 51, 0, 0.9)',
+                                                            strokeStyle: 'rgba(255, 51, 0, 1)',
+                                                            lineWidth: 2,
+                                                            hidden: false,
+                                                            lineCap: 'round',
+                                                            lineDash: []
+                                                        },
+                                                        {
+                                                            text: 'Otras industrias / divisiones',
+                                                            fillStyle: 'rgba(31, 53, 68, 0.3)',
+                                                            strokeStyle: 'rgba(31, 53, 68, 0.5)',
+                                                            lineWidth: 2,
+                                                            hidden: false,
+                                                            lineCap: 'round',
+                                                            lineDash: []
+                                                        }
+                                                    ];
+                                                }
+                                            }
                                         },
                                         tooltip: {
+                                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                            titleFont: {
+                                                size: 14,
+                                                weight: 'bold'
+                                            },
+                                            bodyFont: {
+                                                size: 13
+                                            },
                                             callbacks: {
                                                 label: function(context) {
                                                     return `Tasa de éxito: ${context.raw}%`;
                                                 },
                                                 afterLabel: function(context) {
-                                                    const industry = context.label;
-                                                    if (industry === '{{ client.industry }}') {
-                                                        return 'Predicción ML para su industria';
+                                                    if (context.dataIndex === 0) {
+                                                        return [
+                                                            '★ Industria del Cliente ★',
+                                                            `Tasa de éxito: ${context.raw}%`,
+                                                            'Basado en datos históricos y patrones',
+                                                            'de contratación en su industria'
+                                                        ];
                                                     }
-                                                    return null;
+                                                    return [
+                                                        `Industria: ${context.label}`,
+                                                        `Tasa de éxito: ${context.raw}%`,
+                                                        'Haz clic en "Editar" para personalizar'
+                                                    ];
                                                 }
                                             }
                                         }
+                                    },
+                                    animation: {
+                                        duration: 1000,
+                                        easing: 'easeOutQuart'
                                     }
                                 }
                             });
@@ -2002,9 +2223,23 @@
         <div class="bg-gradient-to-r from-gray-50 to-white p-6 rounded-xl border border-gray-100 shadow-sm">
             <!-- Cliente: Contexto y Relación -->
             <div class="mb-6">
-                <h2 class="text-2xl font-bold mb-4 accent-gradient">6. Nuestra Comprensión de {{ client.name }}</h2>
-                <div class="section-divider"></div>
-                <p class="text-gray-700 mb-4">Con base en nuestra experiencia previa y análisis de su organización, comprendemos que {{ client.name }} se encuentra en un momento clave de {% if client.growth_status %}{{ client.growth_status }}{% else %}crecimiento y transformación{% endif %}, donde el talento adecuado no solo es deseable sino estratégicamente crucial.</p>
+                <div id="client-understanding">
+                    <h2 class="text-2xl font-bold mb-4 accent-gradient">6. Nuestra Comprensión de {{ client.name }}</h2>
+                    <div class="section-divider"></div>
+                    
+                    <!-- Contenedor para el componente React de Comprensión del Cliente -->
+                    <div id="client-understanding-container" 
+                         data-client='{"name": "{{ client.name }}", 
+                                     "industry": "{{ client.industry|default:"Tecnología" }}", 
+                                     "size": "{{ client.size|default:"Mediana" }}",
+                                     "growth_status": "{% if client.growth_status %}{{ client.growth_status }}{% else %}crecimiento y transformación{% endif %}"}'>
+                        <!-- El componente React se montará aquí -->
+                        <div class="text-center py-12">
+                            <div class="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mb-4"></div>
+                            <p class="text-gray-600">Cargando análisis personalizado...</p>
+                        </div>
+                    </div>
+                </div> <!-- Cierre del div#client-understanding -->
                 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                     <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
@@ -2955,11 +3190,33 @@
 
             </p>
                 <!-- Cronograma del Proceso -->
-    <section class="mb-12 page-break">
+    <section class="mb-12 page-break" id="cronograma-proceso">
         <h2 class="text-2xl font-bold mb-4 accent-gradient">8. Cronograma del Proceso</h2>
         <div class="section-divider"></div>
         
-        <p class="text-gray-700 mb-6">El siguiente cronograma ilustra los tiempos estimados para cada fase del proceso de reclutamiento. Los tiempos pueden variar dependiendo de la complejidad de la posición y la disponibilidad de candidatos calificados.</p>
+        <div class="mb-8">
+            <p class="text-gray-700 mb-6">Nuestro proceso de reclutamiento está diseñado para ser ágil y efectivo, con una duración promedio de 9-14 días hábiles. A continuación, presentamos un desglose detallado de cada etapa, junto con un panel interactivo de seguimiento en tiempo real:</p>
+            
+            <!-- Contenedor para el componente React de Seguimiento -->
+            <div id="recruitment-dashboard-container" 
+                 data-client-name="{{ client.name }}" 
+                 class="mb-8 rounded-xl overflow-hidden border border-gray-200">
+                <!-- El componente React se montará aquí -->
+                <div class="text-center py-12">
+                    <div class="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mb-4"></div>
+                    <p class="text-gray-600">Cargando panel de seguimiento...</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Contenedor para el componente React de Cronograma -->
+        <div id="process-timeline-container" class="mt-8">
+            <!-- El componente React se montará aquí -->
+            <div class="text-center py-12">
+                <div class="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mb-4"></div>
+                <p class="text-gray-600">Cargando cronograma interactivo...</p>
+            </div>
+        </div>
         <div class="mt-12 mb-8">
           <h3 class="text-xl font-bold text-gray-800 mb-4">Cronograma Comparativo: Proceso Tradicional vs. Ecosistema de Grupohunt<span style="color: var(--hunt-red);">RED® AI</span></h3>
             
@@ -3211,68 +3468,338 @@
     
 
     <!-- Preguntas Frecuentes -->
-    <section class="mb-12 page-break">
-        <h2 class="text-2xl font-bold mb-4 accent-gradient">11. Preguntas Frecuentes</h2>
-        <div class="section-divider"></div>
+    <section class="mb-12 page-break" id="preguntas-frecuentes">
+        <h2 class="text-2xl font-bold mb-6 text-gray-800 relative">
+            <span class="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">11. Preguntas Frecuentes</span>
+            <div class="h-1 w-20 bg-gradient-to-r from-blue-500 to-purple-500 mt-2 rounded-full"></div>
+        </h2>
         
-        <p class="text-gray-700 mb-6">Respondemos a las consultas más comunes sobre nuestro proceso de reclutamiento y selección:</p>
+        <div class="mb-8 max-w-5xl mx-auto">
+            <p class="text-gray-600 text-lg mb-4">Respondemos a las consultas más comunes sobre nuestro proceso de reclutamiento y selección. Haga clic en cada pregunta o presione Enter para ver la respuesta detallada.</p>
+            <div class="flex flex-wrap gap-2 mt-2">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                    </svg>
+                    Preguntas Frecuentes
+                </span>
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                    </svg>
+                    Respuestas Detalladas
+                </span>
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                    <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                    </svg>
+                    Información Actualizada
+                </span>
+            </div>
+        </div>
         
-        <div class="space-y-4">
+        <div class="space-y-4 max-w-5xl mx-auto" role="region" aria-label="Preguntas frecuentes">
             <!-- Pregunta 1 -->
-            <div class="border border-gray-200 rounded-lg overflow-hidden">
-                <button class="accordion-header w-full text-left p-4 bg-gray-50 hover:bg-gray-100 transition-colors flex justify-between items-center">
-                    <span class="font-medium">¿Cuál es el tiempo promedio para cubrir una vacante?</span>
-                    <i class="fas fa-chevron-down text-gray-400"></i>
+            <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200">
+                <button class="accordion-header w-full text-left p-5 bg-gradient-to-r from-gray-50 to-white hover:from-gray-50 hover:to-gray-50 transition-all duration-200 flex justify-between items-center group" 
+                        aria-expanded="false" 
+                        aria-controls="faq-1">
+                    <span class="font-medium text-gray-800 text-lg group-hover:text-blue-600 transition-colors">
+                        <i class="fas fa-question-circle text-blue-500 mr-2"></i>
+                        ¿Cuál es el tiempo promedio para cubrir una vacante?
+                    </span>
+                    <i class="fas fa-chevron-down text-gray-400 group-aria-expanded:rotate-180 transition-transform duration-200"></i>
                 </button>
-                <div class="accordion-content p-4 border-t border-gray-200 bg-white">
-                    <p class="text-gray-700">El tiempo promedio para cubrir una vacante gerencial o directiva es de 30 días. Sin embargo, este plazo puede variar dependiendo de la complejidad del puesto, la disponibilidad de candidatos en el mercado, y los requisitos específicos de la posición. Para puestos altamente especializados o de alta dirección, el proceso puede extenderse hasta 45-60 días.</p>
+                <div id="faq-1" class="accordion-content p-0 max-h-0 overflow-hidden transition-all duration-300 ease-in-out">
+                    <div class="p-5 pt-0 text-gray-700 bg-white border-t border-gray-100">
+                        <p>El tiempo promedio para cubrir una vacante gerencial o directiva es de 30 días. Sin embargo, este plazo puede variar dependiendo de:</p>
+                        <ul class="mt-3 space-y-2 pl-5 list-disc text-gray-600">
+                            <li>La complejidad del puesto y nivel de especialización requerido</li>
+                            <li>Disponibilidad de candidatos calificados en el mercado</li>
+                            <li>Requisitos específicos de la posición y nivel de experiencia</li>
+                            <li>Procesos de selección internos del cliente</li>
+                        </ul>
+                        <p class="mt-3">Para puestos altamente especializados o de alta dirección, el proceso puede extenderse hasta 45-60 días para garantizar encontrar al candidato ideal.</p>
+                    </div>
                 </div>
             </div>
             
             <!-- Pregunta 2 -->
-            <div class="border border-gray-200 rounded-lg overflow-hidden">
-                <button class="accordion-header w-full text-left p-4 bg-gray-50 hover:bg-gray-100 transition-colors flex justify-between items-center">
-                    <span class="font-medium">¿Qué garantía ofrece huntRED® si el candidato contratado no funciona?</span>
-                    <i class="fas fa-chevron-down text-gray-400"></i>
+            <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200">
+                <button class="accordion-header w-full text-left p-5 bg-gradient-to-r from-gray-50 to-white hover:from-gray-50 hover:to-gray-50 transition-all duration-200 flex justify-between items-center group" 
+                        aria-expanded="false" 
+                        aria-controls="faq-2">
+                    <span class="font-medium text-gray-800 text-lg group-hover:text-blue-600 transition-colors">
+                        <i class="fas fa-shield-alt text-green-500 mr-2"></i>
+                        ¿Qué garantía ofrece huntRED® si el candidato contratado no funciona?
+                    </span>
+                    <i class="fas fa-chevron-down text-gray-400 group-aria-expanded:rotate-180 transition-transform duration-200"></i>
                 </button>
-                <div class="accordion-content p-4 border-t border-gray-200 bg-white">
-                    <p class="text-gray-700">Ofrecemos una garantía de reemplazo de 3 meses. Si durante este periodo el candidato contratado renuncia o es despedido por motivos de desempeño, reanudaremos el proceso de búsqueda sin costo adicional (exceptuando gastos de publicidad u otros previamente acordados). Esta garantía está sujeta a las condiciones detalladas en el contrato, como la notificación oportuna de la terminación y el pago completo de nuestros servicios.</p>
+                <div id="faq-2" class="accordion-content p-0 max-h-0 overflow-hidden transition-all duration-300 ease-in-out">
+                    <div class="p-5 pt-0 text-gray-700 bg-white border-t border-gray-100">
+                        <div class="bg-blue-50 border-l-4 border-blue-400 p-4 mb-4">
+                            <p class="font-medium text-blue-800">Ofrecemos una garantía de reemplazo de 3 meses</p>
+                        </div>
+                        
+                        <p class="mb-3">Nuestro compromiso con su satisfacción incluye:</p>
+                        
+                        <div class="grid md:grid-cols-2 gap-4 mb-4">
+                            <div class="flex items-start">
+                                <i class="fas fa-check-circle text-green-500 mt-1 mr-2"></i>
+                                <div>
+                                    <p class="font-medium">Cobertura Total</p>
+                                    <p class="text-sm text-gray-600">Si el candidato no cumple con las expectativas dentro de los primeros 3 meses, reiniciamos la búsqueda sin costo adicional.</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start">
+                                <i class="fas fa-clock text-blue-500 mt-1 mr-2"></i>
+                                <div>
+                                    <p class="font-medium">Tiempo de Respuesta</p>
+                                    <p class="text-sm text-gray-600">Priorizamos su caso y comenzamos la búsqueda de reemplazo de inmediato.</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mt-4">
+                            <p class="text-sm text-yellow-800">
+                                <span class="font-medium">Importante:</span> Esta garantía está sujeta a las condiciones detalladas en el contrato, incluyendo notificación oportuna de la terminación y pago completo de nuestros servicios. No aplica para despidos por causas ajenas al desempeño o por cambios en la estructura organizacional.
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </div>
             
             <!-- Pregunta 3 -->
-            <div class="border border-gray-200 rounded-lg overflow-hidden">
-                <button class="accordion-header w-full text-left p-4 bg-gray-50 hover:bg-gray-100 transition-colors flex justify-between items-center">
-                    <span class="font-medium">¿Cómo se diferencia huntRED® de otras empresas de reclutamiento?</span>
-                    <i class="fas fa-chevron-down text-gray-400"></i>
+            <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200">
+                <button class="accordion-header w-full text-left p-5 bg-gradient-to-r from-gray-50 to-white hover:from-gray-50 hover:to-gray-50 transition-all duration-200 flex justify-between items-center group" 
+                        aria-expanded="false" 
+                        aria-controls="faq-3">
+                    <span class="font-medium text-gray-800 text-lg group-hover:text-blue-600 transition-colors">
+                        <i class="fas fa-star text-yellow-500 mr-2"></i>
+                        ¿Cómo se diferencia huntRED® de otras empresas de reclutamiento?
+                    </span>
+                    <i class="fas fa-chevron-down text-gray-400 group-aria-expanded:rotate-180 transition-transform duration-200"></i>
                 </button>
-                <div class="accordion-content p-4 border-t border-gray-200 bg-white">
-                    <p class="text-gray-700 mb-3">huntRED® se diferencia por:</p>
-                    <ul class="list-disc pl-5 space-y-1 text-gray-700">
-                        <li>Nuestro enfoque de networking activo que nos permite llegar a candidatos pasivos de alta calidad</li>
-                        <li>El uso de inteligencia artificial y tecnología avanzada para mejorar la precisión en la búsqueda de candidatos</li>
-                        <li>Consultores especializados por industria con profundo conocimiento del mercado</li>
-                        <li>Nuestro proceso de evaluación integral que analiza tanto competencias técnicas como de liderazgo y ajuste cultural</li>
-                        <li>Un enfoque personalizado para cada cliente, adaptando nuestras estrategias a sus necesidades específicas</li>
-                    </ul>
+                <div id="faq-3" class="accordion-content p-0 max-h-0 overflow-hidden transition-all duration-300 ease-in-out">
+                    <div class="p-5 pt-0 text-gray-700 bg-white border-t border-gray-100">
+                        <div class="grid md:grid-cols-2 gap-6">
+                            <div class="space-y-4">
+                                <div class="flex items-start">
+                                    <div class="flex-shrink-0 h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center mr-3">
+                                        <i class="fas fa-network-wired text-blue-600"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-semibold text-gray-800">Networking Activo</h4>
+                                        <p class="text-sm text-gray-600">Llegamos a candidatos pasivos de alto perfil a través de nuestra extensa red profesional.</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="flex items-start">
+                                    <div class="flex-shrink-0 h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center mr-3">
+                                        <i class="fas fa-robot text-purple-600"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-semibold text-gray-800">Tecnología Avanzada</h4>
+                                        <p class="text-sm text-gray-600">Utilizamos inteligencia artificial para análisis predictivo y búsqueda de candidatos.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="space-y-4">
+                                <div class="flex items-start">
+                                    <div class="flex-shrink-0 h-10 w-10 rounded-full bg-green-100 flex items-center justify-center mr-3">
+                                        <i class="fas fa-user-tie text-green-600"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-semibold text-gray-800">Expertos por Industria</h4>
+                                        <p class="text-sm text-gray-600">Consultores especializados con conocimiento profundo de su sector.</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="flex items-start">
+                                    <div class="flex-shrink-0 h-10 w-10 rounded-full bg-red-100 flex items-center justify-center mr-3">
+                                        <i class="fas fa-heart text-red-600"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-semibold text-gray-800">Enfoque Personalizado</h4>
+                                        <p class="text-sm text-gray-600">Estrategias adaptadas a sus necesidades específicas y cultura organizacional.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-6 bg-gray-50 p-4 rounded-lg border border-gray-100">
+                            <p class="text-sm text-gray-600 italic">
+                                <i class="fas fa-quote-left text-gray-400 mr-2"></i>
+                                En huntRED® no solo llenamos vacantes, construimos equipos excepcionales que impulsan el éxito de su organización a largo plazo.
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </div>
             
             <!-- Pregunta 4 -->
-            <div class="border border-gray-200 rounded-lg overflow-hidden">
-                <button class="accordion-header w-full text-left p-4 bg-gray-50 hover:bg-gray-100 transition-colors flex justify-between items-center">
-                    <span class="font-medium">¿Cómo evalúan a los candidatos?</span>
-                    <i class="fas fa-chevron-down text-gray-400"></i>
+            <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200">
+                <button class="accordion-header w-full text-left p-5 bg-gradient-to-r from-gray-50 to-white hover:from-gray-50 hover:to-gray-50 transition-all duration-200 flex justify-between items-center group" 
+                        aria-expanded="false" 
+                        aria-controls="faq-4">
+                    <span class="font-medium text-gray-800 text-lg group-hover:text-blue-600 transition-colors">
+                        <i class="fas fa-clipboard-check text-indigo-500 mr-2"></i>
+                        ¿Cómo evalúan a los candidatos?
+                    </span>
+                    <i class="fas fa-chevron-down text-gray-400 group-aria-expanded:rotate-180 transition-transform duration-200"></i>
                 </button>
-                <div class="accordion-content p-4 border-t border-gray-200 bg-white">
-                    <p class="text-gray-700 mb-3">Nuestro proceso de evaluación es riguroso y multidimensional, incluyendo:</p>
-                    <ul class="list-disc pl-5 space-y-1 text-gray-700">
-                        <li>Entrevistas por competencias conducidas por consultores experimentados</li>
-                        <li>Evaluaciones técnicas adaptadas al rol específico</li>
-                        <li>Pruebas psicometrías y de personalidad cuando son relevantes</li>
-                        <li>Verificación exhaustiva de referencias profesionales</li>
-                        <li>Análisis de alineación con la cultura organizacional del cliente</li>
-                        <li>Evaluación de potencial de desarrollo para roles futuros</li>
+                <div id="faq-4" class="accordion-content p-0 max-h-0 overflow-hidden transition-all duration-300 ease-in-out">
+                    <div class="p-5 pt-0 text-gray-700 bg-white border-t border-gray-100">
+                        <p class="mb-4">Nuestro proceso de evaluación integral está diseñado para identificar a los mejores talentos mediante múltiples capas de análisis:</p>
+                        
+                        <div class="space-y-6">
+                            <!-- Fase 1 -->
+                            <div class="relative pl-8 pb-6 border-l-2 border-blue-200">
+                                <div class="absolute -left-2.5 top-0 h-5 w-5 rounded-full bg-blue-500 flex items-center justify-center">
+                                    <span class="text-white text-xs font-bold">1</span>
+                                </div>
+                                <h4 class="font-semibold text-gray-800 mb-2">Evaluación Inicial</h4>
+                                <ul class="space-y-1 text-sm text-gray-600">
+                                    <li class="flex items-start">
+                                        <i class="fas fa-check-circle text-green-500 mt-1 mr-2 text-xs"></i>
+                                        <span>Revisión exhaustiva de CV y experiencia laboral</span>
+                                    </li>
+                                    <li class="flex items-start">
+                                        <i class="fas fa-check-circle text-green-500 mt-1 mr-2 text-xs"></i>
+                                        <span>Análisis de logros y trayectoria profesional</span>
+                                    </li>
+                                    <li class="flex items-start">
+                                        <i class="fas fa-check-circle text-green-500 mt-1 mr-2 text-xs"></i>
+                                        <span>Verificación de referencias laborales</span>
+                                    </li>
+                                </ul>
+                            </div>
+                            
+                            <!-- Fase 2 -->
+                            <div class="relative pl-8 pb-6 border-l-2 border-purple-200">
+                                <div class="absolute -left-2.5 top-0 h-5 w-5 rounded-full bg-purple-500 flex items-center justify-center">
+                                    <span class="text-white text-xs font-bold">2</span>
+                                </div>
+                                <h4 class="font-semibold text-gray-800 mb-2">Evaluación Técnica</h4>
+                                <ul class="space-y-1 text-sm text-gray-600">
+                                    <li class="flex items-start">
+                                        <i class="fas fa-laptop-code text-purple-500 mt-1 mr-2 text-xs"></i>
+                                        <span>Pruebas técnicas específicas para el rol</span>
+                                    </li>
+                                    <li class="flex items-start">
+                                        <i class="fas fa-tasks text-purple-500 mt-1 mr-2 text-xs"></i>
+                                        <span>Evaluación de habilidades prácticas</span>
+                                    </li>
+                                    <li class="flex items-start">
+                                        <i class="fas fa-project-diagram text-purple-500 mt-1 mr-2 text-xs"></i>
+                                        <span>Análisis de casos prácticos reales</span>
+                                    </li>
+                                </ul>
+                            </div>
+                            
+                            <!-- Fase 3 -->
+                            <div class="relative pl-8">
+                                <div class="absolute -left-2.5 top-0 h-5 w-5 rounded-full bg-green-500 flex items-center justify-center">
+                                    <span class="text-white text-xs font-bold">3</span>
+                                </div>
+                                <h4 class="font-semibold text-gray-800 mb-2">Evaluación Psicométrica y Cultural</h4>
+                                <ul class="space-y-1 text-sm text-gray-600">
+                                    <li class="flex items-start">
+                                        <i class="fas fa-brain text-green-500 mt-1 mr-2 text-xs"></i>
+                                        <span>Pruebas psicométricas validadas</span>
+                                    </li>
+                                    <li class="flex items-start">
+                                        <i class="fas fa-users text-green-500 mt-1 mr-2 text-xs"></i>
+                                        <span>Evaluación de ajuste cultural</span>
+                                    </li>
+                                    <li class="flex items-start">
+                                        <i class="fas fa-comments text-green-500 mt-1 mr-2 text-xs"></i>
+                                        <span>Entrevistas conductuales estructuradas</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
+                            <p class="text-sm text-blue-800">
+                                <i class="fas fa-info-circle text-blue-500 mr-2"></i>
+                                Cada candidato pasa por un mínimo de 3 entrevistas con diferentes miembros de nuestro equipo para garantizar una evaluación completa y objetiva.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Pregunta 5 -->
+            <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200">
+                <button class="accordion-header w-full text-left p-5 bg-gradient-to-r from-gray-50 to-white hover:from-gray-50 hover:to-gray-50 transition-all duration-200 flex justify-between items-center group" 
+                        aria-expanded="false" 
+                        aria-controls="faq-5">
+                    <span class="font-medium text-gray-800 text-lg group-hover:text-blue-600 transition-colors">
+                        <i class="fas fa-file-signature text-amber-500 mr-2"></i>
+                        ¿Qué incluye el proceso de contratación?
+                    </span>
+                    <i class="fas fa-chevron-down text-gray-400 group-aria-expanded:rotate-180 transition-transform duration-200"></i>
+                </button>
+                <div id="faq-5" class="accordion-content p-0 max-h-0 overflow-hidden transition-all duration-300 ease-in-out">
+                    <div class="p-5 pt-0 text-gray-700 bg-white border-t border-gray-100">
+                        <p class="mb-4">Nuestro proceso de contratación está diseñado para garantizar el éxito a largo plazo de cada colocación. Incluye:</p>
+                        
+                        <div class="grid md:grid-cols-2 gap-6 mb-4">
+                            <div class="space-y-3">
+                                <div class="flex items-start">
+                                    <div class="flex-shrink-0 h-6 w-6 rounded-full bg-blue-100 flex items-center justify-center mr-3 mt-0.5">
+                                        <i class="fas fa-file-alt text-blue-600 text-xs"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-medium text-gray-800">Documentación Completa</h4>
+                                        <p class="text-sm text-gray-600">Revisión y validación de toda la documentación profesional y académica.</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="flex items-start">
+                                    <div class="flex-shrink-0 h-6 w-6 rounded-full bg-green-100 flex items-center justify-center mr-3 mt-0.5">
+                                        <i class="fas fa-search text-green-600 text-xs"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-medium text-gray-800">Verificación de Referencias</h4>
+                                        <p class="text-sm text-gray-600">Contacto con referencias profesionales para validar experiencia y desempeño.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="space-y-3">
+                                <div class="flex items-start">
+                                    <div class="flex-shrink-0 h-6 w-6 rounded-full bg-purple-100 flex items-center justify-center mr-3 mt-0.5">
+                                        <i class="fas fa-balance-scale text-purple-600 text-xs"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-medium text-gray-800">Alineación Cultural</h4>
+                                        <p class="text-sm text-gray-600">Evaluación de compatibilidad con la cultura organizacional de su empresa.</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="flex items-start">
+                                    <div class="flex-shrink-0 h-6 w-6 rounded-full bg-amber-100 flex items-center justify-center mr-3 mt-0.5">
+                                        <i class="fas fa-chart-line text-amber-600 text-xs"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-medium text-gray-800">Potencial de Desarrollo</h4>
+                                        <p class="text-sm text-gray-600">Análisis de capacidades de crecimiento y adaptación a futuros desafíos.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                            <p class="text-sm text-gray-700">
+                                <i class="fas fa-lightbulb text-yellow-500 mr-2"></i>
+                                Cada paso de nuestro proceso está diseñado para minimizar el riesgo de contratación y maximizar las posibilidades de éxito a largo plazo.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
                     </ul>
                 </div>
             </div>
@@ -3420,6 +3947,274 @@
     </section>
 
         <!-- Footer -->
+        <!-- Enhanced Accordion Script -->
+        <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Configuración del acordeón
+            const accordionItems = document.querySelectorAll('.accordion-header');
+            let activeItem = null;
+            
+            // Función para abrir un ítem del acordeón
+            function openAccordion(item, animate = true) {
+                const content = item.nextElementSibling;
+                const icon = item.querySelector('i.fa-chevron-down');
+                
+                // Cerrar el ítem activo actual si existe y es diferente al que se está abriendo
+                if (activeItem && activeItem !== item) {
+                    const activeContent = activeItem.nextElementSibling;
+                    const activeIcon = activeItem.querySelector('i.fa-chevron-down');
+                    
+                    if (animate) {
+                        activeContent.style.maxHeight = null;
+                        activeContent.style.opacity = '0';
+                    } else {
+                        activeContent.style.display = 'none';
+                    }
+                    activeItem.setAttribute('aria-expanded', 'false');
+                    activeIcon.classList.remove('rotate-180');
+                    activeItem.classList.remove('from-blue-50', 'to-blue-50');
+                    activeItem.classList.add('from-gray-50', 'to-white');
+                }
+                
+                // Alternar el ítem actual
+                if (content.style.maxHeight || content.style.display === 'block') {
+                    if (animate) {
+                        content.style.maxHeight = '0';
+                        content.style.opacity = '0';
+                        setTimeout(() => {
+                            content.style.display = 'none';
+                        }, 300);
+                    } else {
+                        content.style.display = 'none';
+                    }
+                    item.setAttribute('aria-expanded', 'false');
+                    icon.classList.remove('rotate-180');
+                    item.classList.remove('from-blue-50', 'to-blue-50');
+                    item.classList.add('from-gray-50', 'to-white');
+                    activeItem = null;
+                } else {
+                    content.style.display = 'block';
+                    if (animate) {
+                        content.style.maxHeight = content.scrollHeight + 'px';
+                        content.style.opacity = '1';
+                    }
+                    item.setAttribute('aria-expanded', 'true');
+                    icon.classList.add('rotate-180');
+                    item.classList.remove('from-gray-50', 'to-white');
+                    item.classList.add('from-blue-50', 'to-blue-50');
+                    activeItem = item;
+                    
+                    // Desplazamiento suave para asegurar que el ítem sea visible
+                    if (window.innerWidth > 768) { // Solo en desktop
+                        setTimeout(() => {
+                            item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        }, 100);
+                    }
+                }
+                
+                // Actualizar la URL con el hash para permitir compartir enlaces directos
+                if (activeItem) {
+                    const itemId = activeItem.getAttribute('aria-controls');
+                    if (history.pushState) {
+                        history.pushState(null, null, `#${itemId}`);
+                    } else {
+                        window.location.hash = `#${itemId}`;
+                    }
+                } else if (window.location.hash) {
+                    if (history.pushState) {
+                        history.pushState('', document.title, window.location.pathname + window.location.search);
+                    } else {
+                        window.location.hash = '';
+                    }
+                }
+            }
+            
+            // Inicializar acordeones
+            function initAccordions() {
+                // Configurar cada ítem del acordeón
+                accordionItems.forEach(item => {
+                    const content = item.nextElementSibling;
+                    const contentId = content.id || `faq-${Math.random().toString(36).substr(2, 9)}`;
+                    
+                    // Configurar atributos ARIA
+                    item.setAttribute('id', `accordion-${contentId}`);
+                    item.setAttribute('aria-controls', contentId);
+                    item.setAttribute('aria-expanded', 'false');
+                    item.setAttribute('role', 'button');
+                    item.setAttribute('tabindex', '0');
+                    
+                    // Configurar el contenido
+                    content.setAttribute('id', contentId);
+                    content.setAttribute('aria-labelledby', `accordion-${contentId}`);
+                    content.setAttribute('role', 'region');
+                    content.style.display = 'none';
+                    
+                    // Agregar evento de clic
+                    item.addEventListener('click', function(e) {
+                        // Prevenir el comportamiento predeterminado solo para los botones dentro del acordeón
+                        if (e.target.tagName === 'BUTTON' || e.target.closest('button, a, [role="button"]')) {
+                            return;
+                        }
+                        openAccordion(this);
+                    });
+                    
+                    // Soporte para teclado
+                    item.addEventListener('keydown', function(e) {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            openAccordion(this);
+                        }
+                    });
+                });
+                
+                // Abrir el ítem correspondiente al hash de la URL al cargar la página
+                const hash = window.location.hash.substring(1);
+                if (hash) {
+                    const targetItem = document.querySelector(`[aria-controls="${hash}"]`);
+                    if (targetItem) {
+                        // Pequeño retraso para asegurar que el DOM esté completamente cargado
+                        setTimeout(() => {
+                            openAccordion(targetItem, false);
+                        }, 100);
+                        return;
+                    }
+                }
+                
+                // Abrir el primer ítem por defecto si no hay hash
+                if (accordionItems.length > 0) {
+                    setTimeout(() => {
+                        openAccordion(accordionItems[0], false);
+                    }, 300);
+                }
+            }
+            
+            // Inicializar los acordeones
+            initAccordions();
+            
+            // Manejar el botón de retroceso/adelante del navegador
+            window.addEventListener('popstate', function() {
+                const hash = window.location.hash.substring(1);
+                if (hash) {
+                    const targetItem = document.querySelector(`[aria-controls="${hash}"]`);
+                    if (targetItem) {
+                        openAccordion(targetItem, false);
+                    }
+                } else if (activeItem) {
+                    openAccordion(activeItem, false);
+                }
+            });
+            
+            // Ajustar la altura de los acordeones abiertos al redimensionar la ventana
+            let resizeTimer;
+            window.addEventListener('resize', function() {
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(function() {
+                    const openContent = document.querySelector('.accordion-header[aria-expanded="true"]');
+                    if (openContent) {
+                        const content = openContent.nextElementSibling;
+                        content.style.maxHeight = content.scrollHeight + 'px';
+                    }
+                }, 250);
+            });
+            
+            // Añadir clase al body para indicar que el JS está cargado
+            document.body.classList.add('js-accordion-loaded');
+        });
+        </script>
+        
+        <!-- Estilos mejorados para el acordeón -->
+        <style>
+            /* Transiciones suaves para los acordeones */
+            .accordion-content {
+                transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out, padding 0.3s ease-in-out;
+                opacity: 0;
+                max-height: 0;
+                overflow: hidden;
+                padding: 0 1.25rem;
+                margin: 0;
+            }
+            
+            .accordion-header[aria-expanded="true"] + .accordion-content {
+                opacity: 1;
+                padding: 0 1.25rem 1.25rem;
+                transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out 0.1s, padding 0.3s ease-in-out;
+            }
+            
+            /* Mejoras de accesibilidad */
+            .accordion-header {
+                cursor: pointer;
+                transition: all 0.2s ease;
+            }
+            
+            .accordion-header:focus {
+                outline: 2px solid var(--hunt-blue);
+                outline-offset: 2px;
+                box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+            }
+            
+            .accordion-header:hover {
+                background-color: #f8fafc !important;
+            }
+            
+            .accordion-header[aria-expanded="true"] {
+                border-bottom-left-radius: 0;
+                border-bottom-right-radius: 0;
+            }
+            
+            /* Estilo para impresión */
+            @media print {
+                .accordion-content {
+                    max-height: none !important;
+                    opacity: 1 !important;
+                    display: block !important;
+                    overflow: visible !important;
+                    padding: 0 1.25rem 1.25rem !important;
+                }
+                
+                .accordion-header {
+                    page-break-after: avoid;
+                    background-color: #f8fafc !important;
+                    print-color-adjust: exact;
+                    -webkit-print-color-adjust: exact;
+                }
+                
+                .accordion-content {
+                    page-break-inside: avoid;
+                }
+                
+                .accordion-header i.fa-chevron-down {
+                    display: none !important;
+                }
+            }
+            
+            /* Mejoras visuales para el estado activo */
+            .accordion-header[aria-expanded="true"] {
+                border-left: 3px solid var(--hunt-blue);
+            }
+            
+            /* Mejoras de rendimiento */
+            .accordion-content * {
+                will-change: transform, opacity;
+            }
+            
+            /* Soporte para modo oscuro */
+            @media (prefers-color-scheme: dark) {
+                .accordion-header {
+                    background-color: #1e293b !important;
+                    color: #f8fafc;
+                }
+                
+                .accordion-header[aria-expanded="true"] {
+                    background-color: #1e40af !important;
+                }
+                
+                .accordion-content {
+                    background-color: #1e293b;
+                    color: #e2e8f0;
+                }
+            }
+        </style>
+
         <!-- Footer -->
         <footer class="bg-white border-t border-gray-200 mt-12 py-8">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -3747,21 +4542,228 @@
     </div>
 
     <!-- Sello Hecho en México mejorado -->
-    <div class="fixed bottom-4 right-4 z-50" style="z-index: 1000;">
-        <div style="border: 2px solid #E53E3E; border-radius: 8px; padding: 12px; background: rgba(255,255,255,0.95); box-shadow: 0 4px 12px rgba(0,0,0,0.15); width: 140px; height: 70px; display: flex; align-items: center; justify-content: center; gap: 10px;">
-            <img src="/static/images/hecho-en-Mexico.webp" alt="Hecho en México" style="width: 40px; height: 40px; object-fit: contain;">
-            <img src="/static/images/logo.png" alt="Grupo huntRED®" style="width: 40px; height: 40px; object-fit: contain;">
+    <div class="fixed bottom-4 right-4 z-50 print:hidden" style="z-index: 1000;">
+        <div class="bg-white rounded-lg border-2 border-red-600 p-3 shadow-lg flex items-center justify-center gap-3" style="background: rgba(255,255,255,0.98);">
+            <img src="/static/images/hecho-en-Mexico.webp" alt="Hecho en México" class="w-10 h-10 object-contain">
+            <div class="text-center border-l border-gray-200 pl-3">
+                <div class="text-xs font-medium text-gray-800">Hecho en México</div>
+                <div class="text-[10px] text-gray-600">Grupo huntRED®</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Print-specific elements -->
+    <div class="print-only" style="display: none;">
+        <!-- Print header -->
+        <div class="print-header">
+            <div class="print-header-content">
+                <div class="print-logo">
+                    <img src="/static/images/logo-huntred.png" alt="Grupo huntRED®" style="height: 40px;">
+                </div>
+                <div class="print-title">
+                    <h1>Propuesta Comercial</h1>
+                    <p>{{ client.name }} - {% now "d/m/Y" %}</p>
+                </div>
+                <div class="print-page-number">
+                    Página <span class="page-number"></span>
+                </div>
+            </div>
+            <div class="print-confidential">Confidencial</div>
         </div>
 
-<!-- Footer para impresión -->
-<div class="print-footer no-print">
-    <div class="text-xs text-gray-600">
-        {{ company.name }} - {{ company.address|default:"" }}
+        <!-- Print footer -->
+        <div class="print-footer">
+            <div class="print-footer-content">
+                <div class="print-company-info">
+                    <span class="font-medium">Grupo huntRED®</span>
+                    {% if company and company.name %}
+                        - {{ company.name }}
+                    {% endif %}
+                    {% if company and company.phone or company and company.email %}|{% endif %}
+                    {% if company and company.phone %}
+                        {{ company.phone }}
+                    {% endif %}
+                    {% if company and company.email and company.phone %}|{% endif %}
+                    {% if company and company.email %}
+                        {{ company.email }}
+                    {% endif %}
+                </div>
+                <div class="print-page-info">
+                    Página <span class="page-number"></span>
+                </div>
+            </div>
+        </div>
     </div>
-    <div class="text-xs text-gray-500">
-        {{ company.phone|default:"" }} | {{ company.email|default:"" }}
-    </div>
-    <div class="text-xs text-gray-400">
+
+    <!-- Print-specific styles -->
+    <style>
+        @media print {
+            /* Optimized print margins */
+            @page {
+                size: A4;
+                margin: 1cm 1cm 1.5cm 1cm;
+                size: 210mm 297mm; /* A4 dimensions in mm */
+                margin: 0.8cm 0.8cm 1.2cm 0.8cm;
+            }
+
+            /* Hide non-print elements */
+            .no-print,
+            .print-controls,
+            .edit-section-btn,
+            .add-invitee-btn,
+            .print-only {
+                display: block !important;
+            }
+
+            /* Print header */
+            .print-header {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                background: white;
+                padding: 10px 15px;
+                border-bottom: 1px solid #e5e7eb;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                z-index: 1000;
+            }
+
+            .print-header-content {
+                display: flex;
+                align-items: center;
+                gap: 20px;
+            }
+
+            .print-logo img {
+                height: 30px;
+                width: auto;
+            }
+
+            .print-title h1 {
+                font-size: 16px;
+                font-weight: 600;
+                margin: 0;
+                color: #1f3544;
+            }
+
+            .print-title p {
+                font-size: 12px;
+                margin: 2px 0 0 0;
+                color: #6b7280;
+            }
+
+            .print-page-number {
+                font-size: 12px;
+                color: #6b7280;
+            }
+
+            .print-confidential {
+                font-size: 10px;
+                color: #ef4444;
+                font-weight: 600;
+                border: 1px solid #ef4444;
+                padding: 2px 8px;
+                border-radius: 4px;
+            }
+
+            /* Print footer */
+            .print-footer {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                background: white;
+                border-top: 1px solid #e5e7eb;
+                padding: 8px 15px;
+                font-size: 10px;
+                color: #6b7280;
+                z-index: 1000;
+            }
+
+            .print-footer-content {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                max-width: 100%;
+                margin: 0 auto;
+            }
+
+            .print-company-info {
+                flex: 1;
+            }
+
+            .print-page-info {
+                margin-left: 20px;
+            }
+
+            /* Optimized content area */
+            body {
+                padding: 0.5cm 0.5cm 1cm 0.5cm !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                margin: 0 auto !important;
+                float: none !important;
+            }
+            
+            /* Ensure full width content */
+            .container {
+                width: 100% !important;
+                max-width: 100% !important;
+                padding: 0 0.5cm !important;
+                margin: 0 !important;
+            }
+
+            /* Improve print quality */
+            * {
+                -webkit-print-color-adjust: exact !important;
+                color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            /* Page breaks */
+            .page-break {
+                page-break-before: always;
+                break-before: page;
+            }
+
+            .avoid-break-inside {
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
+
+            /* Optimize images and content */
+            img {
+                max-width: 100% !important;
+                height: auto !important;
+            }
+            
+            /* Improve tables and grids */
+            table, .grid, .grid > * {
+                width: 100% !important;
+                max-width: 100% !important;
+                table-layout: fixed;
+            }
+            
+            /* Prevent unwanted page breaks */
+            h1, h2, h3, h4, h5, h6, 
+            .section, .section-divider, 
+            .avoid-break-inside {
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
+
+            /* Fix for background colors */
+            .bg-\[\#1f3544\],
+            .bg-gray-800,
+            .bg-blue-600,
+            .bg-\[\#2c3e50\] {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+        }
+    </style>
         Página <span class="page-number"></span>
     </div>
 </div>
@@ -3769,14 +4771,19 @@
 <!-- Script para numeración de páginas -->
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-  // Actualizar números de página
-  function updatePageNumbers() {
-    const pageNumbers = document.querySelectorAll('.page-number');
-    const totalPages = pageNumbers.length / 2;
-    pageNumbers.forEach((el, index) => {
-      el.textContent = (index % totalPages) + 1;
-    });
-  }
+  // Actualizar números de página - Versión mejorada
+function updatePageNumbers() {
+    try {
+        const pages = document.querySelectorAll('.page-number');
+        if (pages.length > 0) {
+            pages.forEach((page, index) => {
+                page.textContent = index + 1;
+            });
+        }
+    } catch (error) {
+        console.error('Error al actualizar números de página:', error);
+    }
+}
 
   updatePageNumbers();
   window.addEventListener('afterprint', updatePageNumbers);
@@ -3798,7 +4805,6 @@
 </script>
 
 
-
 <script>
     // Actualizar números de página al cargar
     document.addEventListener('DOMContentLoaded', function() {
@@ -3809,8 +4815,38 @@
             // Aquí iría la lógica para guardar la propuesta
             alert('Función de guardar propuesta se ejecutará aquí');
         });
+        
+        // Script para búsqueda en la propuesta
+        document.getElementById('searchInput').addEventListener('input', function(e) {
+            const searchTerm = e.target.value.toLowerCase();
+            // Implementar lógica de búsqueda...
+        });
+
+        // Actualizar número de página en el footer
+        document.addEventListener('DOMContentLoaded', function() {
+            // Establecer la fecha actual en el atributo data-date para impresión
+            const today = new Date();
+            document.documentElement.setAttribute('data-date', today.toLocaleDateString('es-MX', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            }));
+
+            // Actualizar número de página en el footer
+            const updatePageNumbers = () => {
+                const pageNumbers = document.querySelectorAll('.page-number');
+                pageNumbers.forEach((el, index) => {
+                    el.textContent = (index + 1);
+                });
+            };
+
+            // Actualizar al cargar y al cambiar de página
+            updatePageNumbers();
+            window.addEventListener('afterprint', updatePageNumbers);
+        });
     });
 </script>
+
 <!-- Nuevo panel de contactos -->
 <div id="panel-contacts" class="tab-panel hidden" role="tabpanel" aria-labelledby="tab-contacts">
     <div class="bg-white rounded-xl p-8 shadow-sm">

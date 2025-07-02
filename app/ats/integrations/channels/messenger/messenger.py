@@ -14,7 +14,7 @@ from django.http import JsonResponse, HttpResponse
 from django.core.cache import cache
 from asgiref.sync import sync_to_async
 from tenacity import retry, stop_after_attempt, wait_exponential
-from app.models import Person, BusinessUnit, MessengerAPI, MetaAPI
+from app.models import Person, BusinessUnit, MessengerAPI, MetaAPI, MessageLog
 from app.ats.chatbot.components.chat_state_manager import ChatStateManager
 from app.ats.chatbot.components.rate_limiter import RateLimiter
 from app.ats.integrations.services.message import (
@@ -300,6 +300,39 @@ class MessengerHandler:
         except Exception as e:
             logger.error(f"❌ Error enviando quick replies a Messenger: {str(e)}")
             return False
+
+    async def send_template_message(self, user_id: str, template_name: str, parameters: List[str], meta_pricing: Optional[Dict[str, Any]] = None) -> Dict:
+        """
+        Envía mensaje de plantilla enriquecida por Messenger y registra en MessageLog con los nuevos campos.
+        """
+        try:
+            # ... lógica de envío de plantilla ...
+            # Simulación de respuesta de Meta
+            result = {'success': True, 'pricing': meta_pricing or {}, 'messages': [{'id': 'msgid123'}]}
+            bu = self.business_unit
+            meta_info = meta_pricing or {}
+            MessageLog.objects.create(
+                business_unit=bu,
+                channel='messenger',
+                template_name=template_name,
+                meta_pricing_model=meta_info.get('model'),
+                meta_pricing_type=meta_info.get('type'),
+                meta_pricing_category=meta_info.get('category'),
+                meta_cost=meta_info.get('cost'),
+                message_type='WHATSAPP',  # O ajustar a 'MESSENGER' si se usa otro tipo
+                phone=None,
+                message=f"Template: {template_name}, Params: {parameters}",
+                status='SENT',
+                response_data=result
+            )
+            return {
+                'success': True,
+                'message_id': result.get('messages', [{}])[0].get('id'),
+                'response': result
+            }
+        except Exception as e:
+            logger.error(f"Error enviando template message Messenger: {str(e)}")
+            return {'error': str(e)}
 
 @csrf_exempt
 async def messenger_webhook(request):

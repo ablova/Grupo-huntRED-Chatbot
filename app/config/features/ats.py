@@ -180,8 +180,10 @@ class ATSConfig(BaseConfig):
             if config['enabled']:
                 if channel == 'email' and not config.get('from_email'):
                     raise ValueError(f"Email channel requires 'from_email' configuration")
-                if channel in ['whatsapp', 'x'] and not config.get('api_key'):
-                    raise ValueError(f"{channel} channel requires 'api_key' configuration")
+                # Solo validar API keys en producción
+                if self.environment.value == 'production':
+                    if channel in ['whatsapp', 'x'] and not config.get('api_key'):
+                        raise ValueError(f"{channel} channel requires 'api_key' configuration")
     
     def _validate_workflows(self):
         """Valida la configuración de workflows."""

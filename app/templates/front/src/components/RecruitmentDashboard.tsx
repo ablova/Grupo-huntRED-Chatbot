@@ -233,11 +233,11 @@ const RecruitmentDashboard = () => {
                 <div className="w-full bg-muted rounded-full h-2">
                   <div className="bg-green-500 h-2 rounded-full" style={{ width: '94%' }} />
                 </div>
-                <p className="text-xs text-muted-foreground">Basado en análisis de personalidad y patrones históricos</p>
+                <p className="text-xs text-muted-foreground">Basado en análisis de red y patrones históricos</p>
               </div>
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span>Tiempo estimado con GenIA & AURA</span>
+                  <span>Tiempo estimado con AURA</span>
                   <span className="font-semibold">5 días</span>
                 </div>
                 <div className="w-full bg-muted rounded-full h-2">

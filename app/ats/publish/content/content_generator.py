@@ -12,7 +12,7 @@ from app.models import BusinessUnit
 
 # Importaciones de AURA
 from app.ml.aura.integration_layer import AuraIntegrationLayer
-from app.ml.aura.core import AuraEngine
+from app.ml.aura.aura import AuraEngine
 from app.ml.aura.recommendation_engine import RecommendationEngine
 
 # Importaciones de Analyzers

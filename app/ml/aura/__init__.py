@@ -1,198 +1,97 @@
-# app/ml/aura/__init__.py
 """
-Sistema Aura - Motor de Inteligencia Artificial Avanzada para Grupo huntRED®
+AURA - Advanced Unified Reasoning Assistant
+Sistema completo de IA ética y responsable para toma de decisiones.
 
-Este módulo implementa el sistema Aura, un motor de IA que analiza la "aura" 
-o compatibilidad holística entre candidatos y empresas, proporcionando 
-recomendaciones inteligentes basadas en múltiples dimensiones de análisis.
-
-Módulos implementados:
-- Core: Motor principal de AURA
-- Personalización: Adaptación dinámica a usuarios y contextos
-- Upskilling: Análisis de gaps de skills y desarrollo profesional
-- Networking: Matchmaking y conexiones inteligentes
-- Analytics: Dashboards ejecutivos y métricas avanzadas
-- Gamification: Sistema de logros y engagement
-- Generative AI: Generación de contenido y simulaciones
-- Organizational Analytics: Análisis organizacional y reporting
-- Security: Privacidad y explicabilidad
-- Ecosystem: API público y marketplace de módulos
-- Monitoring: Monitoreo y alertas del sistema
-- Cache: Sistema de caché inteligente
-- Integration: Orquestador de integraciones
-- Conversational: Chatbot avanzado
-- Predictive: Análisis predictivo y forecasting
+Características principales:
+- Motor ético con múltiples marcos de razonamiento
+- TruthSense™ para análisis de veracidad
+- SocialVerify™ para verificación social
+- Detección y mitigación de sesgos
+- Optimización de equidad
+- Análisis de impacto social
+- Orquestación inteligente de módulos
+- Control de recursos y escalabilidad
 """
 
-# Core modules
-from .core import AuraEngine
-from .compatibility_engine import CompatibilityEngine
-from .recommendation_engine import RecommendationEngine
-from .energy_analyzer import EnergyAnalyzer
-from .vibrational_matcher import VibrationalMatcher
-from .holistic_assessor import HolisticAssessor
-from .aura_metrics import AuraMetrics
-from .graph_builder import AuraGraphBuilder
-from .integration_layer import AuraIntegrationLayer
+from app.ml.aura.core.ethics_engine import EthicsEngine, EthicsConfig, ServiceTier
+from app.ml.aura.core.moral_reasoning import MoralReasoning
+from app.ml.aura.core.bias_detection import BiasDetectionEngine
+from app.ml.aura.core.fairness_optimizer import FairnessOptimizer
+from app.ml.aura.truth.truth_analyzer import TruthAnalyzer
+from app.ml.aura.social.social_verifier import SocialVerifier
+from app.ml.aura.impact.impact_analyzer import ImpactAnalyzer
+from app.ml.aura.orchestrator import AURAOrchestrator, AuraOrchestratorConfig, AuraOrchestratorState, AuraOrchestratorEvent, AuraOrchestratorAction
+from app.ml.aura.aura import AuraEngine
+from app.ml.aura.compatibility_engine import CompatibilityEngine
+from app.ml.aura.recommendation_engine import RecommendationEngine, RecommendationType, RecommendationPriority
+from app.ml.aura.energy_analyzer import EnergyAnalyzer, EnergyProfile, EnergyType, EnergyLevel
+from app.ml.aura.vibrational_matcher import VibrationalMatcher
+from app.ml.aura.holistic_assessor import HolisticAssessor
+from app.ml.aura.aura_metrics import AuraMetrics, MetricType, MetricCategory
+from app.ml.aura.graph_builder import AuraGraphBuilder
+from app.ml.aura.integration_layer import AuraIntegrationLayer
+from app.ml.aura.personalization.user_segmenter import UserSegmenter
+from app.ml.aura.personalization.context_analyzer import ContextAnalyzer
+from app.ml.aura.personalization.adaptive_engine import AdaptiveEngine
+from app.ml.aura.personalization.personalization_engine import PersonalizationEngine
+from app.ml.aura.upskilling.skill_gap_analyzer import SkillGapAnalyzer
+from app.ml.aura.upskilling.career_simulator import CareerSimulator
+from app.ml.aura.upskilling.market_alerts import MarketAlerts
+from app.ml.aura.networking.network_matchmaker import NetworkMatchmaker
+from app.ml.aura.networking.auto_introducer import AutoIntroducer
+from app.ml.aura.networking.event_recommender import EventRecommender
+from app.ml.aura.analytics.executive_dashboard import ExecutiveAnalytics
+from app.ml.aura.analytics.performance_metrics import PerformanceMetrics
+from app.ml.aura.analytics.trend_analyzer import TrendAnalyzer
+from app.ml.aura.gamification.achievement_system import AchievementSystem
 
-# Personalization modules
-from .personalization.personalization_engine import PersonalizationEngine
-from .personalization.user_segmenter import UserSegmenter
-from .personalization.context_analyzer import ContextAnalyzer
-from .personalization.adaptive_engine import AdaptiveEngine
-
-# Upskilling modules
-from .upskilling.skill_gap_analyzer import SkillGapAnalyzer
-from .upskilling.career_simulator import CareerSimulator
-from .upskilling.market_alerts import MarketAlerts
-
-# Networking modules
-from .networking.network_matchmaker import NetworkMatchmaker
-from .networking.auto_introducer import AutoIntroducer
-from .networking.event_recommender import EventRecommender
-
-# Analytics modules
-from .analytics.executive_dashboard import ExecutiveAnalytics
-from .analytics.performance_metrics import PerformanceMetrics
-from .analytics.trend_analyzer import TrendAnalyzer
-
-# Gamification modules
-from .gamification.achievement_system import AchievementSystem
-from .gamification.impact_ranking import ImpactRanking
-from .gamification.social_achievements import SocialAchievements
-
-# Generative AI modules
-from .generative.cv_generator import CVGenerator
-from .generative.interview_simulator import InterviewSimulator
-from .generative.auto_summarizer import AutoSummarizer
-
-# Organizational Analytics modules
-from .organizational.organizational_analytics import OrganizationalAnalytics
-from .organizational.reporting_engine import ReportingEngine
-from .organizational.network_analyzer import NetworkAnalyzer
-from .organizational.bu_insights import BUInsights
-
-# Security modules
-from .security.privacy_panel import PrivacyPanel
-from .security.explainable_ai import ExplainableAI
-
-# Ecosystem modules
-from .ecosystem.public_api import PublicAPI
-from .ecosystem.module_marketplace import ModuleMarketplace, module_marketplace
-
-# Monitoring modules
-from .monitoring.aura_monitor import AuraMonitor
-
-# Cache modules
-from .cache.intelligent_cache import IntelligentCache
-
-# Integration modules
-from .integration.aura_orchestrator import AuraOrchestrator
-
-# Conversational modules
-from .conversational.advanced_chatbot import AdvancedConversationalAI as AdvancedChatbot
-
-# Predictive modules
-from .predictive.sentiment_analyzer import SentimentAnalyzer
-from .predictive.market_predictor import MarketLaborPredictor as MarketPredictor
-from .predictive.career_predictor import CareerMovementPredictor as CareerPredictor
-
-# API modules
-# from .api.endpoints import AuraAPIEndpoints  # Comentado - no existe esta clase
-
-# Models modules
-# from .models.gnn_models import GNNModels, GNNAnalyzer  # Comentado temporalmente - requiere PyTorch
-
-# Connectors modules
-from .connectors.linkedin_connector import LinkedInConnector
-from .connectors.icloud_connector import iCloudConnector
+__version__ = "1.0.0"
+__author__ = "Grupo huntRED"
+__description__ = "Sistema de IA ética y responsable para toma de decisiones AURA"
 
 __all__ = [
-    # Core
+    'EthicsEngine',
+    'EthicsConfig', 
+    'ServiceTier',
+    'MoralReasoning',
+    'BiasDetectionEngine',
+    'FairnessOptimizer',
+    'TruthAnalyzer',
+    'SocialVerifier',
+    'ImpactAnalyzer',
+    'AURAOrchestrator',
+    'AuraOrchestratorConfig',
+    'AuraOrchestratorState',
+    'AuraOrchestratorEvent',
+    'AuraOrchestratorAction',
     'AuraEngine',
-    'CompatibilityEngine', 
+    'CompatibilityEngine',
     'RecommendationEngine',
+    'RecommendationType',
+    'RecommendationPriority',
     'EnergyAnalyzer',
+    'EnergyProfile',
+    'EnergyType',
+    'EnergyLevel',
     'VibrationalMatcher',
     'HolisticAssessor',
     'AuraMetrics',
+    'MetricType',
+    'MetricCategory',
     'AuraGraphBuilder',
     'AuraIntegrationLayer',
-    
-    # Personalization
-    'PersonalizationEngine',
     'UserSegmenter',
     'ContextAnalyzer',
     'AdaptiveEngine',
-    
-    # Upskilling
+    'PersonalizationEngine',
     'SkillGapAnalyzer',
     'CareerSimulator',
     'MarketAlerts',
-    
-    # Networking
     'NetworkMatchmaker',
     'AutoIntroducer',
     'EventRecommender',
-    
-    # Analytics
     'ExecutiveAnalytics',
     'PerformanceMetrics',
     'TrendAnalyzer',
-    
-    # Gamification
-    'AchievementSystem',
-    'ImpactRanking',
-    'SocialAchievements',
-    
-    # Generative AI
-    'CVGenerator',
-    'InterviewSimulator',
-    'AutoSummarizer',
-    
-    # Organizational Analytics
-    'OrganizationalAnalytics',
-    'ReportingEngine',
-    'NetworkAnalyzer',
-    'BUInsights',
-    
-    # Security
-    'PrivacyPanel',
-    'ExplainableAI',
-    
-    # Ecosystem
-    'PublicAPI',
-    'ModuleMarketplace',
-    'module_marketplace',
-    
-    # Monitoring
-    'AuraMonitor',
-    
-    # Cache
-    'IntelligentCache',
-    
-    # Integration
-    'AuraOrchestrator',
-    
-    # Conversational
-    'AdvancedChatbot',
-    
-    # Predictive
-    'SentimentAnalyzer',
-    'MarketPredictor',
-    'CareerPredictor',
-    
-    # API
-    # 'AuraAPIEndpoints',  # Comentado - no existe esta clase
-    
-    # Models
-    # 'GNNModels',  # Comentado temporalmente - requiere PyTorch
-    # 'GNNAnalyzer',  # Comentado temporalmente - requiere PyTorch
-    
-    # Connectors
-    'LinkedInConnector',
-    'iCloudConnector'
+    'AchievementSystem'
 ]
-
-__version__ = '1.0.0'
-__author__ = 'Grupo huntRED® AI Team' 

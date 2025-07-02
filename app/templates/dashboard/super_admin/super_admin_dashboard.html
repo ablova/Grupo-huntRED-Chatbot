@@ -20,6 +20,25 @@
     <p class="bruce-almighty-subtitle">Control Total del Sistema huntRED - ¡Eres el DIOS de la plataforma! 🚀</p>
 </div>
 
+<!-- PANEL DE CONFIGURACIÓN DE WIDGETS DINÁMICO -->
+<div class="widget-config-panel mb-4">
+    <form method="post" class="form-inline">
+        {% csrf_token %}
+        <h4><i class="fas fa-sliders-h"></i> Configuración de Paneles</h4>
+        <div class="row">
+            {% for widget in widgets_registry %}
+                <div class="col-md-3 mb-2">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="{{ widget.key }}" name="{{ widget.key }}" {% if widget_config.widget.key %}checked{% endif %}>
+                        <label class="form-check-label" for="{{ widget.key }}">{{ widget.label }}</label>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+        <button type="submit" class="btn btn-primary mt-2"><i class="fas fa-save"></i> Guardar Configuración</button>
+    </form>
+</div>
+
 <!-- NAVEGACIÓN PRINCIPAL -->
 <ul class="nav nav-tabs" id="superAdminTabs" role="tablist">
     <li class="nav-item" role="presentation">
@@ -239,6 +258,19 @@
                 </button>
             </div>
         </div>
+
+        <!-- WIDGETS/PANELES DINÁMICOS -->
+        {% for widget in widgets_registry %}
+            {% if widget_config.widget.key %}
+                <div class="widget-panel mb-4">
+                    <h4>{{ widget.label }}</h4>
+                    {% include "dashboard/super_admin/widgets/"|add:widget.template_block|add:".html" %}
+                    {% if widget.url_name %}
+                        <a href="{% url widget.url_name %}" class="btn btn-link">Ver Panel Detallado</a>
+                    {% endif %}
+                </div>
+            {% endif %}
+        {% endfor %}
     </div>
 
     <!-- CONSULTORES TAB -->

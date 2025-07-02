@@ -35,9 +35,9 @@ from app.ml.core.models.base import (
 # ============================================================================
 # AURA - Motor de IA Holística Revolucionario
 # ============================================================================
+from app.ml.aura.aura import AuraEngine
 from app.ml.aura import (
     # Core AURA
-    AuraEngine,
     CompatibilityEngine,
     RecommendationEngine,
     EnergyAnalyzer,

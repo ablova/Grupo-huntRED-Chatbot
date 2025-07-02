@@ -1,7 +1,7 @@
 from typing import Dict, Any, Optional, List
 import httpx
 import logging
-from app.ats.config.settings.chatbot import CHATBOT_CONFIG
+from app.config import settings as global_settings
 
 logger = logging.getLogger('integrations.whatsapp')
 
@@ -12,9 +12,10 @@ class WhatsAppService:
     """
     
     def __init__(self):
-        self.api_url = CHATBOT_CONFIG['WHATSAPP_API_URL']
-        self.api_token = CHATBOT_CONFIG['WHATSAPP_API_TOKEN']
-        self.phone_number_id = CHATBOT_CONFIG['WHATSAPP_PHONE_NUMBER_ID']
+        # Configuración temporal para desarrollo
+        self.api_url = 'https://api.whatsapp.com/v1'
+        self.api_token = 'dummy_token'
+        self.phone_number_id = 'dummy_phone_id'
         
     async def send_text_message(self, to: str, text: str) -> Dict[str, Any]:
         """

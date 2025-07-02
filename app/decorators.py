@@ -1,9 +1,11 @@
 from functools import wraps
-from django.http import HttpResponseForbidden, HttpResponseRedirect
+from django.http import HttpResponseForbidden, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
+from django.views.decorators.http import require_http_methods
 import logging
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -116,5 +118,51 @@ def rbac_required(allowed_roles):
                 return HttpResponseForbidden("No tienes permisos para acceder a esta vista.")
             logger.info(f"Access granted for user {getattr(request.user, 'username', 'anon')} with role {user_role}")
             return view_func(request, *args, **kwargs)
+        return _wrapped_view
+    return decorator
+
+def check_role_access(allowed_roles):
+    """
+    Decorador para verificar acceso basado en roles del usuario.
+    Compatible con vistas asíncronas y síncronas.
+    
+    Args:
+        allowed_roles (list): Lista de roles permitidos para acceder a la vista.
+    
+    Returns:
+        Decorador que verifica el rol del usuario.
+    """
+    def decorator(view_func):
+        @wraps(view_func)
+        @login_required(login_url='login')
+        def _wrapped_view(request, *args, **kwargs):
+            # Obtener el rol del usuario
+            user_role = getattr(request.user, 'role', None)
+            
+            # Verificar si el usuario tiene un rol válido
+            if not user_role:
+                logger.warning(f"Access denied for user {getattr(request.user, 'username', 'anon')}: No role defined")
+                if request.headers.get('accept') == 'application/json':
+                    return JsonResponse({
+                        'error': 'No tienes permisos para acceder a esta funcionalidad',
+                        'code': 'NO_ROLE'
+                    }, status=403)
+                return HttpResponseForbidden("No tienes permisos para acceder a esta funcionalidad.")
+            
+            # Verificar si el rol del usuario está en la lista de roles permitidos
+            if user_role not in allowed_roles:
+                logger.warning(f"Access denied for user {getattr(request.user, 'username', 'anon')} with role {user_role} (required: {allowed_roles})")
+                if request.headers.get('accept') == 'application/json':
+                    return JsonResponse({
+                        'error': f'Tu rol ({user_role}) no tiene permisos para esta funcionalidad',
+                        'code': 'INSUFFICIENT_PERMISSIONS',
+                        'required_roles': allowed_roles,
+                        'user_role': user_role
+                    }, status=403)
+                return HttpResponseForbidden(f"Tu rol ({user_role}) no tiene permisos para esta funcionalidad.")
+            
+            logger.info(f"Access granted for user {getattr(request.user, 'username', 'anon')} with role {user_role}")
+            return view_func(request, *args, **kwargs)
+        
         return _wrapped_view
     return decorator

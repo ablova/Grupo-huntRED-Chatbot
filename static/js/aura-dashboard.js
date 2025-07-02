@@ -1,302 +1,413 @@
-/**
- * AURA Dashboard JavaScript
- * 
- * Maneja la interactividad del dashboard de AURA,
- * incluyendo análisis rápido, verificaciones de salud
- * y comunicación con las APIs.
- */
+// AURA Dashboard JavaScript
+document.addEventListener('DOMContentLoaded', function() {
+    initializeCharts();
+    initializeEventListeners();
+    startAutoRefresh();
+});
 
-class AuraDashboard {
-    constructor() {
-        this.apiBase = '/api/aura/';
-        this.init();
-    }
-
-    init() {
-        console.log('🚀 AURA Dashboard inicializado');
-        this.setupEventListeners();
-        this.autoRefresh();
-    }
-
-    setupEventListeners() {
-        // Análisis rápido
-        const analyzeBtn = document.querySelector('button[onclick="analyzePerson()"]');
-        if (analyzeBtn) {
-            analyzeBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.analyzePerson();
-            });
-        }
-
-        // Verificación de salud
-        const healthBtn = document.querySelector('button[onclick="runHealthCheck()"]');
-        if (healthBtn) {
-            healthBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.runHealthCheck();
-            });
-        }
-
-        // Enter key en input
-        const personInput = document.getElementById('person_id');
-        if (personInput) {
-            personInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    this.analyzePerson();
-                }
-            });
-        }
-    }
-
-    async analyzePerson() {
-        const personId = document.getElementById('person_id').value;
-        const resultDiv = document.getElementById('quick-analysis-result');
-
-        if (!personId) {
-            this.showMessage('Por favor ingresa un ID de persona', 'error');
-            return;
-        }
-
-        // Mostrar loading
-        resultDiv.innerHTML = `
-            <div class="loading-container">
-                <div class="loading"></div>
-                <p>Analizando aura de persona ${personId}...</p>
-            </div>
-        `;
-        resultDiv.classList.add('show');
-
-        try {
-            const response = await fetch(`${this.apiBase}person/${personId}/`);
-            const data = await response.json();
-
-            if (response.ok) {
-                this.displayAnalysisResult(data);
-            } else {
-                this.showMessage(data.error || 'Error analizando persona', 'error');
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            this.showMessage('Error de conexión', 'error');
-        }
-    }
-
-    displayAnalysisResult(data) {
-        const resultDiv = document.getElementById('quick-analysis-result');
-        const auraScore = data.aura_score || 0;
-        const scoreColor = this.getScoreColor(auraScore);
-
-        resultDiv.innerHTML = `
-            <div class="analysis-success">
-                <div class="aura-score" style="background: ${scoreColor}">
-                    <i class="fas fa-star"></i>
-                    <span>Aura Score:</span>
-                    <span class="aura-score-value">${(auraScore * 100).toFixed(1)}%</span>
-                </div>
-                
-                <div class="person-info">
-                    <h4>${data.person_data.name || 'Persona'}</h4>
-                    <p><strong>Rol:</strong> ${data.person_data.current_role || 'N/A'}</p>
-                    <p><strong>Empresa:</strong> ${data.person_data.current_company || 'N/A'}</p>
-                    <p><strong>Ubicación:</strong> ${data.person_data.location || 'N/A'}</p>
-                </div>
-
-                <div class="network-insights">
-                    <h5>Insights de Red</h5>
-                    <div class="insight-item">
-                        <span>Fuerza de Red:</span>
-                        <span>${(data.network_insights.network_strength * 100).toFixed(1)}%</span>
-                    </div>
-                    <div class="insight-item">
-                        <span>Reputación:</span>
-                        <span>${(data.network_insights.reputation_score * 100).toFixed(1)}%</span>
-                    </div>
-                    <div class="insight-item">
-                        <span>Conexiones Clave:</span>
-                        <span>${data.network_insights.key_connections?.length || 0}</span>
-                    </div>
-                </div>
-
-                <div class="actions">
-                    <a href="/ats/aura/person/${data.person_id}/" class="btn btn-primary">
-                        <i class="fas fa-eye"></i> Ver Detalles
-                    </a>
-                    <a href="/ats/aura/network/${data.person_id}/insights/" class="btn btn-secondary">
-                        <i class="fas fa-network-wired"></i> Red Profesional
-                    </a>
-                </div>
-            </div>
-        `;
-    }
-
-    getScoreColor(score) {
-        if (score >= 0.8) return 'linear-gradient(135deg, #10b981, #059669)';
-        if (score >= 0.6) return 'linear-gradient(135deg, #f59e0b, #d97706)';
-        return 'linear-gradient(135deg, #ef4444, #dc2626)';
-    }
-
-    async runHealthCheck() {
-        const healthBtn = document.querySelector('button[onclick="runHealthCheck()"]');
-        const originalText = healthBtn.innerHTML;
-
-        // Mostrar loading
-        healthBtn.innerHTML = '<div class="loading"></div> Verificando...';
-        healthBtn.disabled = true;
-
-        try {
-            const response = await fetch(`${this.apiBase}health/`);
-            const data = await response.json();
-
-            if (response.ok) {
-                this.updateHealthStatus(data);
-                this.showMessage('Verificación de salud completada', 'success');
-            } else {
-                this.showMessage('Error en verificación de salud', 'error');
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            this.showMessage('Error de conexión', 'error');
-        } finally {
-            // Restaurar botón
-            healthBtn.innerHTML = originalText;
-            healthBtn.disabled = false;
-        }
-    }
-
-    updateHealthStatus(healthData) {
-        const statusIndicator = document.querySelector('.status-indicator');
-        const overallStatus = healthData.overall_status;
-
-        // Actualizar indicador principal
-        statusIndicator.className = `status-indicator ${overallStatus}`;
-        statusIndicator.innerHTML = `
-            <i class="fas fa-circle"></i>
-            <span>${overallStatus.charAt(0).toUpperCase() + overallStatus.slice(1)}</span>
-        `;
-
-        // Actualizar componentes individuales
-        const components = healthData.connectors || {};
-        Object.keys(components).forEach(component => {
-            const componentElement = document.querySelector(`[data-component="${component}"]`);
-            if (componentElement) {
-                const status = components[component];
-                componentElement.className = `component-item ${status}`;
-                const badge = componentElement.querySelector('.status-badge');
-                if (badge) {
-                    badge.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+// Inicializar gráficos
+function initializeCharts() {
+    // Gráfico de distribución de módulos
+    const moduleCtx = document.getElementById('moduleDistributionChart');
+    if (moduleCtx) {
+        new Chart(moduleCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Ethics Engine', 'TruthSense™', 'SocialVerify™', 'Bias Detection', 'Fairness Optimizer', 'Impact Analyzer'],
+                datasets: [{
+                    data: [25, 20, 18, 15, 12, 10],
+                    backgroundColor: [
+                        '#667eea',
+                        '#764ba2',
+                        '#f093fb',
+                        '#f5576c',
+                        '#4facfe',
+                        '#00f2fe'
+                    ],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 20,
+                            usePointStyle: true
+                        }
+                    }
                 }
             }
         });
     }
 
-    showMessage(message, type = 'info') {
-        // Crear elemento de mensaje
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `message ${type}`;
-        messageDiv.innerHTML = `
-            <i class="fas fa-${this.getMessageIcon(type)}"></i>
-            <span>${message}</span>
-        `;
-
-        // Insertar al inicio del dashboard
-        const dashboard = document.querySelector('.aura-dashboard');
-        dashboard.insertBefore(messageDiv, dashboard.firstChild);
-
-        // Auto-remover después de 5 segundos
-        setTimeout(() => {
-            messageDiv.remove();
-        }, 5000);
-    }
-
-    getMessageIcon(type) {
-        switch (type) {
-            case 'success': return 'check-circle';
-            case 'error': return 'exclamation-circle';
-            case 'warning': return 'exclamation-triangle';
-            default: return 'info-circle';
-        }
-    }
-
-    autoRefresh() {
-        // Actualizar métricas cada 5 minutos
-        setInterval(() => {
-            this.refreshMetrics();
-        }, 5 * 60 * 1000);
-    }
-
-    async refreshMetrics() {
-        try {
-            const response = await fetch(`${this.apiBase}metrics/`);
-            const data = await response.json();
-
-            if (response.ok) {
-                this.updateMetrics(data);
-            }
-        } catch (error) {
-            console.error('Error actualizando métricas:', error);
-        }
-    }
-
-    updateMetrics(metrics) {
-        // Actualizar métricas en tiempo real
-        const metricElements = document.querySelectorAll('.metric-value');
-        metricElements.forEach(element => {
-            const label = element.previousElementSibling?.textContent;
-            if (label) {
-                switch (label.trim()) {
-                    case 'Personas Analizadas:':
-                        element.textContent = metrics.total_people_analyzed;
-                        break;
-                    case 'Conexiones Analizadas:':
-                        element.textContent = metrics.total_connections_analyzed;
-                        break;
-                    case 'Comunidades Detectadas:':
-                        element.textContent = metrics.communities_detected;
-                        break;
-                    case 'Influenciadores Identificados:':
-                        element.textContent = metrics.influencers_identified;
-                        break;
-                    case 'Validaciones Realizadas:':
-                        element.textContent = metrics.validations_performed;
-                        break;
+    // Gráfico de scores éticos
+    const scoresCtx = document.getElementById('ethicalScoresChart');
+    if (scoresCtx) {
+        new Chart(scoresCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Veracidad', 'Autenticidad', 'Equidad', 'Impacto', 'Integridad', 'Sostenibilidad'],
+                datasets: [{
+                    label: 'Score Ético',
+                    data: [85, 78, 92, 76, 88, 82],
+                    backgroundColor: 'rgba(102, 126, 234, 0.8)',
+                    borderColor: '#667eea',
+                    borderWidth: 2,
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        ticks: {
+                            callback: function(value) {
+                                return value + '%';
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
                 }
             }
         });
-    }
-
-    // Métodos de utilidad
-    formatNumber(num) {
-        return new Intl.NumberFormat().format(num);
-    }
-
-    formatPercentage(value) {
-        return `${(value * 100).toFixed(1)}%`;
-    }
-
-    formatDate(dateString) {
-        return new Date(dateString).toLocaleString();
     }
 }
 
-// Funciones globales para compatibilidad con onclick
-window.analyzePerson = function() {
-    if (window.auraDashboard) {
-        window.auraDashboard.analyzePerson();
+// Inicializar event listeners
+function initializeEventListeners() {
+    // Configuración de módulos
+    const moduleCards = document.querySelectorAll('.module-card');
+    moduleCards.forEach(card => {
+        card.addEventListener('click', function() {
+            const moduleName = this.querySelector('.module-name').textContent;
+            showModuleDetails(moduleName);
+        });
+    });
+
+    // Botones de acción
+    const actionButtons = document.querySelectorAll('.btn');
+    actionButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+    });
+}
+
+// Mostrar detalles del módulo
+function showModuleDetails(moduleName) {
+    // Implementar modal con detalles del módulo
+    console.log('Mostrando detalles de:', moduleName);
+    
+    // Aquí se podría abrir un modal con información detallada del módulo
+    const modal = new bootstrap.Modal(document.getElementById('moduleDetailsModal'));
+    modal.show();
+}
+
+// Ver análisis específico
+function viewAnalysis(analysisId) {
+    // Cargar datos del análisis
+    fetch(`/aura/api/analysis/${analysisId}/`)
+        .then(response => response.json())
+        .then(data => {
+            displayAnalysisDetails(data);
+        })
+        .catch(error => {
+            console.error('Error cargando análisis:', error);
+            showNotification('Error cargando análisis', 'error');
+        });
+}
+
+// Mostrar detalles del análisis
+function displayAnalysisDetails(analysis) {
+    const modalBody = document.getElementById('analysisModalBody');
+    
+    modalBody.innerHTML = `
+        <div class="analysis-details">
+            <div class="detail-section">
+                <h6>Información General</h6>
+                <p><strong>ID:</strong> ${analysis.analysis_id}</p>
+                <p><strong>Tipo:</strong> ${analysis.analysis_type}</p>
+                <p><strong>Fecha:</strong> ${new Date(analysis.timestamp).toLocaleString()}</p>
+                <p><strong>Tiempo de ejecución:</strong> ${analysis.execution_time}s</p>
+            </div>
+            
+            <div class="detail-section">
+                <h6>Resultados</h6>
+                <div class="score-display">
+                    <div class="score-item">
+                        <span class="score-label">Score Ético:</span>
+                        <div class="score-bar">
+                            <div class="score-fill" style="width: ${analysis.overall_score}%"></div>
+                            <span>${analysis.overall_score}%</span>
+                        </div>
+                    </div>
+                    <div class="score-item">
+                        <span class="score-label">Confianza:</span>
+                        <div class="score-bar">
+                            <div class="score-fill" style="width: ${analysis.confidence}%"></div>
+                            <span>${analysis.confidence}%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="detail-section">
+                <h6>Módulos Utilizados</h6>
+                <div class="modules-list">
+                    ${analysis.modules_used.map(module => `
+                        <span class="module-badge">${module}</span>
+                    `).join('')}
+                </div>
+            </div>
+            
+            <div class="detail-section">
+                <h6>Recomendaciones</h6>
+                <ul class="recommendations-list">
+                    ${analysis.recommendations.map(rec => `
+                        <li>${rec}</li>
+                    `).join('')}
+                </ul>
+            </div>
+        </div>
+    `;
+    
+    const modal = new bootstrap.Modal(document.getElementById('analysisModal'));
+    modal.show();
+}
+
+// Actualizar tier de servicio
+function updateServiceTier() {
+    const tierSelect = document.getElementById('serviceTierSelect');
+    const selectedTier = tierSelect.value;
+    
+    fetch('/aura/api/update-tier/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({
+            tier: selectedTier
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Tier de servicio actualizado', 'success');
+            setTimeout(() => {
+                location.reload();
+            }, 1500);
+        } else {
+            showNotification('Error actualizando tier', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('Error de conexión', 'error');
+    });
+}
+
+// Guardar configuración
+function saveConfiguration() {
+    const config = {
+        max_concurrent_analyses: document.getElementById('maxConcurrentAnalyses').value,
+        cache_ttl: document.getElementById('cacheTTL').value,
+        enable_monitoring: document.getElementById('enableMonitoring').checked
+    };
+    
+    fetch('/aura/api/save-config/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify(config)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Configuración guardada', 'success');
+        } else {
+            showNotification('Error guardando configuración', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('Error de conexión', 'error');
+    });
+}
+
+// Restablecer configuración
+function resetConfiguration() {
+    if (confirm('¿Estás seguro de que quieres restablecer la configuración?')) {
+        fetch('/aura/api/reset-config/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Configuración restablecida', 'success');
+                setTimeout(() => {
+                    location.reload();
+                }, 1500);
+            } else {
+                showNotification('Error restableciendo configuración', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Error de conexión', 'error');
+        });
     }
-};
+}
 
-window.runHealthCheck = function() {
-    if (window.auraDashboard) {
-        window.auraDashboard.runHealthCheck();
+// Actualizar dashboard
+function refreshDashboard() {
+    const refreshBtn = document.querySelector('.btn-outline-primary');
+    refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Actualizando...';
+    refreshBtn.disabled = true;
+    
+    fetch('/aura/api/dashboard-data/')
+        .then(response => response.json())
+        .then(data => {
+            updateDashboardData(data);
+            showNotification('Dashboard actualizado', 'success');
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Error actualizando dashboard', 'error');
+        })
+        .finally(() => {
+            refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Actualizar';
+            refreshBtn.disabled = false;
+        });
+}
+
+// Actualizar datos del dashboard
+function updateDashboardData(data) {
+    // Actualizar métricas principales
+    document.querySelector('.metric-value').textContent = data.total_analyses;
+    
+    // Actualizar scores de módulos
+    const moduleCards = document.querySelectorAll('.module-card');
+    moduleCards.forEach(card => {
+        const moduleName = card.querySelector('.module-name').textContent;
+        const scoreElement = card.querySelector('.metric-value');
+        
+        if (data.module_scores && data.module_scores[moduleName]) {
+            scoreElement.textContent = data.module_scores[moduleName] + '%';
+        }
+    });
+    
+    // Actualizar tabla de análisis recientes
+    updateRecentAnalysesTable(data.recent_analyses);
+}
+
+// Actualizar tabla de análisis recientes
+function updateRecentAnalysesTable(analyses) {
+    const tbody = document.querySelector('.analyses-table tbody');
+    if (!tbody) return;
+    
+    tbody.innerHTML = '';
+    
+    analyses.forEach(analysis => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${analysis.analysis_id}</td>
+            <td>${analysis.analysis_type}</td>
+            <td>
+                <div class="score-bar">
+                    <div class="score-fill" style="width: ${analysis.overall_score}%"></div>
+                    <span>${analysis.overall_score}%</span>
+                </div>
+            </td>
+            <td>${analysis.confidence}%</td>
+            <td>${analysis.modules_used.length}</td>
+            <td>${analysis.execution_time}s</td>
+            <td>
+                <span class="status-badge status-completed">Completado</span>
+            </td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary" onclick="viewAnalysis('${analysis.analysis_id}')">
+                    <i class="fas fa-eye"></i>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+// Auto-refresh del dashboard
+function startAutoRefresh() {
+    // Actualizar cada 30 segundos
+    setInterval(() => {
+        fetch('/aura/api/dashboard-data/')
+            .then(response => response.json())
+            .then(data => {
+                updateDashboardData(data);
+            })
+            .catch(error => {
+                console.error('Error en auto-refresh:', error);
+            });
+    }, 30000);
+}
+
+// Mostrar notificaciones
+function showNotification(message, type = 'info') {
+    // Crear elemento de notificación
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show position-fixed`;
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Auto-remover después de 5 segundos
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.remove();
+        }
+    }, 5000);
+}
+
+// Obtener cookie CSRF
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
     }
+    return cookieValue;
+}
+
+// Exportar funciones para uso global
+window.AURADashboard = {
+    viewAnalysis,
+    updateServiceTier,
+    saveConfiguration,
+    resetConfiguration,
+    refreshDashboard,
+    showNotification
 };
-
-// Inicializar cuando el DOM esté listo
-document.addEventListener('DOMContentLoaded', function() {
-    window.auraDashboard = new AuraDashboard();
-});
-
-// Exportar para uso en otros módulos
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = AuraDashboard;
-} 

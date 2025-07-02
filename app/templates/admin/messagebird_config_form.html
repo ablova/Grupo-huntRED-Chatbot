@@ -1,0 +1,97 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls %}
+
+{% block extrahead %}
+{{ block.super }}
+<style type="text/css">
+    .form-row {
+        margin-bottom: 15px;
+    }
+    .form-row label {
+        display: block;
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+    .form-row input[type="text"], .form-row input[type="url"] {
+        width: 100%;
+        padding: 8px;
+        box-sizing: border-box;
+    }
+    .checkbox-row {
+        margin-top: 10px;
+    }
+    .submit-row {
+        margin-top: 20px;
+        padding: 10px 0;
+        border-top: 1px solid #eee;
+    }
+    .help-text {
+        color: #666;
+        font-size: 0.85em;
+        margin-top: 2px;
+    }
+    .message {
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 4px;
+    }
+    .message.info {
+        background-color: #d9edf7;
+        border: 1px solid #bce8f1;
+        color: #31708f;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <div class="message info">
+        <p>Configurar MessageBird para {{ queryset.count }} unidad(es) de negocio seleccionada(s):</p>
+        <ul>
+            {% for obj in queryset %}
+            <li>{{ obj.name }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    
+    <form action="" method="post">
+        {% csrf_token %}
+        <div class="form-row">
+            <label for="{{ form.api_key.id_for_label }}">{{ form.api_key.label }}</label>
+            {{ form.api_key }}
+            <p class="help-text">Clave de API proporcionada por MessageBird</p>
+        </div>
+        
+        <div class="form-row">
+            <label for="{{ form.from_number.id_for_label }}">{{ form.from_number.label }}</label>
+            {{ form.from_number }}
+            <p class="help-text">Nombre o número remitente para los SMS</p>
+        </div>
+        
+        <div class="form-row checkbox-row">
+            <label for="{{ form.dlr_enabled.id_for_label }}">{{ form.dlr_enabled }} {{ form.dlr_enabled.label }}</label>
+            <p class="help-text">Activar reportes de entrega para seguimiento de mensajes</p>
+        </div>
+        
+        <div class="form-row">
+            <label for="{{ form.dlr_url.id_for_label }}">{{ form.dlr_url.label }}</label>
+            {{ form.dlr_url }}
+            <p class="help-text">URL donde MessageBird enviará las actualizaciones de estado (opcional)</p>
+        </div>
+        
+        <div class="form-row checkbox-row">
+            <label for="{{ form.sandbox_mode.id_for_label }}">{{ form.sandbox_mode }} {{ form.sandbox_mode.label }}</label>
+            <p class="help-text">Solo para pruebas - no envía SMS reales</p>
+        </div>
+        
+        <div class="submit-row">
+            <input type="hidden" name="action" value="{{ action }}" />
+            {% for obj in queryset %}
+                <input type="hidden" name="_selected_action" value="{{ obj.pk }}" />
+            {% endfor %}
+            <input type="submit" name="apply" value="Configurar MessageBird" class="default" />
+            <a href="{% url 'admin:app_businessunit_changelist' %}" class="button cancel-link">Cancelar</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

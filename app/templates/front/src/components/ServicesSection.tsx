@@ -3,29 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Calendar, Users, Brain, Target, Star, Check } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
-
-const fetchPlans = async () => {
-  const res = await fetch('/api/pricing/plans/');
-  return res.json();
-};
-
-const fetchAddons = async () => {
-  const res = await fetch('/api/pricing/addons/');
-  return res.json();
-};
 
 const ServicesSection = () => {
   const [selectedTab, setSelectedTab] = useState('business-units');
-
-  const { data: plansData, isLoading: loadingPlans } = useQuery('pricingPlans', fetchPlans, {
-    staleTime: 1000 * 60 * 60 * 24 * 30, // 30 días
-  });
-  const { data: addonsData, isLoading: loadingAddons } = useQuery('pricingAddons', fetchAddons, {
-    staleTime: 1000 * 60 * 60 * 24 * 30,
-  });
-
-  if (loadingPlans || loadingAddons) return <div>Cargando servicios...</div>;
 
   // Data with dynamic identifiers for ATS system integration
   const businessUnits = [
@@ -41,7 +21,7 @@ const ServicesSection = () => {
     },
     {
       id: "huntred-standard", // Dynamic ID for ATS pricing module
-      name: "huntRED®",
+      name: "huntRED® Standard",
       price: "$95,000", // This will be dynamically updated from app/ats/pricing
       description: "Reclutamiento especializado para posiciones gerenciales y de alta especialización técnica.",
       features: ["Specialized Search", "Technical Assessment", "Cultural Fit Analysis", "Onboarding Support"],
@@ -51,7 +31,7 @@ const ServicesSection = () => {
     },
     {
       id: "huntu", // Dynamic ID for ATS pricing module
-      name: "huntU®",
+      name: "huntU",
       price: "$55,000", // This will be dynamically updated from app/ats/pricing
       description: "Talento universitario y profesionales junior con alto potencial de crecimiento.",
       features: ["University Recruiting", "Graduate Programs", "Talent Pipeline", "Career Development"],
@@ -61,7 +41,7 @@ const ServicesSection = () => {
     },
     {
       id: "amigro", // Dynamic ID for ATS pricing module
-      name: "amigro®",
+      name: "amigro",
       price: "$20,000", // This will be dynamically updated from app/ats/pricing
       description: "Soluciones de reclutamiento masivo y posiciones operativas especializadas.",
       features: ["Volume Recruiting", "Operational Roles", "Quick Placement", "Process Optimization"],

@@ -1,0 +1,710 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Dashboard de Optimización de Comunicación{% endblock %}
+
+{% block extra_css %}
+<style>
+    .optimization-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 20px;
+        color: white;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    }
+    
+    .sentiment-indicator {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 8px;
+    }
+    
+    .sentiment-positive { background-color: #28a745; }
+    .sentiment-negative { background-color: #dc3545; }
+    .sentiment-neutral { background-color: #ffc107; }
+    
+    .strategy-card {
+        background: white;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 15px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        border-left: 4px solid #667eea;
+    }
+    
+    .recommendation-item {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 10px;
+        border-left: 4px solid #17a2b8;
+    }
+    
+    .priority-high { border-left-color: #dc3545; }
+    .priority-medium { border-left-color: #ffc107; }
+    .priority-low { border-left-color: #28a745; }
+    
+    .analytics-chart {
+        background: white;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+    }
+    
+    .optimization-form {
+        background: white;
+        border-radius: 10px;
+        padding: 25px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+    }
+    
+    .btn-optimize {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        color: white;
+        padding: 12px 30px;
+        border-radius: 25px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-optimize:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="optimization-card">
+                <h1 class="mb-3">
+                    <i class="fas fa-bullhorn me-3"></i>
+                    Dashboard de Optimización de Comunicación
+                </h1>
+                <p class="mb-0">
+                    Optimiza automáticamente las comunicaciones basándose en análisis de sentimientos, 
+                    engagement y patrones de comportamiento de los usuarios.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Estadísticas Generales -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3 class="text-primary" id="total-users">0</h3>
+                    <p class="text-muted">Usuarios Totales</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3 class="text-success" id="success-rate">0%</h3>
+                    <p class="text-muted">Tasa de Éxito</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3 class="text-info" id="total-notifications">0</h3>
+                    <p class="text-muted">Notificaciones</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3 class="text-warning" id="optimization-score">0%</h3>
+                    <p class="text-muted">Score de Optimización</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Optimización de Notificación -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="optimization-form">
+                <h4 class="mb-4">
+                    <i class="fas fa-magic me-2"></i>
+                    Optimizar Notificación
+                </h4>
+                
+                <form id="optimization-form">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="user-id" class="form-label">ID de Usuario</label>
+                                <input type="number" class="form-control" id="user-id" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="notification-type" class="form-label">Tipo de Notificación</label>
+                                <select class="form-select" id="notification-type">
+                                    <option value="reminder">Recordatorio</option>
+                                    <option value="alert">Alerta</option>
+                                    <option value="update">Actualización</option>
+                                    <option value="promotion">Promoción</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="content" class="form-label">Contenido</label>
+                        <textarea class="form-control" id="content" rows="4" 
+                                  placeholder="Escribe el contenido de la notificación..." required></textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="business-unit" class="form-label">Unidad de Negocio</label>
+                                <select class="form-select" id="business-unit">
+                                    <option value="">Todas</option>
+                                    <option value="huntRED">huntRED®</option>
+                                    <option value="huntU">huntU</option>
+                                    <option value="Amigro">Amigro</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">&nbsp;</label>
+                                <button type="submit" class="btn btn-optimize w-100">
+                                    <i class="fas fa-magic me-2"></i>
+                                    Optimizar Notificación
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resultado de Optimización -->
+    <div class="row mb-4" id="optimization-result" style="display: none;">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-line me-2"></i>
+                        Resultado de Optimización
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Contenido Original</h6>
+                            <p id="original-content" class="text-muted"></p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Contenido Optimizado</h6>
+                            <p id="optimized-content" class="text-success"></p>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-4">
+                            <h6>Análisis de Sentimiento</h6>
+                            <div id="sentiment-analysis"></div>
+                        </div>
+                        <div class="col-md-4">
+                            <h6>Canal Óptimo</h6>
+                            <span id="optimal-channel" class="badge bg-primary"></span>
+                        </div>
+                        <div class="col-md-4">
+                            <h6>Score de Optimización</h6>
+                            <div id="optimization-score-result"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Análisis de Sentimientos -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="analytics-chart">
+                <h4 class="mb-4">
+                    <i class="fas fa-brain me-2"></i>
+                    Análisis de Sentimientos
+                </h4>
+                
+                <form id="sentiment-form" class="mb-4">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="mb-3">
+                                <label for="sentiment-text" class="form-label">Texto a Analizar</label>
+                                <textarea class="form-control" id="sentiment-text" rows="3" 
+                                          placeholder="Escribe el texto para analizar su sentimiento..."></textarea>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="sentiment-user-id" class="form-label">ID de Usuario (opcional)</label>
+                                <input type="number" class="form-control" id="sentiment-user-id">
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fas fa-search me-2"></i>
+                                Analizar Sentimiento
+                            </button>
+                        </div>
+                    </div>
+                </form>
+                
+                <div id="sentiment-result" style="display: none;">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <h5>Sentimiento</h5>
+                                <div id="sentiment-label" class="badge fs-6"></div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <h5>Score</h5>
+                                <div id="sentiment-score" class="h4"></div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <h5>Confianza</h5>
+                                <div id="sentiment-confidence" class="h4"></div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <h5>Palabras Clave</h5>
+                                <div id="sentiment-keywords"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Testing de Estrategias -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-flask me-2"></i>
+                        Testing de Estrategias de Comunicación
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form id="strategy-form">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="strategy-user-id" class="form-label">ID de Usuario</label>
+                                    <input type="number" class="form-control" id="strategy-user-id" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="strategy-content" class="form-label">Contenido</label>
+                                    <textarea class="form-control" id="strategy-content" rows="3" 
+                                              placeholder="Contenido para probar diferentes estrategias..." required></textarea>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Estrategias a Probar</label>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" id="strategy-empathetic" value="empathetic" checked>
+                                <label class="form-check-label" for="strategy-empathetic">Empática</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" id="strategy-professional" value="professional" checked>
+                                <label class="form-check-label" for="strategy-professional">Profesional</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" id="strategy-casual" value="casual" checked>
+                                <label class="form-check-label" for="strategy-casual">Casual</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" id="strategy-urgent" value="urgent">
+                                <label class="form-check-label" for="strategy-urgent">Urgente</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" id="strategy-celebratory" value="celebratory">
+                                <label class="form-check-label" for="strategy-celebratory">Celebrativa</label>
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-play me-2"></i>
+                            Probar Estrategias
+                        </button>
+                    </form>
+                    
+                    <div id="strategy-results" class="mt-4" style="display: none;">
+                        <h6>Resultados del Testing</h6>
+                        <div id="strategy-cards"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analytics de Comunicación -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="analytics-chart">
+                <h4 class="mb-4">
+                    <i class="fas fa-chart-bar me-2"></i>
+                    Analytics de Comunicación
+                </h4>
+                
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label for="analytics-bu" class="form-label">Unidad de Negocio</label>
+                        <select class="form-select" id="analytics-bu">
+                            <option value="all">Todas</option>
+                            <option value="huntRED">huntRED®</option>
+                            <option value="huntU">huntU</option>
+                            <option value="Amigro">Amigro</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="analytics-days" class="form-label">Período (días)</label>
+                        <select class="form-select" id="analytics-days">
+                            <option value="7">7 días</option>
+                            <option value="30">30 días</option>
+                            <option value="90">90 días</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">&nbsp;</label>
+                        <button class="btn btn-primary w-100" onclick="loadAnalytics()">
+                            <i class="fas fa-sync me-2"></i>
+                            Cargar Analytics
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="analytics-content"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Variables globales
+let currentUserProfile = null;
+
+// Cargar dashboard al iniciar
+document.addEventListener('DOMContentLoaded', function() {
+    loadDashboard();
+    setupEventListeners();
+});
+
+function setupEventListeners() {
+    // Formulario de optimización
+    document.getElementById('optimization-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        optimizeNotification();
+    });
+    
+    // Formulario de análisis de sentimientos
+    document.getElementById('sentiment-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        analyzeSentiment();
+    });
+    
+    // Formulario de testing de estrategias
+    document.getElementById('strategy-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        testStrategies();
+    });
+}
+
+async function loadDashboard() {
+    try {
+        const response = await fetch('/communication/dashboard/');
+        const data = await response.json();
+        
+        if (data.success) {
+            updateDashboardStats(data.dashboard);
+        }
+    } catch (error) {
+        console.error('Error loading dashboard:', error);
+    }
+}
+
+function updateDashboardStats(dashboard) {
+    document.getElementById('total-users').textContent = dashboard.overview.total_users;
+    document.getElementById('success-rate').textContent = (dashboard.overview.success_rate * 100).toFixed(1) + '%';
+    document.getElementById('total-notifications').textContent = dashboard.overview.total_notifications;
+    document.getElementById('optimization-score').textContent = '85%'; // Placeholder
+}
+
+async function optimizeNotification() {
+    const formData = {
+        user_id: parseInt(document.getElementById('user-id').value),
+        notification_type: document.getElementById('notification-type').value,
+        content: document.getElementById('content').value,
+        business_unit: document.getElementById('business-unit').value
+    };
+    
+    try {
+        const response = await fetch('/communication/optimize/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify(formData)
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showOptimizationResult(data.optimization_result);
+        } else {
+            alert('Error: ' + data.error);
+        }
+    } catch (error) {
+        console.error('Error optimizing notification:', error);
+        alert('Error al optimizar la notificación');
+    }
+}
+
+function showOptimizationResult(result) {
+    document.getElementById('original-content').textContent = result.original_content;
+    document.getElementById('optimized-content').textContent = result.optimized_content;
+    document.getElementById('optimal-channel').textContent = result.optimal_channel;
+    
+    // Mostrar análisis de sentimiento
+    const sentimentDiv = document.getElementById('sentiment-analysis');
+    sentimentDiv.innerHTML = `
+        <span class="sentiment-indicator sentiment-${result.sentiment_analysis.label}"></span>
+        <span class="badge bg-${getSentimentColor(result.sentiment_analysis.label)}">
+            ${result.sentiment_analysis.label}
+        </span>
+        <br>
+        <small class="text-muted">Score: ${result.sentiment_analysis.score}</small>
+    `;
+    
+    // Mostrar score de optimización
+    document.getElementById('optimization-score-result').innerHTML = `
+        <div class="progress">
+            <div class="progress-bar" style="width: ${result.optimization_score * 100}%"></div>
+        </div>
+        <small class="text-muted">${(result.optimization_score * 100).toFixed(1)}%</small>
+    `;
+    
+    document.getElementById('optimization-result').style.display = 'block';
+}
+
+async function analyzeSentiment() {
+    const formData = {
+        text: document.getElementById('sentiment-text').value,
+        user_id: document.getElementById('sentiment-user-id').value ? 
+                parseInt(document.getElementById('sentiment-user-id').value) : null
+    };
+    
+    try {
+        const response = await fetch('/communication/analyze-sentiment/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify(formData)
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showSentimentResult(data.sentiment_analysis);
+        } else {
+            alert('Error: ' + data.error);
+        }
+    } catch (error) {
+        console.error('Error analyzing sentiment:', error);
+        alert('Error al analizar sentimiento');
+    }
+}
+
+function showSentimentResult(analysis) {
+    document.getElementById('sentiment-label').textContent = analysis.sentiment_label;
+    document.getElementById('sentiment-label').className = `badge fs-6 bg-${getSentimentColor(analysis.sentiment_label)}`;
+    document.getElementById('sentiment-score').textContent = analysis.sentiment_score.toFixed(3);
+    document.getElementById('sentiment-confidence').textContent = (analysis.confidence * 100).toFixed(1) + '%';
+    
+    // Mostrar palabras clave
+    const keywordsDiv = document.getElementById('sentiment-keywords');
+    keywordsDiv.innerHTML = analysis.keywords.map(keyword => 
+        `<span class="badge bg-light text-dark me-1">${keyword}</span>`
+    ).join('');
+    
+    document.getElementById('sentiment-result').style.display = 'block';
+}
+
+async function testStrategies() {
+    const strategies = Array.from(document.querySelectorAll('input[type="checkbox"]:checked'))
+                           .map(cb => cb.value);
+    
+    const formData = {
+        user_id: parseInt(document.getElementById('strategy-user-id').value),
+        content: document.getElementById('strategy-content').value,
+        strategies: strategies
+    };
+    
+    try {
+        const response = await fetch('/communication/test-strategies/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify(formData)
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showStrategyResults(data.strategies, data.recommendation);
+        } else {
+            alert('Error: ' + data.error);
+        }
+    } catch (error) {
+        console.error('Error testing strategies:', error);
+        alert('Error al probar estrategias');
+    }
+}
+
+function showStrategyResults(strategies, recommendation) {
+    const container = document.getElementById('strategy-cards');
+    container.innerHTML = '';
+    
+    Object.entries(strategies).forEach(([strategy, result]) => {
+        const card = document.createElement('div');
+        card.className = 'strategy-card';
+        card.innerHTML = `
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <h6 class="text-capitalize">${strategy}</h6>
+                    <p class="text-muted mb-2">${result.optimized_content}</p>
+                    <div class="d-flex align-items-center">
+                        <span class="sentiment-indicator sentiment-${result.sentiment_analysis.sentiment_label}"></span>
+                        <span class="badge bg-${getSentimentColor(result.sentiment_analysis.sentiment_label)} me-2">
+                            ${result.sentiment_analysis.sentiment_label}
+                        </span>
+                        <small class="text-muted">Score: ${result.sentiment_analysis.sentiment_score.toFixed(3)}</small>
+                    </div>
+                </div>
+                ${strategy === recommendation ? 
+                    '<span class="badge bg-success">Recomendado</span>' : ''}
+            </div>
+        `;
+        container.appendChild(card);
+    });
+    
+    document.getElementById('strategy-results').style.display = 'block';
+}
+
+async function loadAnalytics() {
+    const businessUnit = document.getElementById('analytics-bu').value;
+    const days = document.getElementById('analytics-days').value;
+    
+    try {
+        const response = await fetch(`/communication/analytics/?business_unit=${businessUnit}&days=${days}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            showAnalytics(data.analytics);
+        } else {
+            alert('Error: ' + data.error);
+        }
+    } catch (error) {
+        console.error('Error loading analytics:', error);
+        alert('Error al cargar analytics');
+    }
+}
+
+function showAnalytics(analytics) {
+    const container = document.getElementById('analytics-content');
+    
+    container.innerHTML = `
+        <div class="row">
+            <div class="col-md-6">
+                <h6>Estadísticas Generales</h6>
+                <div class="row">
+                    <div class="col-6">
+                        <div class="text-center">
+                            <h4 class="text-primary">${analytics.overall_stats.total_notifications}</h4>
+                            <small class="text-muted">Total</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-center">
+                            <h4 class="text-success">${(analytics.overall_stats.success_rate * 100).toFixed(1)}%</h4>
+                            <small class="text-muted">Éxito</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <h6>Estadísticas por Canal</h6>
+                ${Object.entries(analytics.channel_stats).map(([channel, stats]) => `
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-capitalize">${channel}</span>
+                        <span class="badge bg-${stats.success_rate > 0.8 ? 'success' : stats.success_rate > 0.6 ? 'warning' : 'danger'}">
+                            ${(stats.success_rate * 100).toFixed(1)}%
+                        </span>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `;
+}
+
+function getSentimentColor(label) {
+    switch (label) {
+        case 'positive': return 'success';
+        case 'negative': return 'danger';
+        case 'neutral': return 'warning';
+        default: return 'secondary';
+    }
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %} 

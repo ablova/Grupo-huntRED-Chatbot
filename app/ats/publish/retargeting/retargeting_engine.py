@@ -13,7 +13,7 @@ from app.models import BusinessUnit, Person, Vacante
 
 # Importaciones de AURA
 from app.ml.aura.integration_layer import AuraIntegrationLayer
-from app.ml.aura.core import AuraEngine
+from app.ml.aura.aura import AuraEngine
 from app.ml.aura.compatibility_engine import CompatibilityEngine
 from app.ml.aura.recommendation_engine import RecommendationEngine
 

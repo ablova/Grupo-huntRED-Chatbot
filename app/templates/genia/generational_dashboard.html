@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Dashboard Generacional - Grupo huntRED{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.css">
+<style>
+    .gen-section { margin-bottom: 2.5rem; }
+    .gen-card { border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); margin-bottom: 1.5rem; }
+    .gen-title { font-weight: 600; font-size: 1.1rem; }
+    .gen-list { margin-bottom: 0; }
+    .summary-card { background: #f8f9fa; border-radius: 8px; padding: 1.5rem; margin-bottom: 2rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="h3">
+                <i class="fas fa-users me-2 text-primary"></i>Dashboard Generacional
+            </h2>
+            <p class="text-muted">Insights y métricas sobre generaciones, preferencias y compatibilidad</p>
+        </div>
+        <div>
+            <span class="badge bg-info">{{ business_unit }}</span>
+        </div>
+    </div>
+
+    <!-- Resumen ejecutivo generacional -->
+    <div class="summary-card">
+        <h4 class="mb-3"><i class="fas fa-lightbulb text-warning me-2"></i>Resumen Generacional</h4>
+        <ul class="gen-list">
+            {% for insight in generational_summary %}
+                <li>{{ insight }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <!-- Gráficos de distribución generacional -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <canvas id="generationDistributionChart"></canvas>
+        </div>
+        <div class="col-md-6">
+            <canvas id="compatibilityChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Insights detallados generacionales -->
+    <div class="gen-section">
+        <div class="gen-card p-4">
+            <h5 class="gen-title text-secondary mb-3">
+                <i class="fas fa-chart-bar me-2"></i>Insights Detallados
+            </h5>
+            <ul class="gen-list">
+                {% for detail in generational_details %}
+                    <li>{{ detail }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+    <script>
+        // Ejemplo de datos, reemplazar con datos reales del contexto
+        var genData = {
+            labels: ['Baby Boomers', 'Gen X', 'Millennials', 'Gen Z', 'Gen Alpha'],
+            datasets: [{
+                data: [{{ gen_metrics.boomers }}, {{ gen_metrics.x }}, {{ gen_metrics.millennials }}, {{ gen_metrics.z }}, {{ gen_metrics.alpha }}],
+                backgroundColor: ['#ff6384', '#36a2eb', '#ffce56', '#4bc0c0', '#9966ff']
+            }]
+        };
+        var ctxGen = document.getElementById('generationDistributionChart').getContext('2d');
+        new Chart(ctxGen, {
+            type: 'doughnut',
+            data: genData,
+            options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+        });
+        var compatData = {
+            labels: ['Alta', 'Media', 'Baja'],
+            datasets: [{
+                data: [{{ gen_metrics.high_compat }}, {{ gen_metrics.medium_compat }}, {{ gen_metrics.low_compat }}],
+                backgroundColor: ['#36a2eb', '#ffce56', '#ff6384']
+            }]
+        };
+        var ctxCompat = document.getElementById('compatibilityChart').getContext('2d');
+        new Chart(ctxCompat, {
+            type: 'pie',
+            data: compatData,
+            options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+        });
+    </script>
+</div>
+{% endblock %} 

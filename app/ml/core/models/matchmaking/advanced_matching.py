@@ -15,13 +15,13 @@ from sklearn.preprocessing import StandardScaler
 import joblib
 import json
 
-from app.ats.aura.aura_engine import AURAEngine
-from app.ml.core.models.matchmaking.base import BaseMatchmakingModel
+from app.ml.aura.aura import AuraEngine
+from app.ml.core.models.matchmaking.base import MatchmakingPipeline
 from app.ml.core.models.matchmaking.factors import MatchmakingFactors
 
 logger = logging.getLogger(__name__)
 
-class AdvancedMatchingSystem(BaseMatchmakingModel):
+class AdvancedMatchingSystem(MatchmakingPipeline):
     """
     Sistema avanzado de matching automático con analytics en tiempo real.
     Hereda de BaseMatchmakingModel para mantener consistencia con la arquitectura ML.
@@ -29,7 +29,7 @@ class AdvancedMatchingSystem(BaseMatchmakingModel):
     
     def __init__(self):
         super().__init__()
-        self.aura_engine = AURAEngine()
+        self.aura_engine = AuraEngine()
         self.factors = MatchmakingFactors()
         self.scaler = StandardScaler()
         self.vectorizer = TfidfVectorizer(max_features=1000)

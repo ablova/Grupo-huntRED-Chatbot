@@ -4,46 +4,79 @@ import { Button } from '@/components/ui/button';
 import { ArrowRight, Building, Users, Briefcase, Zap, Target } from 'lucide-react';
 
 const BusinessUnitsSection = () => {
-  const huntredBrands = [
+// Pyramid structure for business units
+  const pyramidUnits = [
     {
       name: "huntRED® Executive",
       tagline: "Liderazgo C-Level y Dirección Estratégica",
-      description: "Búsqueda ejecutiva de más alto nivel para transformar organizaciones",
-      color: "bg-purple-600",
-      accent: "text-purple-600",
-      bg: "bg-purple-500/15 border-purple-500/30",
+      description: "Búsqueda ejecutiva de más alto nivel para transformar organizaciones con modelo AI optimizado",
+      color: "bg-orange-500",
+      accent: "text-orange-600",
+      bg: "bg-orange-500/10 border-orange-500/30",
       level: 1,
-      icon: "👑"
+      icon: "👑",
+      size: "small",
+      width: "w-56"
     },
     {
       name: "huntRED®",
       tagline: "Gerencial y Alta Especialización",
-      description: "Reclutamiento especializado para posiciones gerenciales estratégicas",
+      description: "Reclutamiento especializado para posiciones gerenciales con modelo porcentaje optimizado",
       color: "bg-red-600",
       accent: "text-red-600",
-      bg: "bg-red-500/15 border-red-500/30",
+      bg: "bg-red-500/10 border-red-500/30",
       level: 2,
-      icon: "🎯"
+      icon: "🎯",
+      size: "medium",
+      width: "w-64"
     },
     {
       name: "huntU®",
       tagline: "Talento Joven y Profesionales Junior",
-      description: "Conectamos el futuro del talento con oportunidades de crecimiento",
-      color: "bg-orange-500",
-      accent: "text-orange-600",
-      bg: "bg-orange-500/15 border-orange-500/30",
+      description: "Conectamos el futuro del talento universitario con modelo fijo especializado",
+      color: "bg-emerald-500",
+      accent: "text-emerald-600",
+      bg: "bg-emerald-500/10 border-emerald-500/30",
       level: 3,
-      icon: "🚀"
+      icon: "🚀",
+      size: "medium",
+      width: "w-72"
     },
     {
       name: "amigro®",
       tagline: "Reclutamiento Masivo y Operativo",
-      description: "Soluciones eficientes para posiciones operativas y reclutamiento de volumen",
-      color: "bg-green-500",
-      accent: "text-green-600",
-      bg: "bg-green-500/15 border-green-500/30",
+      description: "Soluciones eficientes para perfiles técnicos migrantes con modelo fijo de volumen",
+      color: "bg-primary",
+      accent: "text-primary",
+      bg: "bg-primary/10 border-primary/30",
       level: 4,
-      icon: "⚡"
+      icon: "⚡",
+      size: "large",
+      width: "w-80"
+    }
+  ];
+
+  const specializedUnits = [
+    {
+      name: "huntRED® Experience",
+      tagline: "Talento Senior +50",
+      description: "Experiencia laboral avanzada y mentoring",
+      icon: "🌟",
+      color: "bg-violet-500"
+    },
+    {
+      name: "huntRED® Inspiration",
+      tagline: "Inclusión Laboral",
+      description: "Diversidad e inclusión empresarial",
+      icon: "🤝",
+      color: "bg-pink-500"
+    },
+    {
+      name: "huntRED® Solutions",
+      tagline: "Consultoría y Outsourcing",
+      description: "Soluciones integrales de RH",
+      icon: "🔧",
+      color: "bg-indigo-500"
     }
   ];
 
@@ -155,46 +188,98 @@ const BusinessUnitsSection = () => {
           </p>
         </div>
 
-        {/* Hierarchical Business Units */}
-        <div className="space-y-8 mb-16">
-          {huntredBrands.map((brand, index) => (
-            <Card key={index} className={`group hover:shadow-xl transition-all duration-300 hover:-translate-y-1 ${brand.bg} border-2 max-w-4xl mx-auto`}>
-              <CardContent className="p-8">
-                <div className="flex items-center gap-6">
-                  <div className="flex items-center gap-4">
-                    <div className={`w-16 h-16 ${brand.color} rounded-full flex items-center justify-center text-white text-2xl`}>
-                      {brand.icon}
-                    </div>
-                    <div className="text-6xl font-bold text-muted-foreground/20">
-                      {brand.level}
-                    </div>
+        {/* Pyramid Structure */}
+        <div className="mb-20">
+          <div className="flex flex-col lg:flex-row gap-12 items-start justify-center">
+            {/* Main Pyramid */}
+            <div className="flex-1 max-w-4xl">
+              <div className="space-y-6">
+                {pyramidUnits.map((unit, index) => (
+                  <div key={index} className="flex justify-center">
+                    <Card className={`group hover:shadow-xl transition-all duration-300 hover:-translate-y-1 ${unit.bg} border-2 ${unit.width}`}>
+                      <CardContent className="p-6">
+                        <div className="text-center space-y-4">
+                          <div className="flex items-center justify-center gap-4">
+                            <div className={`w-14 h-14 ${unit.color} rounded-full flex items-center justify-center text-white text-xl shadow-lg`}>
+                              {unit.icon}
+                            </div>
+                            <div className="text-4xl font-bold text-muted-foreground/20">
+                              {unit.level}
+                            </div>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <h3 className={`text-xl font-bold ${unit.accent}`}>
+                              {unit.name}
+                            </h3>
+                            <p className="text-base font-medium text-muted-foreground">
+                              {unit.tagline}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {unit.description}
+                            </p>
+                          </div>
+                          
+                          <Button variant="ghost" size="sm" className="group-hover:bg-primary/10 transition-colors">
+                            Conocer Más
+                            <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
                   </div>
-                  
-                  <div className="flex-1 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h3 className={`text-2xl font-bold ${brand.accent}`}>
-                        {brand.name}
-                      </h3>
-                      <div className="text-sm text-muted-foreground">
-                        Nivel {brand.level}
+                ))}
+              </div>
+            </div>
+
+            {/* Specialized Units Support */}
+            <div className="lg:w-80 space-y-4">
+              <h4 className="text-lg font-semibold text-center mb-6">Unidades Especializadas</h4>
+              {specializedUnits.map((unit, index) => (
+                <Card key={index} className="glass border-primary/20 hover:shadow-lg transition-shadow">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 ${unit.color} rounded-full flex items-center justify-center text-white text-sm`}>
+                        {unit.icon}
+                      </div>
+                      <div className="flex-1">
+                        <h5 className="font-semibold text-sm">{unit.name}</h5>
+                        <p className="text-xs text-muted-foreground">{unit.tagline}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{unit.description}</p>
                       </div>
                     </div>
-                    <p className="text-lg font-medium text-muted-foreground">
-                      {brand.tagline}
-                    </p>
-                    <p className="text-muted-foreground">
-                      {brand.description}
-                    </p>
-                    
-                    <Button variant="ghost" size="sm" className="group-hover:bg-primary/10 transition-colors">
-                      Conocer Más
-                      <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-                    </Button>
-                  </div>
+                  </CardContent>
+                </Card>
+              ))}
+              
+              {/* 9 Divisions Support */}
+              <div className="mt-8 space-y-4">
+                <h4 className="text-lg font-semibold text-center">Soporte Divisional</h4>
+                
+                {/* Sectorial Divisions */}
+                <div className="space-y-2">
+                  <h5 className="text-sm font-medium text-muted-foreground">Sectoriales</h5>
+                  {sectorialDivisions.map((division, index) => (
+                    <div key={index} className="flex items-center gap-2 p-2 rounded-lg glass border border-primary/10">
+                      <span className="text-lg">{division.icon}</span>
+                      <span className="text-xs font-medium">{division.name}</span>
+                    </div>
+                  ))}
                 </div>
-              </CardContent>
-            </Card>
-          ))}
+                
+                {/* Functional Divisions */}
+                <div className="space-y-2">
+                  <h5 className="text-sm font-medium text-muted-foreground">Funcionales</h5>
+                  {functionalDivisions.map((division, index) => (
+                    <div key={index} className="flex items-center gap-2 p-2 rounded-lg glass border border-primary/10">
+                      <span className="text-lg">{division.icon}</span>
+                      <span className="text-xs font-medium">{division.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Metodología de Especialización */}

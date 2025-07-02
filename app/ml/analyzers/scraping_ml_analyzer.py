@@ -12,7 +12,7 @@ import json
 
 from app.models import DominioScraping, RegistroScraping, Vacante
 from app.ats.publish.models import DomainAnalysis, UsageFrequencyAnalysis
-from app.ml.aura.aura_engine import AuraEngine
+from app.ml.aura.aura import AuraEngine
 from app.ml.aura.vibrational_matcher import VibrationalMatcher
 
 logger = logging.getLogger(__name__)

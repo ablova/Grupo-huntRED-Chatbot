@@ -14,7 +14,7 @@ from django.conf import settings
 from django.core.cache import cache
 
 from app.models import BusinessUnit, Vacante
-from app.ml.aura import AuraEngine
+from app.ml.aura.aura import AuraEngine
 from app.ml.analyzers.market_analyzer import MarketAnalyzer
 from app.ml.analyzers.salary_analyzer import SalaryAnalyzer
 

@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Dashboard Rotación - AURA Grupo huntRED{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.css">
+<style>
+    .attrition-section { margin-bottom: 2.5rem; }
+    .attrition-card { border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); margin-bottom: 1.5rem; }
+    .attrition-title { font-weight: 600; font-size: 1.1rem; }
+    .attrition-list { margin-bottom: 0; }
+    .summary-card { background: #f8f9fa; border-radius: 8px; padding: 1.5rem; margin-bottom: 2rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="h3">
+                <i class="fas fa-user-times me-2 text-danger"></i>Dashboard Rotación (Attrition)
+            </h2>
+            <p class="text-muted">Riesgo de rotación y focos rojos por industria, división, generación, rol, BU y cliente</p>
+        </div>
+        <div>
+            <span class="badge bg-info">{{ business_unit }}</span>
+        </div>
+    </div>
+
+    <!-- Resumen ejecutivo rotación -->
+    <div class="summary-card">
+        <h4 class="mb-3"><i class="fas fa-exclamation-triangle text-danger me-2"></i>Resumen Rotación</h4>
+        <ul class="attrition-list">
+            {% for insight in attrition_summary %}
+                <li>{{ insight }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <!-- Gráficos de riesgo de rotación -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <canvas id="riskBySegmentChart"></canvas>
+        </div>
+        <div class="col-md-6">
+            <canvas id="historicalAttritionChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Focos rojos y alertas -->
+    <div class="attrition-section">
+        <div class="attrition-card p-4">
+            <h5 class="attrition-title text-secondary mb-3">
+                <i class="fas fa-bell text-danger me-2"></i>Focos Rojos y Alertas
+            </h5>
+            <ul class="attrition-list">
+                {% for alert in attrition_alerts %}
+                    <li>{{ alert }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <!-- Recomendaciones y estrategias de retención -->
+    <div class="attrition-section">
+        <div class="attrition-card p-4">
+            <h5 class="attrition-title text-secondary mb-3">
+                <i class="fas fa-lightbulb text-warning me-2"></i>Recomendaciones de Retención
+            </h5>
+            <ul class="attrition-list">
+                {% for rec in attrition_recommendations %}
+                    <li>{{ rec }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+    <script>
+        // Ejemplo de datos, reemplazar con datos reales del contexto
+        var riskBySegmentData = {
+            labels: ['Industria A', 'Industria B', 'División X', 'División Y', 'Gen Z', 'Gen X', 'Rol 1', 'Rol 2'],
+            datasets: [{
+                label: 'Riesgo de Rotación',
+                data: [{{ attrition_metrics.ind_a }}, {{ attrition_metrics.ind_b }}, {{ attrition_metrics.div_x }}, {{ attrition_metrics.div_y }}, {{ attrition_metrics.gen_z }}, {{ attrition_metrics.gen_x }}, {{ attrition_metrics.rol_1 }}, {{ attrition_metrics.rol_2 }}],
+                backgroundColor: ['#ff6384', '#36a2eb', '#ffce56', '#4bc0c0', '#9966ff', '#e7e9ed', '#ff9f40', '#b2dfdb']
+            }]
+        };
+        var ctxRisk = document.getElementById('riskBySegmentChart').getContext('2d');
+        new Chart(ctxRisk, {
+            type: 'bar',
+            data: riskBySegmentData,
+            options: { responsive: true, plugins: { legend: { display: false } } }
+        });
+        var historicalData = {
+            labels: ['2020', '2021', '2022', '2023', '2024'],
+            datasets: [{
+                label: 'Tasa de Rotación (%)',
+                data: [{{ attrition_metrics.y2020 }}, {{ attrition_metrics.y2021 }}, {{ attrition_metrics.y2022 }}, {{ attrition_metrics.y2023 }}, {{ attrition_metrics.y2024 }}],
+                borderColor: '#ff6384',
+                backgroundColor: 'rgba(255,99,132,0.2)',
+                fill: true
+            }]
+        };
+        var ctxHist = document.getElementById('historicalAttritionChart').getContext('2d');
+        new Chart(ctxHist, {
+            type: 'line',
+            data: historicalData,
+            options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+        });
+    </script>
+</div>
+{% endblock %} 

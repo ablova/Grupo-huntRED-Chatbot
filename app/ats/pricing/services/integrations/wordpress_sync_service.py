@@ -31,7 +31,7 @@ WORDPRESS_CONFIG = {
     },
     'huntU': {
         'base_url': 'https://huntu.mx/wp-json/wp/v2',
-        'auth_token': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEsIm5hbWUiOiJodW50VSIsImlhdCI6MTczNzQwNzM2NywiZXhwIjoxODk1MDg3MzY3fQ.PovX_OvPT-YVezWBoFCqVqXCeLPjmR6iYgC6n0iDUlE',
+        # El token de autenticación ahora se obtiene dinámicamente de BusinessUnit.get_integration_config
         'endpoints': {
             'baselines': 'pricing/baselines',
             'addons': 'pricing/addons',
@@ -41,7 +41,7 @@ WORDPRESS_CONFIG = {
     },
     'Amigro': {
         'base_url': 'https://amigro.org/wp-json/wp/v2',
-        'auth_token': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEsIm5hbWUiOiJQYWJsbyIsImlhdCI6MTczNzQwNzE4NSwiZXhwIjoxODk1MDg3MTg1fQ.GIS1QphBCe8_JnS60TDZW4jfvxGb6OJkhwKb71PZ9CY',
+        # El token de autenticación ahora se obtiene dinámicamente de BusinessUnit.get_integration_config
         'endpoints': {
             'baselines': 'pricing/baselines',
             'addons': 'pricing/addons',
@@ -82,12 +82,36 @@ class WordPressSyncService:
         self.cache_timeout = WORDPRESS_SETTINGS['cache_timeout']
         self.request_timeout = WORDPRESS_SETTINGS['request_timeout']
         
-        # Configurar autenticación
+        # Configurar autenticación desde BusinessUnit.get_integration_config
         self.base_url = self.config['base_url']
-        self.auth_token = self.config['auth_token'] or getattr(settings, 'WORDPRESS_AUTH_TOKEN', None)
+        self.auth_token = self._get_auth_token()
         self.auth = (self.auth_token, '') if self.auth_token else None
         
         self.current_retries = 0
+        
+    def _get_auth_token(self) -> Optional[str]:
+        """
+        Obtiene el token de autenticación desde BusinessUnit.get_integration_config.
+        
+        Returns:
+            Token de autenticación o None si no está configurado
+        """
+        try:
+            # Intentar obtener la business unit desde la base de datos
+            bu_obj = BusinessUnit.objects.filter(nombre=self.business_unit).first()
+            
+            if bu_obj:
+                # Obtener configuración de WordPress desde integration_config
+                wp_config = bu_obj.get_integration_config('wordpress')
+                if wp_config and 'auth_token' in wp_config:
+                    return wp_config['auth_token']
+            
+            # Fallback a settings si no se encuentra en BD
+            return getattr(settings, 'WORDPRESS_AUTH_TOKEN', None)
+            
+        except Exception as e:
+            logger.error(f"Error al obtener token de autenticación para {self.business_unit}: {str(e)}")
+            return None
         
     def _make_request(self, method: str, endpoint: str, data: Optional[Dict] = None) -> Tuple[bool, Dict]:
         """

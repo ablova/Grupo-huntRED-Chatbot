@@ -46,9 +46,12 @@
 </head>
 <body class="min-h-screen">
     <!-- Theme Toggle Button -->
-    <button id="theme-toggle" class="fixed bottom-6 right-6 z-50 p-3 rounded-full bg-white dark:bg-slate-800 shadow-lg hover:shadow-xl transition-all duration-300" aria-label="Toggle dark mode">
+    <button id="theme-toggle" class="fixed bottom-24 right-6 z-50 p-3 rounded-full bg-white dark:bg-slate-800 shadow-lg hover:shadow-xl transition-all duration-300" aria-label="Toggle dark mode">
         <i id="theme-icon" class="fas fa-moon text-gray-700 dark:text-yellow-300"></i>
     </button>
+    
+    <!-- Scheduling Floating Action Button -->
+    <div id="scheduling-root"></div>
     
     <!-- Loading Overlay -->
     <div id="loading-overlay" class="fixed inset-0 bg-white dark:bg-slate-900 z-50 flex items-center justify-center transition-opacity duration-500">
@@ -59,10 +62,31 @@
     </div>
     
     <!-- Main Content -->
-    <div class="min-h-screen">
-        {% block content %}
-        {% endblock %}
-    </div>
+    <main class="flex-grow">
+        {% block content %}{% endblock %}
+    </main>
+    
+    <!-- Scheduling Components -->
+    <script type="module" src="{% static 'js/components/index.js' %}"></script>
+    <script type="module">
+        import { FloatingActionButton } from "{% static 'js/components/index.js' %}";
+        import { createRoot } from 'react-dom/client';
+        
+        // Initialize the floating action button
+        document.addEventListener('DOMContentLoaded', () => {
+            const container = document.getElementById('scheduling-root');
+            if (container) {
+                const root = createRoot(container);
+                root.render(
+                    <FloatingActionButton 
+                        position="bottom-right"
+                        buttonText="Agendar Demo"
+                        variant="primary"
+                    />
+                );
+            }
+        });
+    </script>
     
     <!-- Core Scripts -->
     <script src="{% static 'src/js/theme.js' %}"></script>

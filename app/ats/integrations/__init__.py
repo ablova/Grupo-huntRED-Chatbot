@@ -1,3 +1,4 @@
+# app/ats/integrations/__init__.py
 """Módulo de integraciones."""
 
 from .models import Integration, IntegrationConfig, IntegrationLog
@@ -40,15 +41,13 @@ from .services import (
     EmailService,
     SMSService,
     WhatsAppService,
-    TelegramService,
-    MessengerService,
-    InstagramService,
-    SlackService,
-    LinkedInService,
-    XService
+    TelegramMessageService,
+    MessengerMessageService,
+    InstagramMessageService,
+    SlackMessageService
 )
-from .matchmaking.service import EnhancedMatchmakingService as MatchmakingService
-from .chatbot import ChatbotService
+from app.ats.integrations.matchmaking.service import EnhancedMatchmakingService as MatchmakingService
+from app.ats.chatbot.core.chatbot import ChatBotHandler as ChatbotService
 
 __all__ = [
     'Integration',
@@ -80,12 +79,10 @@ __all__ = [
     'EmailService',
     'SMSService',
     'WhatsAppService',
-    'TelegramService',
-    'MessengerService',
-    'InstagramService',
-    'SlackService',
-    'LinkedInService',
-    'XService',
+    'TelegramMessageService',
+    'MessengerMessageService',
+    'InstagramMessageService',
+    'SlackMessageService',
     'MatchmakingService',
     'ChatbotService'
 ] 

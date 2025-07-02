@@ -8,7 +8,7 @@ adaptándose a las capacidades de la plataforma y respetando los permisos del us
 
 from typing import Dict, List, Any, Optional
 import logging
-from ..base.services import BaseService
+from app.ats.integrations.base.services import BaseService
 from .base import BaseMenu, check_permissions
 
 logger = logging.getLogger(__name__)

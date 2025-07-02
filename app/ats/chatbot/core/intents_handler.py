@@ -1,4 +1,4 @@
-# /home/pablo/app/com/chatbot/intents_handler.py
+# /home/pablo/app/ats/chatbot/core/intents_handler.py
 """
 Manejo de intents para el chatbot de Amigro/HuntRED/HuntU/SEXSI.
 Este módulo combina las mejores características de los sistemas de intents anteriores,
@@ -54,6 +54,9 @@ from app.ats.chatbot.workflow.common.common import (
     iniciar_prueba,
     send_welcome_message
 )
+
+# Importación del sistema de categorización Meta 2025
+from app.ats.chatbot.core.intent_categories import categorize_intent
 
 # Importaciones de ML
 from app.ml.core.models.matchmaking import MatchmakingModel
@@ -1085,6 +1088,9 @@ class IntentProcessor:
         self.cache_timeout = 300  # 5 minutos
         self.metrics = chatbot_metrics
         self.spam_detector = SpamDetector()
+        
+        # Último tiempo de interacción para ventana de 24h de Meta
+        self.last_interaction_key = f"last_interaction:{user.id}"
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=10))
     async def process_intent(self, intent: str, message: str) -> Dict[str, Any]:
@@ -1106,6 +1112,9 @@ class IntentProcessor:
                 handler = handler_class(self.user, intent, message, self.business_unit)
                 self.cache.set(handler_key, handler, self.cache_timeout)
 
+            # Actualizar último tiempo de interacción para ventana de 24h de Meta
+            cache.set(self.last_interaction_key, timezone.now().timestamp(), 86400)  # Guardar por 24h
+            
             # Procesar intent con métricas
             with self.metrics.measure_intent_processing_time(intent):
                 response = await handler.handle()
@@ -1113,13 +1122,68 @@ class IntentProcessor:
             # Actualizar métricas
             self.metrics.increment_intent_count(intent)
             
+            # Categorizar el intent para Meta 2025
+            meta_category = categorize_intent(intent)
+            response['meta_category'] = meta_category
+            
+            # Si hay un MessageLog relacionado, actualizar la categoría Meta
+            if hasattr(self.user, 'phone') and self.user.phone:
+                # Buscar mensaje reciente para actualizar su categoría
+                from app.models import MessageLog
+                await sync_to_async(lambda: self._update_message_classification(intent, meta_category))()            
+            
             return response
             
         except Exception as e:
             logger.error(f"Error procesando intent {intent}: {str(e)}", exc_info=True)
             self.metrics.increment_intent_error_count(intent)
             return {'response': "Lo siento, hubo un error procesando tu mensaje.", 'is_error': True}
-            return await handler.handle()
+    
+    def _update_message_classification(self, intent: str, meta_category: str):
+        """Actualiza la clasificación de mensajes recientes basada en el intent."""
+        try:
+            from app.models import MessageLog
+            from django.utils import timezone
+            
+            # Buscar mensajes recientes (últimos 60 segundos) para este usuario
+            recent_time = timezone.now() - timezone.timedelta(seconds=60)
+            
+            # Encontrar mensajes recientes sin clasificación Meta
+            recent_messages = MessageLog.objects.filter(
+                phone=self.user.phone,
+                sent_at__gte=recent_time,
+                meta_pricing_category__isnull=True
+            ).order_by('-sent_at')[:1]
+            
+            for msg in recent_messages:
+                # Actualizar clasificación según el intent
+                if meta_category == 'service':
+                    msg.meta_pricing_model = 'service'
+                    msg.meta_pricing_type = 'service_msg'
+                    msg.meta_pricing_category = 'service'
+                elif meta_category == 'utility':
+                    msg.meta_pricing_model = 'utility'
+                    msg.meta_pricing_type = 'utility_msg'
+                    msg.meta_pricing_category = 'utility'
+                elif meta_category == 'marketing':
+                    msg.meta_pricing_model = 'marketing'
+                    msg.meta_pricing_type = 'marketing_msg'
+                    msg.meta_pricing_category = 'marketing'
+                    
+                # Comprobar ventana 24h
+                last_interaction = cache.get(self.last_interaction_key)
+                msg.meta_within_24h_window = last_interaction is not None
+                
+                # Si está en ventana 24h y no es marketing, costo 0
+                if msg.meta_within_24h_window and meta_category in ['service', 'utility']:
+                    msg.meta_cost = 0.0
+                
+                msg.flow_context = f"intent:{intent}"
+                msg.save()
+                
+        except Exception as e:
+            logger.error(f"Error actualizando clasificación de mensaje: {str(e)}")
+            
         return {
             'response': "Lo siento, no entiendo esa solicitud.",
             'smart_options': [],

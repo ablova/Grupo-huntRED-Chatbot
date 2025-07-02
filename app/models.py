@@ -1464,6 +1464,18 @@ class WhatsAppAPI(models.Model):
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    meta_verified = models.BooleanField(
+        default=False,
+        help_text="Indica si la cuenta de WhatsApp tiene Meta Verified badge"
+    )
+    meta_verified_since = models.DateTimeField(
+        null=True, blank=True,
+        help_text="Fecha en que se obtuvo la verificación de Meta"
+    )
+    meta_verified_badge_url = models.URLField(
+        null=True, blank=True,
+        help_text="URL del badge de verificación de Meta"
+    )
 
     class Meta:
         verbose_name = "API de WhatsApp"
@@ -4647,6 +4659,13 @@ class MessageLog(models.Model):
     response_data = models.JSONField(default=dict, blank=True, help_text="Datos de respuesta de la API")
     sent_at = models.DateTimeField(auto_now_add=True, help_text="Fecha de envío")
     updated_at = models.DateTimeField(auto_now=True, help_text="Última actualización")
+    business_unit = models.ForeignKey('BusinessUnit', on_delete=models.CASCADE, null=True, blank=True, related_name='message_logs', help_text="Unidad de negocio asociada al mensaje")
+    channel = models.CharField(max_length=30, blank=True, null=True, help_text="Canal específico: whatsapp, messenger, instagram, telegram, etc.")
+    template_name = models.CharField(max_length=100, blank=True, null=True, help_text="Nombre de la plantilla usada (si aplica)")
+    meta_pricing_model = models.CharField(max_length=20, blank=True, null=True, help_text="Modelo de precios de Meta (CBP, PMP, etc.)")
+    meta_pricing_type = models.CharField(max_length=20, blank=True, null=True, help_text="Tipo de mensaje según Meta (regular, free_customer_service, etc.)")
+    meta_pricing_category = models.CharField(max_length=20, blank=True, null=True, help_text="Categoría de mensaje según Meta (marketing, utility, etc.)")
+    meta_cost = models.DecimalField(max_digits=10, decimal_places=4, null=True, blank=True, help_text="Costo real del mensaje según Meta")
     
     class Meta:
         verbose_name = "Log de Mensajes"
@@ -5060,6 +5079,18 @@ class MessengerAPI(models.Model):
     additional_config = models.JSONField(default=dict, help_text="Configuración adicional")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    meta_verified = models.BooleanField(
+        default=False,
+        help_text="Indica si la cuenta de Messenger tiene Meta Verified badge"
+    )
+    meta_verified_since = models.DateTimeField(
+        null=True, blank=True,
+        help_text="Fecha en que se obtuvo la verificación de Meta"
+    )
+    meta_verified_badge_url = models.URLField(
+        null=True, blank=True,
+        help_text="URL del badge de verificación de Meta"
+    )
     
     class Meta:
         verbose_name = "Configuración de Messenger API"
@@ -5079,6 +5110,18 @@ class InstagramAPI(models.Model):
     additional_config = models.JSONField(default=dict, help_text="Configuración adicional")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    meta_verified = models.BooleanField(
+        default=False,
+        help_text="Indica si la cuenta de Instagram tiene Meta Verified badge"
+    )
+    meta_verified_since = models.DateTimeField(
+        null=True, blank=True,
+        help_text="Fecha en que se obtuvo la verificación de Meta"
+    )
+    meta_verified_badge_url = models.URLField(
+        null=True, blank=True,
+        help_text="URL del badge de verificación de Meta"
+    )
     
     class Meta:
         verbose_name = "Configuración de Instagram API"
@@ -6212,3 +6255,32 @@ class EnhancedNetworkGamificationProfile(models.Model):
 
     def __str__(self):
         return f"Gamificación de {self.person}"
+
+# --- MIGRACIÓN TEMPORAL PARA CAMPOS META VERIFIED ---
+def migrate_meta_verified_to_channels():
+    from app.models import BusinessUnit, WhatsAppAPI, MessengerAPI, InstagramAPI
+    for bu in BusinessUnit.objects.all():
+        if hasattr(bu, 'meta_verified') and (
+            bu.meta_verified or bu.meta_verified_since or bu.meta_verified_badge_url
+        ):
+            # WhatsApp
+            wa = WhatsAppAPI.objects.filter(business_unit=bu).first()
+            if wa:
+                wa.meta_verified = bu.meta_verified
+                wa.meta_verified_since = bu.meta_verified_since
+                wa.meta_verified_badge_url = bu.meta_verified_badge_url
+                wa.save()
+            # Messenger
+            ms = MessengerAPI.objects.filter(business_unit=bu).first()
+            if ms:
+                ms.meta_verified = bu.meta_verified
+                ms.meta_verified_since = bu.meta_verified_since
+                ms.meta_verified_badge_url = bu.meta_verified_badge_url
+                ms.save()
+            # Instagram
+            ig = InstagramAPI.objects.filter(business_unit=bu).first()
+            if ig:
+                ig.meta_verified = bu.meta_verified
+                ig.meta_verified_since = bu.meta_verified_since
+                ig.meta_verified_badge_url = bu.meta_verified_badge_url
+                ig.save()

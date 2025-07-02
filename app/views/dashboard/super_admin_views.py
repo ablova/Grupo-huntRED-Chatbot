@@ -27,19 +27,53 @@ def is_super_admin(user):
     """Verifica si el usuario es super admin."""
     return user.is_authenticated and user.is_superuser
 
-@method_decorator(csrf_exempt, name='dispatch')
-class SuperAdminDashboardView(View):
-    """Vista principal del dashboard del Super Admin."""
-    
-    def get(self, request):
-        """Renderiza el dashboard principal."""
-        if not is_super_admin(request.user):
-            return JsonResponse({'error': 'Acceso denegado'}, status=403)
-        
-        return render(request, 'dashboard/super_admin_dashboard.html', {
-            'user': request.user,
-            'bruce_almighty_mode': True  # 🚀
-        })
+# Registro dinámico de widgets/paneles
+WIDGETS_REGISTRY = []
+
+def register_widget(key, label, template_block, url_name=None):
+    WIDGETS_REGISTRY.append({
+        'key': key,
+        'label': label,
+        'template_block': template_block,  # Nombre del bloque o función de renderizado
+        'url_name': url_name,  # URL para el panel detallado (opcional)
+    })
+
+# Ejemplo de registro de widgets existentes
+register_widget('show_storytelling', 'Storytelling Inteligente', 'storytelling_block')
+register_widget('show_gpt_metrics', 'Métricas de Uso de GPT', 'gpt_metrics_block')
+register_widget('show_rotacion', 'Panel de Rotación', 'rotacion_block', 'aura:attrition_dashboard')
+register_widget('show_skills', 'Panel de Habilidades Emergentes', 'skills_block', 'aura:skills_dashboard')
+register_widget('show_opportunities', 'Panel de Oportunidades y Riesgos', 'opportunities_block', 'aura:opportunities_risks_panel')
+register_widget('show_gamification', 'Panel de Gamificación', 'gamification_block', 'aura:gamification_panel')
+register_widget('show_innovation', 'Panel de Innovación', 'innovation_block', 'aura:innovation_panel')
+register_widget('show_dei', 'Panel DEI Interactivo', 'dei_block', 'aura:interactive_dei_panel')
+register_widget('show_whatif', 'Simulador What-If', 'whatif_block', 'aura:whatif_simulator')
+register_widget('show_cv_generator', 'Generador de CVs/Cartas', 'cv_generator_block', 'aura:cv_generator')
+register_widget('show_social_impact', 'Panel de Impacto Social', 'social_impact_block', 'aura:social_impact_panel')
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def super_admin_dashboard(request):
+    # Configuración de widgets en sesión (puede migrarse a BD)
+    if 'super_admin_widget_config' not in request.session:
+        # Por defecto, todos activos
+        request.session['super_admin_widget_config'] = {w['key']: True for w in WIDGETS_REGISTRY}
+    config = request.session['super_admin_widget_config']
+
+    # Actualizar configuración si se recibe POST
+    if request.method == 'POST':
+        for w in WIDGETS_REGISTRY:
+            config[w['key']] = (w['key'] in request.POST)
+        request.session['super_admin_widget_config'] = config
+        return redirect('super_admin_dashboard')
+
+    # ... lógica para obtener datos reales de cada panel/widget ...
+    context = {
+        'widget_config': config,
+        'widgets_registry': WIDGETS_REGISTRY,
+        # ...otros datos para los widgets...
+    }
+    return render(request, 'dashboard/super_admin/super_admin_dashboard.html', context)
 
 @method_decorator(csrf_exempt, name='dispatch')
 class SuperAdminSystemOverviewView(View):

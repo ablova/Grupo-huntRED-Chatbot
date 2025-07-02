@@ -14,7 +14,7 @@ from django.utils import timezone
 from django.db.models import Q, F, Count, Avg, Max, Min, Sum, Value, IntegerField
 from django.db.models.functions import Coalesce, Concat
 
-from ....models import Employee, Position, SuccessionPlan, SuccessionCandidate
+from app.ats.chatbot.models import Employee, Position, SuccessionPlan, SuccessionCandidate
 
 logger = logging.getLogger(__name__)
 

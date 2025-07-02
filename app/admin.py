@@ -41,7 +41,7 @@ from app.models import (
     SmtpConfig, SuccessionCandidate, SuccessionPlan, SuccessionReadinessAssessment, 
     TelegramAPI, Template, UserInteractionLog, Vacante, WhatsAppAPI,
     Worker, IntentPattern, StateTransition, IntentTransition, 
-    WorkflowStage, BusinessUnit, BusinessUnitMembership
+    WorkflowStage, BusinessUnit, BusinessUnitMembership, MessageLog
 )
 from app.ats.chatbot.components.chat_state_manager import ContextCondition
 
@@ -1133,3 +1133,231 @@ class BusinessUnitAdmin(admin.ModelAdmin):
         js = ('admin/js/business_unit_admin.js',)
 
 admin.site.register(BusinessUnit, BusinessUnitAdmin)
+
+class MessageLogAdmin(admin.ModelAdmin):
+    list_display = ('id', 'business_unit', 'channel', 'template_name', 'message_type', 'status', 'meta_cost', 'sent_at')
+    list_filter = (
+        'business_unit', 
+        'channel', 
+        'message_type', 
+        'status', 
+        'template_name',
+        'meta_pricing_category', 
+        'meta_pricing_type',
+        ('sent_at', DateRangeFilter)
+    )
+    search_fields = ('phone', 'email', 'template_name', 'message')
+    readonly_fields = (
+        'meta_cost', 'meta_pricing_model', 'meta_pricing_type', 
+        'meta_pricing_category', 'business_unit', 'channel'
+    )
+    date_hierarchy = 'sent_at'
+    actions = ['export_as_csv']
+    
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path('reports/', self.admin_site.admin_view(self.message_reports_view), name='messagelog_reports'),
+        ]
+        return custom_urls + urls
+    
+    def changelist_view(self, request, extra_context=None):
+        # Añadir link al dashboard de reportes
+        if extra_context is None:
+            extra_context = {}
+        extra_context['show_report_button'] = True
+        extra_context['report_url'] = reverse('admin:messagelog_reports')
+        return super().changelist_view(request, extra_context=extra_context)
+    
+    def message_reports_view(self, request):
+        # Verificar permisos - solo consultores, admins y superadmins
+        if not (request.user.is_superuser or request.user.groups.filter(name__in=['admin', 'consultor', 'superadmin']).exists()):
+            messages.error(request, "No tienes permisos para acceder a esta sección.")
+            return redirect('admin:app_messagelog_changelist')
+        
+        # Filtrar según permisos
+        queryset = self.get_queryset(request)
+        
+        # Obtener parámetros de filtrado
+        start_date = request.GET.get('start_date')
+        end_date = request.GET.get('end_date')
+        business_unit_id = request.GET.get('business_unit')
+        channel = request.GET.get('channel')
+        
+        # Aplicar filtros si existen
+        if start_date:
+            queryset = queryset.filter(sent_at__gte=start_date)
+        if end_date:
+            queryset = queryset.filter(sent_at__lte=end_date)
+        if business_unit_id:
+            queryset = queryset.filter(business_unit_id=business_unit_id)
+        if channel:
+            queryset = queryset.filter(channel=channel)
+        
+        # Agregar datos para reportes
+        meta_channels = ['whatsapp', 'messenger', 'instagram']
+        
+        # Mensajes por canal
+        messages_by_channel = queryset.values('channel').annotate(
+            total=models.Count('id'),
+            cost=models.Sum('meta_cost', default=0)
+        ).order_by('-total')
+        
+        # Mensajes por unidad de negocio
+        messages_by_bu = queryset.values(
+            'business_unit__name'
+        ).annotate(
+            total=models.Count('id'),
+            cost=models.Sum('meta_cost', default=0)
+        ).order_by('-total')
+        
+        # Mensajes Meta por categoría de precio
+        meta_by_pricing = queryset.filter(
+            channel__in=meta_channels
+        ).values(
+            'meta_pricing_category'
+        ).annotate(
+            total=models.Count('id'),
+            cost=models.Sum('meta_cost', default=0)
+        ).order_by('-cost')
+        
+        # Mensajes por plantilla
+        messages_by_template = queryset.exclude(
+            template_name__isnull=True
+        ).exclude(
+            template_name=''
+        ).values(
+            'template_name'
+        ).annotate(
+            total=models.Count('id'),
+            cost=models.Sum('meta_cost', default=0)
+        ).order_by('-total')[:10]
+        
+        # Métricas generales
+        total_messages = queryset.count()
+        total_cost = queryset.aggregate(total=models.Sum('meta_cost', default=0))['total'] or 0
+        meta_messages = queryset.filter(channel__in=meta_channels).count()
+        non_meta_messages = total_messages - meta_messages
+        
+        # Lista de unidades de negocio para el filtro
+        business_units = BusinessUnit.objects.all()
+        
+        # Generar gráfico de mensajes por canal
+        def generate_channel_graph():
+            if not messages_by_channel:
+                return ""
+                
+            channels = [item['channel'] or 'desconocido' for item in messages_by_channel]
+            counts = [item['total'] for item in messages_by_channel]
+            
+            plt.figure(figsize=(10, 6))
+            plt.bar(channels, counts, color=['#3498db' if c in meta_channels else '#95a5a6' for c in channels])
+            plt.title('Mensajes por Canal')
+            plt.xlabel('Canal')
+            plt.ylabel('Cantidad')
+            plt.xticks(rotation=45)
+            plt.tight_layout()
+            
+            buffer = BytesIO()
+            plt.savefig(buffer, format='png')
+            plt.close()
+            buffer.seek(0)
+            image_png = buffer.getvalue()
+            buffer.close()
+            
+            graphic = base64.b64encode(image_png).decode('utf-8')
+            return f"data:image/png;base64,{graphic}"
+        
+        context = {
+            'title': 'Reporte de Mensajes - Meta Conversations 2025',
+            'messages_by_channel': messages_by_channel,
+            'messages_by_bu': messages_by_bu,
+            'meta_by_pricing': meta_by_pricing,
+            'messages_by_template': messages_by_template,
+            'total_messages': total_messages,
+            'total_cost': total_cost,
+            'meta_messages': meta_messages,
+            'non_meta_messages': non_meta_messages,
+            'business_units': business_units,
+            'start_date': start_date,
+            'end_date': end_date,
+            'selected_bu': business_unit_id,
+            'selected_channel': channel,
+            'channel_graph': generate_channel_graph(),
+            'has_permission': True,
+            'opts': self.model._meta,
+        }
+        
+        return render(request, 'admin/messagelog_reports.html', context)
+    
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        # Si el usuario es cliente, ocultar el campo meta_cost
+        if not request.user.is_superuser and not request.user.groups.filter(name__in=['admin', 'consultor', 'superadmin']).exists():
+            self.list_display = tuple(f for f in self.list_display if f != 'meta_cost')
+        else:
+            self.list_display = ('id', 'business_unit', 'channel', 'template_name', 'message_type', 'status', 'meta_cost', 'sent_at')
+        
+        # Filtrar por permisos según el tipo de usuario
+        if request.user.is_superuser:
+            return qs  # Los superadmins ven todos los mensajes
+        
+        if request.user.groups.filter(name__in=['admin', 'superadmin']).exists():
+            # Los admins ven los mensajes de sus unidades de negocio asignadas
+            user_bus = BusinessUnitMembership.objects.filter(user=request.user).values_list('business_unit', flat=True)
+            return qs.filter(business_unit__in=user_bus)
+        
+        if request.user.groups.filter(name__in=['consultor']).exists():
+            # Los consultores solo ven los mensajes donde son remitentes
+            return qs.filter(models.Q(sender=request.user) | models.Q(sender__isnull=True, business_unit__in=BusinessUnitMembership.objects.filter(user=request.user).values_list('business_unit', flat=True)))
+            
+        # Para los demás usuarios (como clientes), mostrar solo mensajes relacionados con su BU
+        user_bus = BusinessUnitMembership.objects.filter(user=request.user).values_list('business_unit', flat=True)
+        return qs.filter(business_unit__in=user_bus)
+
+    def export_as_csv(self, request, queryset):
+        import csv
+        from django.http import HttpResponse
+        from io import StringIO
+        
+        # Crear respuesta CSV
+        output = StringIO()
+        writer = csv.writer(output)
+        
+        # Escribir cabecera
+        field_names = ['ID', 'Unidad de Negocio', 'Canal', 'Tipo', 'Plantilla', 'Estado', 'Fecha', 'Costo Meta']
+        writer.writerow(field_names)
+        
+        # Escribir filas de datos
+        for obj in queryset:
+            business_unit_name = obj.business_unit.name if obj.business_unit else 'N/A'
+            writer.writerow([
+                obj.id,
+                business_unit_name,
+                obj.channel or 'N/A',
+                obj.message_type or 'N/A',
+                obj.template_name or 'N/A',
+                obj.status or 'N/A',
+                obj.sent_at.strftime('%Y-%m-%d %H:%M') if obj.sent_at else 'N/A',
+                obj.meta_cost or 0
+            ])
+            
+        # Crear la respuesta HTTP
+        response = HttpResponse(output.getvalue(), content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename=mensaje_log_export.csv'
+        return response
+    export_as_csv.short_description = "Exportar seleccionados como CSV"
+
+    def has_view_permission(self, request, obj=None):
+        return True
+
+    def has_module_permission(self, request):
+        return True
+        
+    class Media:
+        css = {
+            'all': ('admin/css/message_log_admin.css',)
+        }
+        js = ('admin/js/message_log_admin.js',)
+
+admin.site.register(MessageLog, MessageLogAdmin)

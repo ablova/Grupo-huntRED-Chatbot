@@ -11,9 +11,9 @@ from datetime import datetime, timedelta
 import json
 import logging
 
-from ..ats.utils.signature.blockchain import BlockchainSignature
-from ..ats.utils.signature.biometric import AdvancedBiometricValidation
-from ..ats.utils.signature.config import (
+from app.ats.utils.signature.blockchain import BlockchainSignature
+from app.ats.utils.signature.biometric import AdvancedBiometricValidation
+from app.ats.utils.signature.config import (
     DOCUMENT_TYPES,
     BIOMETRIC_CONFIG,
     BLOCKCHAIN_CONFIG,

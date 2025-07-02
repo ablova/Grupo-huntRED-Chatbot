@@ -78,48 +78,43 @@ class MessageService:
         user_id: str,
         message: str,
         options: Optional[List[Dict]] = None,
-        priority: int = 0
+        priority: int = 0,
+        template_name: Optional[str] = None,
+        meta_pricing: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
         Envía un mensaje a través de la plataforma especificada.
-        
-        Args:
-            platform: Plataforma de destino (telegram, whatsapp, etc.)
-            user_id: ID del usuario
-            message: Mensaje a enviar
-            options: Opciones adicionales (botones, etc.)
-            priority: Prioridad del mensaje (0-5, donde 5 es la más alta)
-        
-        Returns:
-            Dict con el resultado de la operación
+        Registra los nuevos campos de MessageLog para tracking granular.
         """
         try:
             handler = await self._get_handler(platform)
-            
-            # Registramos el intento de envío
-            log = await sync_to_async(MessageLog.objects.create)(
-                platform=platform,
-                user_id=user_id,
-                message=message,
-                business_unit=self.business_unit,
-                status='pending',
-                priority=priority
-            )
-            
-            # Enviamos el mensaje
+            # Registrar el intento de envío con nuevos campos
+            log_kwargs = {
+                'platform': platform,
+                'user_id': user_id,
+                'message': message,
+                'business_unit': self.business_unit,
+                'channel': platform,
+                'template_name': template_name,
+                'priority': priority
+            }
+            if meta_pricing:
+                log_kwargs['meta_pricing_model'] = meta_pricing.get('model')
+                log_kwargs['meta_pricing_type'] = meta_pricing.get('type')
+                log_kwargs['meta_pricing_category'] = meta_pricing.get('category')
+                log_kwargs['meta_cost'] = meta_pricing.get('cost')
+            log = await sync_to_async(MessageLog.objects.create)(**log_kwargs)
+            # Enviar mensaje
             if options:
                 result = await handler.send_options(user_id, message, options)
             else:
                 result = await handler.send_message(user_id, message)
-            
-            # Actualizamos el log
+            # Actualizar el log
             if result.get('success'):
                 await sync_to_async(log.mark_as_sent)()
             else:
                 await sync_to_async(log.mark_as_failed)(result.get('error'))
-            
             return result
-            
         except Exception as e:
             logger.error(f"Error enviando mensaje a {platform}: {str(e)}")
             return {

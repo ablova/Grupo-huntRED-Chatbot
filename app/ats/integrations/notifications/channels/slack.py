@@ -7,7 +7,7 @@ configurado en el modelo ``SlackAPI`` asociado a la *BusinessUnit*.
 No introduce una dependencia dura: si ``slack_sdk`` no está instalado el
 canal se marcará como inactivo y reportará el error correspondiente. De
 esta forma evitamos bloqueos de importación en entornos sin dicha
-librería, siguiendo la misma estrategia aplicada a Twilio.
+librería, siguiendo una estrategia de dependencias opcionales.
 """
 from __future__ import annotations
 

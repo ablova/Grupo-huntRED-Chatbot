@@ -1,0 +1,958 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}AURA - Dashboard DEI{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/aura-dashboard.css' %}">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.css">
+<style>
+.dei-dashboard {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 2rem;
+    color: #333;
+}
+
+.dei-header {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    text-align: center;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.dei-title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #2c3e50;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+}
+
+.dei-title i {
+    color: #e74c3c;
+    font-size: 3rem;
+}
+
+.dei-subtitle {
+    font-size: 1.2rem;
+    color: #7f8c8d;
+    margin: 0.5rem 0 0 0;
+    font-weight: 500;
+}
+
+.dei-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.dei-metric-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 15px;
+    padding: 1.5rem;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.dei-metric-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #e74c3c, #f39c12, #27ae60);
+}
+
+.dei-metric-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+}
+
+.dei-metric-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.dei-metric-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    color: white;
+    background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+}
+
+.dei-metric-info h4 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #2c3e50;
+    margin: 0 0 0.25rem 0;
+}
+
+.dei-metric-info p {
+    color: #7f8c8d;
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+.dei-metric-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #2c3e50;
+    margin: 0.5rem 0;
+}
+
+.dei-metric-trend {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.trend-up {
+    color: #27ae60;
+}
+
+.trend-down {
+    color: #e74c3c;
+}
+
+.trend-stable {
+    color: #f39c12;
+}
+
+.dei-charts-section {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 2rem;
+    margin-bottom: 2rem;
+}
+
+.dei-chart-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 15px;
+    padding: 1.5rem;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.dei-chart-title {
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.dei-chart-title i {
+    color: #e74c3c;
+}
+
+.dei-insights-section {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 15px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.dei-insights-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.dei-insights-title i {
+    color: #e74c3c;
+}
+
+.dei-insights-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1rem;
+}
+
+.dei-insight-card {
+    background: rgba(231, 76, 60, 0.1);
+    border-radius: 10px;
+    padding: 1rem;
+    border-left: 4px solid #e74c3c;
+}
+
+.dei-insight-title {
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 0.5rem;
+}
+
+.dei-insight-content {
+    color: #7f8c8d;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.dei-actions-section {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 15px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.dei-actions-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.dei-actions-title i {
+    color: #27ae60;
+}
+
+.dei-actions-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1rem;
+}
+
+.dei-action-item {
+    background: rgba(39, 174, 96, 0.1);
+    border-radius: 10px;
+    padding: 1rem;
+    border-left: 4px solid #27ae60;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.dei-action-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #27ae60;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1rem;
+}
+
+.dei-action-content h5 {
+    font-weight: 600;
+    color: #2c3e50;
+    margin: 0 0 0.25rem 0;
+}
+
+.dei-action-content p {
+    color: #7f8c8d;
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+.dei-women-professionals {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 15px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.dei-women-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.dei-women-title i {
+    color: #e91e63;
+}
+
+.dei-women-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.dei-women-metric {
+    text-align: center;
+    padding: 1rem;
+    background: rgba(233, 30, 99, 0.1);
+    border-radius: 10px;
+}
+
+.dei-women-metric-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #e91e63;
+    margin-bottom: 0.5rem;
+}
+
+.dei-women-metric-label {
+    color: #7f8c8d;
+    font-size: 0.9rem;
+}
+
+.dei-women-insights {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1rem;
+}
+
+.dei-women-insight {
+    background: rgba(233, 30, 99, 0.05);
+    border-radius: 10px;
+    padding: 1rem;
+    border-left: 4px solid #e91e63;
+}
+
+.dei-women-insight h5 {
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 0.5rem;
+}
+
+.dei-women-insight p {
+    color: #7f8c8d;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    margin: 0;
+}
+
+@media (max-width: 768px) {
+    .dei-dashboard {
+        padding: 1rem;
+    }
+    
+    .dei-title {
+        font-size: 2rem;
+    }
+    
+    .dei-metrics-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .dei-charts-section {
+        grid-template-columns: 1fr;
+    }
+    
+    .dei-insights-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .dei-actions-list {
+        grid-template-columns: 1fr;
+    }
+    
+    .dei-women-metrics {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .dei-women-insights {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dei-dashboard">
+    <!-- Header del Dashboard DEI -->
+    <div class="dei-header">
+        <h1 class="dei-title">
+            <i class="fas fa-users"></i>
+            AURA - Dashboard DEI
+        </h1>
+        <p class="dei-subtitle">Diversity, Equity & Inclusion - Análisis Avanzado sin Sesgos</p>
+        <p class="dei-subtitle">El módulo más avanzado del mundo para análisis DEI ético y responsable</p>
+    </div>
+
+    <!-- Métricas Principales DEI -->
+    <div class="dei-metrics-grid">
+        <div class="dei-metric-card">
+            <div class="dei-metric-header">
+                <div class="dei-metric-icon">
+                    <i class="fas fa-balance-scale"></i>
+                </div>
+                <div class="dei-metric-info">
+                    <h4>Diversidad General</h4>
+                    <p>Índice de diversidad en múltiples dimensiones</p>
+                </div>
+            </div>
+            <div class="dei-metric-value">{{ dei_metrics.diversity_score|floatformat:1 }}%</div>
+            <div class="dei-metric-trend trend-up">
+                <i class="fas fa-arrow-up"></i>
+                <span>+2.3% vs mes anterior</span>
+            </div>
+        </div>
+        
+        <div class="dei-metric-card">
+            <div class="dei-metric-header">
+                <div class="dei-metric-icon">
+                    <i class="fas fa-equals"></i>
+                </div>
+                <div class="dei-metric-info">
+                    <h4>Equidad</h4>
+                    <p>Equidad en oportunidades y resultados</p>
+                </div>
+            </div>
+            <div class="dei-metric-value">{{ dei_metrics.equity_score|floatformat:1 }}%</div>
+            <div class="dei-metric-trend trend-up">
+                <i class="fas fa-arrow-up"></i>
+                <span>+1.8% vs mes anterior</span>
+            </div>
+        </div>
+        
+        <div class="dei-metric-card">
+            <div class="dei-metric-header">
+                <div class="dei-metric-icon">
+                    <i class="fas fa-heart"></i>
+                </div>
+                <div class="dei-metric-info">
+                    <h4>Inclusión</h4>
+                    <p>Sentido de pertenencia y participación</p>
+                </div>
+            </div>
+            <div class="dei-metric-value">{{ dei_metrics.inclusion_score|floatformat:1 }}%</div>
+            <div class="dei-metric-trend trend-stable">
+                <i class="fas fa-minus"></i>
+                <span>Estable vs mes anterior</span>
+            </div>
+        </div>
+        
+        <div class="dei-metric-card">
+            <div class="dei-metric-header">
+                <div class="dei-metric-icon">
+                    <i class="fas fa-chart-pie"></i>
+                </div>
+                <div class="dei-metric-info">
+                    <h4>Representación</h4>
+                    <p>Balance de representación en todos los niveles</p>
+                </div>
+            </div>
+            <div class="dei-metric-value">{{ dei_metrics.representation_balance|floatformat:1 }}%</div>
+            <div class="dei-metric-trend trend-up">
+                <i class="fas fa-arrow-up"></i>
+                <span>+3.1% vs mes anterior</span>
+            </div>
+        </div>
+        
+        <div class="dei-metric-card">
+            <div class="dei-metric-header">
+                <div class="dei-metric-icon">
+                    <i class="fas fa-dollar-sign"></i>
+                </div>
+                <div class="dei-metric-info">
+                    <h4>Equidad Salarial</h4>
+                    <p>Ratio de equidad salarial por género</p>
+                </div>
+            </div>
+            <div class="dei-metric-value">{{ dei_metrics.pay_equity_ratio|floatformat:1 }}%</div>
+            <div class="dei-metric-trend trend-up">
+                <i class="fas fa-arrow-up"></i>
+                <span>+1.2% vs mes anterior</span>
+            </div>
+        </div>
+        
+        <div class="dei-metric-card">
+            <div class="dei-metric-header">
+                <div class="dei-metric-icon">
+                    <i class="fas fa-crown"></i>
+                </div>
+                <div class="dei-metric-info">
+                    <h4>Liderazgo Diverso</h4>
+                    <p>Diversidad en posiciones de liderazgo</p>
+                </div>
+            </div>
+            <div class="dei-metric-value">{{ dei_metrics.leadership_diversity|floatformat:1 }}%</div>
+            <div class="dei-metric-trend trend-up">
+                <i class="fas fa-arrow-up"></i>
+                <span>+4.5% vs mes anterior</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Análisis Específico de Mujeres Profesionales -->
+    <div class="dei-women-professionals">
+        <h2 class="dei-women-title">
+            <i class="fas fa-venus"></i>
+            Análisis Específico - Mujeres Profesionales
+        </h2>
+        
+        <div class="dei-women-metrics">
+            <div class="dei-women-metric">
+                <div class="dei-women-metric-value">42.3%</div>
+                <div class="dei-women-metric-label">Representación General</div>
+            </div>
+            <div class="dei-women-metric">
+                <div class="dei-women-metric-value">28.7%</div>
+                <div class="dei-women-metric-label">Liderazgo Senior</div>
+            </div>
+            <div class="dei-women-metric">
+                <div class="dei-women-metric-value">89.2%</div>
+                <div class="dei-women-metric-label">Retención</div>
+            </div>
+            <div class="dei-women-metric">
+                <div class="dei-women-metric-value">+15.3%</div>
+                <div class="dei-women-metric-label">Promociones (vs hombres)</div>
+            </div>
+            <div class="dei-women-metric">
+                <div class="dei-women-metric-value">94.1%</div>
+                <div class="dei-women-metric-label">Equidad Salarial</div>
+            </div>
+            <div class="dei-women-metric">
+                <div class="dei-women-metric-value">87.6%</div>
+                <div class="dei-women-metric-label">Satisfacción Laboral</div>
+            </div>
+        </div>
+        
+        <div class="dei-women-insights">
+            <div class="dei-women-insight">
+                <h5>🚀 Crecimiento en Tecnología</h5>
+                <p>Las mujeres en roles tecnológicos han aumentado 23% en el último año, con mayor representación en desarrollo de software y análisis de datos.</p>
+            </div>
+            <div class="dei-women-insight">
+                <h5>💼 Liderazgo Emergente</h5>
+                <p>El 34% de las promociones a posiciones de liderazgo fueron para mujeres, superando el objetivo del 30% establecido.</p>
+            </div>
+            <div class="dei-women-insight">
+                <h5>🎓 Desarrollo Profesional</h5>
+                <p>Las mujeres participan 45% más en programas de desarrollo y mentoría, mostrando mayor engagement en crecimiento profesional.</p>
+            </div>
+            <div class="dei-women-insight">
+                <h5>🤝 Networking Efectivo</h5>
+                <p>Los grupos de networking para mujeres profesionales han aumentado la retención en 18% y la satisfacción laboral en 22%.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráficos DEI -->
+    <div class="dei-charts-section">
+        <div class="dei-chart-card">
+            <h3 class="dei-chart-title">
+                <i class="fas fa-chart-bar"></i>
+                Diversidad por Dimensiones
+            </h3>
+            <canvas id="diversityDimensionsChart"></canvas>
+        </div>
+        
+        <div class="dei-chart-card">
+            <h3 class="dei-chart-title">
+                <i class="fas fa-chart-line"></i>
+                Tendencias DEI - Últimos 12 Meses
+            </h3>
+            <canvas id="deiTrendsChart"></canvas>
+        </div>
+        
+        <div class="dei-chart-card">
+            <h3 class="dei-chart-title">
+                <i class="fas fa-chart-pie"></i>
+                Representación por Nivel Jerárquico
+            </h3>
+            <canvas id="leadershipRepresentationChart"></canvas>
+        </div>
+        
+        <div class="dei-chart-card">
+            <h3 class="dei-chart-title">
+                <i class="fas fa-chart-area"></i>
+                Brecha Salarial por Género y Etnia
+            </h3>
+            <canvas id="payGapChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Insights DEI -->
+    <div class="dei-insights-section">
+        <h2 class="dei-insights-title">
+            <i class="fas fa-lightbulb"></i>
+            Insights Clave DEI
+        </h2>
+        
+        <div class="dei-insights-grid">
+            <div class="dei-insight-card">
+                <div class="dei-insight-title">🌟 Diversidad en Aumento</div>
+                <div class="dei-insight-content">
+                    La diversidad de género en posiciones senior ha aumentado 15% en el último año, con mayor representación en áreas tecnológicas y de liderazgo.
+                </div>
+            </div>
+            
+            <div class="dei-insight-card">
+                <div class="dei-insight-title">💪 Mujeres en Liderazgo</div>
+                <div class="dei-insight-content">
+                    Las mujeres profesionales muestran mayor engagement en programas de desarrollo, con 45% más participación en mentorías y capacitaciones.
+                </div>
+            </div>
+            
+            <div class="dei-insight-card">
+                <div class="dei-insight-title">💰 Equidad Salarial</div>
+                <div class="dei-insight-content">
+                    La brecha salarial se ha reducido 8% desde la implementación de políticas de equidad, alcanzando 94.1% de equidad salarial.
+                </div>
+            </div>
+            
+            <div class="dei-insight-card">
+                <div class="dei-insight-title">🤝 Inclusión Mejorada</div>
+                <div class="dei-insight-content">
+                    Los empleados diversos reportan mayor sentido de pertenencia en equipos inclusivos, con 23% mayor retención en departamentos diversos.
+                </div>
+            </div>
+            
+            <div class="dei-insight-card">
+                <div class="dei-insight-title">📈 Promociones Equitativas</div>
+                <div class="dei-insight-content">
+                    Las promociones de mujeres profesionales han aumentado 12% con programas específicos, superando los objetivos establecidos.
+                </div>
+            </div>
+            
+            <div class="dei-insight-card">
+                <div class="dei-insight-title">🎯 Pipeline Diverso</div>
+                <div class="dei-insight-content">
+                    El pipeline de liderazgo diverso se ha fortalecido, con 34% de mujeres en posiciones de preparación para liderazgo senior.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Acciones Recomendadas -->
+    <div class="dei-actions-section">
+        <h2 class="dei-actions-title">
+            <i class="fas fa-tasks"></i>
+            Acciones Recomendadas
+        </h2>
+        
+        <div class="dei-actions-list">
+            <div class="dei-action-item">
+                <div class="dei-action-icon">
+                    <i class="fas fa-user-graduate"></i>
+                </div>
+                <div class="dei-action-content">
+                    <h5>Programa de Mentoría</h5>
+                    <p>Implementar programa de mentoría específico para mujeres en tecnología y liderazgo</p>
+                </div>
+            </div>
+            
+            <div class="dei-action-item">
+                <div class="dei-action-icon">
+                    <i class="fas fa-bullseye"></i>
+                </div>
+                <div class="dei-action-content">
+                    <h5>Objetivos de Representación</h5>
+                    <p>Establecer objetivos específicos de representación femenina en todos los niveles para 2025</p>
+                </div>
+            </div>
+            
+            <div class="dei-action-item">
+                <div class="dei-action-icon">
+                    <i class="fas fa-search-dollar"></i>
+                </div>
+                <div class="dei-action-content">
+                    <h5>Auditoría Salarial</h5>
+                    <p>Realizar auditoría salarial completa por género, etnia y edad para identificar brechas</p>
+                </div>
+            </div>
+            
+            <div class="dei-action-item">
+                <div class="dei-action-icon">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div class="dei-action-content">
+                    <h5>Grupos de Recursos</h5>
+                    <p>Crear grupos de recursos para empleados diversos con programas específicos</p>
+                </div>
+            </div>
+            
+            <div class="dei-action-item">
+                <div class="dei-action-icon">
+                    <i class="fas fa-graduation-cap"></i>
+                </div>
+                <div class="dei-action-content">
+                    <h5>Desarrollo de Carrera</h5>
+                    <p>Desarrollar programa específico de desarrollo de carrera para mujeres profesionales</p>
+                </div>
+            </div>
+            
+            <div class="dei-action-item">
+                <div class="dei-action-icon">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="dei-action-content">
+                    <h5>Flexibilidad Laboral</h5>
+                    <p>Implementar políticas de flexibilidad laboral inclusivas para todos los empleados</p>
+                </div>
+            </div>
+            
+            <div class="dei-action-item">
+                <div class="dei-action-icon">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <div class="dei-action-content">
+                    <h5>Métricas DEI</h5>
+                    <p>Establecer métricas DEI en evaluaciones de desempeño de líderes y managers</p>
+                </div>
+            </div>
+            
+            <div class="dei-action-item">
+                <div class="dei-action-icon">
+                    <i class="fas fa-handshake"></i>
+                </div>
+                <div class="dei-action-content">
+                    <h5>Comité DEI</h5>
+                    <p>Crear comité de diversidad e inclusión con representación ejecutiva y empleados</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Comparativa con Industria -->
+    <div class="dei-charts-section">
+        <div class="dei-chart-card">
+            <h3 class="dei-chart-title">
+                <i class="fas fa-trophy"></i>
+                Comparativa con Industria
+            </h3>
+            <canvas id="industryComparisonChart"></canvas>
+        </div>
+        
+        <div class="dei-chart-card">
+            <h3 class="dei-chart-title">
+                <i class="fas fa-chart-bar"></i>
+                Predicciones DEI - Próximos 6 Meses
+            </h3>
+            <canvas id="deiPredictionsChart"></canvas>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+<script>
+// Configuración de gráficos DEI
+document.addEventListener('DOMContentLoaded', function() {
+    // Gráfico de Dimensiones de Diversidad
+    const diversityCtx = document.getElementById('diversityDimensionsChart').getContext('2d');
+    new Chart(diversityCtx, {
+        type: 'radar',
+        data: {
+            labels: ['Género', 'Edad', 'Etnia', 'Discapacidad', 'Veteranos', 'Orientación Sexual', 'Religión'],
+            datasets: [{
+                label: 'Nuestra Empresa',
+                data: [85, 78, 72, 68, 75, 70, 73],
+                backgroundColor: 'rgba(231, 76, 60, 0.2)',
+                borderColor: 'rgba(231, 76, 60, 1)',
+                borderWidth: 2
+            }, {
+                label: 'Industria Promedio',
+                data: [72, 75, 68, 65, 70, 65, 68],
+                backgroundColor: 'rgba(52, 152, 219, 0.2)',
+                borderColor: 'rgba(52, 152, 219, 1)',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                r: {
+                    beginAtZero: true,
+                    max: 100
+                }
+            }
+        }
+    });
+
+    // Gráfico de Tendencias DEI
+    const trendsCtx = document.getElementById('deiTrendsChart').getContext('2d');
+    new Chart(trendsCtx, {
+        type: 'line',
+        data: {
+            labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
+            datasets: [{
+                label: 'Diversidad',
+                data: [72, 74, 76, 78, 80, 82, 84, 86, 88, 90, 92, 94],
+                borderColor: 'rgba(231, 76, 60, 1)',
+                backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                tension: 0.4
+            }, {
+                label: 'Equidad',
+                data: [75, 77, 79, 81, 83, 85, 87, 89, 91, 93, 95, 97],
+                borderColor: 'rgba(39, 174, 96, 1)',
+                backgroundColor: 'rgba(39, 174, 96, 0.1)',
+                tension: 0.4
+            }, {
+                label: 'Inclusión',
+                data: [78, 80, 82, 84, 86, 88, 90, 92, 94, 96, 98, 100],
+                borderColor: 'rgba(52, 152, 219, 1)',
+                backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100
+                }
+            }
+        }
+    });
+
+    // Gráfico de Representación en Liderazgo
+    const leadershipCtx = document.getElementById('leadershipRepresentationChart').getContext('2d');
+    new Chart(leadershipCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Mujeres', 'Hombres', 'No Binario', 'Otros'],
+            datasets: [{
+                data: [35, 58, 4, 3],
+                backgroundColor: [
+                    'rgba(231, 76, 60, 0.8)',
+                    'rgba(52, 152, 219, 0.8)',
+                    'rgba(155, 89, 182, 0.8)',
+                    'rgba(241, 196, 15, 0.8)'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+
+    // Gráfico de Brecha Salarial
+    const payGapCtx = document.getElementById('payGapChart').getContext('2d');
+    new Chart(payGapCtx, {
+        type: 'bar',
+        data: {
+            labels: ['Género', 'Etnia', 'Edad', 'Discapacidad'],
+            datasets: [{
+                label: 'Equidad Salarial (%)',
+                data: [94.1, 91.3, 96.8, 89.5],
+                backgroundColor: [
+                    'rgba(231, 76, 60, 0.8)',
+                    'rgba(39, 174, 96, 0.8)',
+                    'rgba(52, 152, 219, 0.8)',
+                    'rgba(155, 89, 182, 0.8)'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100
+                }
+            }
+        }
+    });
+
+    // Gráfico de Comparativa con Industria
+    const industryCtx = document.getElementById('industryComparisonChart').getContext('2d');
+    new Chart(industryCtx, {
+        type: 'bar',
+        data: {
+            labels: ['Diversidad', 'Equidad', 'Inclusión', 'Representación', 'Liderazgo'],
+            datasets: [{
+                label: 'Nuestra Empresa',
+                data: [94, 97, 100, 74, 68],
+                backgroundColor: 'rgba(231, 76, 60, 0.8)'
+            }, {
+                label: 'Industria Promedio',
+                data: [72, 78, 81, 68, 65],
+                backgroundColor: 'rgba(52, 152, 219, 0.8)'
+            }, {
+                label: 'Fortune 500',
+                data: [75, 80, 83, 70, 67],
+                backgroundColor: 'rgba(39, 174, 96, 0.8)'
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100
+                }
+            }
+        }
+    });
+
+    // Gráfico de Predicciones DEI
+    const predictionsCtx = document.getElementById('deiPredictionsChart').getContext('2d');
+    new Chart(predictionsCtx, {
+        type: 'line',
+        data: {
+            labels: ['Mes 1', 'Mes 2', 'Mes 3', 'Mes 4', 'Mes 5', 'Mes 6'],
+            datasets: [{
+                label: 'Con Intervenciones',
+                data: [94, 96, 98, 100, 102, 104],
+                borderColor: 'rgba(39, 174, 96, 1)',
+                backgroundColor: 'rgba(39, 174, 96, 0.1)',
+                tension: 0.4
+            }, {
+                label: 'Sin Intervenciones',
+                data: [94, 95, 96, 97, 98, 99],
+                borderColor: 'rgba(231, 76, 60, 1)',
+                backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 110
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %} 

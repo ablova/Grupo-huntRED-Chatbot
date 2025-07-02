@@ -100,7 +100,7 @@ NOTIFICATION_CONFIG = {
     },
     'sms': {
         'enabled': True,
-        'provider': 'twilio',
+        'provider': 'messagebird',
         'template_path': 'templates/sms/signature/'
     }
 }

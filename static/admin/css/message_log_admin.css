@@ -1,0 +1,90 @@
+/* Estilos para MessageLogAdmin */
+
+/* Mejora de la apariencia de los botones de acción */
+.object-tools a.reportlink {
+    background-color: #417690;
+}
+
+.object-tools a.reportlink:hover {
+    background-color: #295570;
+}
+
+/* Mejora la visualización de los campos meta_cost */
+.field-meta_cost {
+    font-weight: bold;
+    color: #d35400;
+}
+
+/* Resalta los canales de Meta */
+.field-channel[data-value="whatsapp"],
+.field-channel[data-value="messenger"],
+.field-channel[data-value="instagram"] {
+    position: relative;
+}
+
+.field-channel[data-value="whatsapp"]::after,
+.field-channel[data-value="messenger"]::after,
+.field-channel[data-value="instagram"]::after {
+    content: "Meta";
+    display: inline-block;
+    background-color: #3498db;
+    color: white;
+    font-size: 0.7em;
+    padding: 2px 5px;
+    border-radius: 3px;
+    margin-left: 5px;
+    vertical-align: middle;
+}
+
+/* Estilo para filtros avanzados */
+.advanced-filters {
+    padding: 10px;
+    background-color: #f8f8f8;
+    border: 1px solid #eee;
+    border-radius: 4px;
+    margin-bottom: 15px;
+}
+
+.advanced-filters h3 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 14px;
+}
+
+.advanced-filters .form-row {
+    display: flex;
+    flex-wrap: wrap;
+    margin: 0 -5px;
+}
+
+.advanced-filters .form-group {
+    flex: 1 0 200px;
+    padding: 0 5px;
+    margin-bottom: 10px;
+}
+
+.advanced-filters label {
+    display: block;
+    font-size: 12px;
+    font-weight: normal;
+    color: #666;
+    margin-bottom: 3px;
+}
+
+.advanced-filters select,
+.advanced-filters input[type="text"],
+.advanced-filters input[type="date"] {
+    width: 100%;
+    padding: 4px 6px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+}
+
+/* Estilo para el botón de exportar */
+.object-tools a.export {
+    background-color: #2ecc71;
+}
+
+.object-tools a.export:hover {
+    background-color: #27ae60;
+}

@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Dashboard Notificaciones - Grupo huntRED{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.css">
+<style>
+    .notif-section { margin-bottom: 2.5rem; }
+    .notif-card { border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); margin-bottom: 1.5rem; }
+    .notif-title { font-weight: 600; font-size: 1.1rem; }
+    .notif-list { margin-bottom: 0; }
+    .summary-card { background: #f8f9fa; border-radius: 8px; padding: 1.5rem; margin-bottom: 2rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="h3">
+                <i class="fas fa-bell me-2 text-primary"></i>Dashboard Notificaciones
+            </h2>
+            <p class="text-muted">Métricas y efectividad de notificaciones y canales</p>
+        </div>
+        <div>
+            <span class="badge bg-info">{{ business_unit }}</span>
+        </div>
+    </div>
+
+    <!-- Resumen ejecutivo notificaciones -->
+    <div class="summary-card">
+        <h4 class="mb-3"><i class="fas fa-lightbulb text-warning me-2"></i>Resumen Notificaciones</h4>
+        <ul class="notif-list">
+            {% for insight in notif_summary %}
+                <li>{{ insight }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <!-- Gráficos de métricas de notificaciones -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <canvas id="openRateChart"></canvas>
+        </div>
+        <div class="col-md-6">
+            <canvas id="responseRateChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Insights detallados de notificaciones -->
+    <div class="notif-section">
+        <div class="notif-card p-4">
+            <h5 class="notif-title text-secondary mb-3">
+                <i class="fas fa-chart-bar me-2"></i>Insights Detallados
+            </h5>
+            <ul class="notif-list">
+                {% for detail in notif_details %}
+                    <li>{{ detail }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+    <script>
+        // Ejemplo de datos, reemplazar con datos reales del contexto
+        var openRateData = {
+            labels: ['Email', 'WhatsApp', 'SMS', 'Push'],
+            datasets: [{
+                label: 'Tasa de Apertura',
+                data: [{{ notif_metrics.email_open }}, {{ notif_metrics.whatsapp_open }}, {{ notif_metrics.sms_open }}, {{ notif_metrics.push_open }}],
+                backgroundColor: ['#36a2eb', '#ffce56', '#ff6384', '#4bc0c0']
+            }]
+        };
+        var ctxOpen = document.getElementById('openRateChart').getContext('2d');
+        new Chart(ctxOpen, {
+            type: 'bar',
+            data: openRateData,
+            options: { responsive: true, plugins: { legend: { display: false } } }
+        });
+        var responseRateData = {
+            labels: ['Email', 'WhatsApp', 'SMS', 'Push'],
+            datasets: [{
+                label: 'Tasa de Respuesta',
+                data: [{{ notif_metrics.email_response }}, {{ notif_metrics.whatsapp_response }}, {{ notif_metrics.sms_response }}, {{ notif_metrics.push_response }}],
+                backgroundColor: ['#36a2eb', '#ffce56', '#ff6384', '#4bc0c0']
+            }]
+        };
+        var ctxResponse = document.getElementById('responseRateChart').getContext('2d');
+        new Chart(ctxResponse, {
+            type: 'bar',
+            data: responseRateData,
+            options: { responsive: true, plugins: { legend: { display: false } } }
+        });
+    </script>
+</div>
+{% endblock %} 

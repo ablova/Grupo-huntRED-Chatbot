@@ -1,157 +1,52 @@
 # app/ats/integrations/notifications/channels/whatsapp.py
 """
-DEPRECATED: Este módulo legacy con Twilio ya no se utiliza. Todas las
-notificaciones de WhatsApp se envían mediante
+DEPRECATED: Este módulo legacy ya no se utiliza. 
+
+Todas las notificaciones de WhatsApp se envían mediante
 `app.ats.integrations.channels.whatsapp.whatsapp.WhatsAppHandler`, que
 se comunica directamente con la API oficial de WhatsApp Business.
-Este archivo se conserva únicamente para evitar errores de importación
-residuales y NO debe usarse en código nuevo.
-
-Canal de notificaciones para WhatsApp.
 """
+
 import logging
-from typing import Dict, Any, Optional
-from datetime import datetime
+from app.ats.security.exceptions import SecurityPolicyViolation
 
-from django.conf import settings
-try:
-    from twilio.rest import Client  # type: ignore
-    from twilio.base.exceptions import TwilioRestException  # type: ignore
-except ImportError:  # Twilio SDK not installed – fallback stubs to avoid hard dependency
-    Client = None  # type: ignore
+logger = logging.getLogger(__name__)
 
-    class TwilioRestException(Exception):
-        """Fallback Twilio exception when SDK is absent."""
-        pass
+# Definir constantes de seguridad
+SECURITY_MSG = "CANAL DESHABILITADO: Este canal está deshabilitado por políticas de seguridad."
+ALTERNATIVE_PATH = "app/ats/integrations/channels/whatsapp/whatsapp.py"
 
-from app.models import BusinessUnit
-from app.ats.integrations.notifications.channels.base import RequireInitiationChannel
-
-logger = logging.getLogger('chatbot')
-
-class WhatsAppNotificationChannel(RequireInitiationChannel):
-    """Canal de notificaciones para WhatsApp."""
+class WhatsAppNotificationChannel:
+    """
+    DESHABILITADO - Canal de notificación WhatsApp obsoleto.
     
-    def __init__(self, business_unit: BusinessUnit):
-        super().__init__(business_unit)
-        self.client = Client(
-            self.business_unit.twilio_account_sid,
-            self.business_unit.twilio_auth_token
+    Este canal ha sido deshabilitado por políticas de seguridad.
+    Usar la implementación oficial de WhatsApp Business API en:
+    app/ats/integrations/channels/whatsapp/whatsapp.py
+    """
+    
+    def __init__(self, business_unit):
+        """Constructor deshabilitado."""
+        logger.error(
+            f"{SECURITY_MSG} Usar la implementación autorizada en: {ALTERNATIVE_PATH}"
         )
-        self.from_number = self.business_unit.twilio_whatsapp_number
-    
-    def _get_initiation_message(self) -> str:
-        """
-        Obtiene el mensaje de iniciación para WhatsApp.
+        raise SecurityPolicyViolation(f"{SECURITY_MSG} Ver: {ALTERNATIVE_PATH}")
         
-        Returns:
-            Mensaje de iniciación
-        """
-        return (
-            f"¡Hola! Soy el asistente de {self.business_unit.name}. "
-            "Para recibir notificaciones importantes, por favor responde a este mensaje. "
-            "Puedes escribir 'Hola' o cualquier mensaje para iniciar la conversación."
+    def send_notification(self, message, options=None, priority=0):
+        """Método deshabilitado."""
+        logger.error(
+            f"{SECURITY_MSG} Usar la implementación autorizada en: {ALTERNATIVE_PATH}"
         )
-    
-    async def _send_initiation(self, user_id: str, message: str) -> Dict[str, Any]:
-        """
-        Envía el mensaje de iniciación por WhatsApp.
-        
-        Args:
-            user_id: ID del usuario
-            message: Mensaje a enviar
-        
-        Returns:
-            Dict con el resultado de la operación
-        """
-        try:
-            # Enviar mensaje a través de Twilio
-            message = self.client.messages.create(
-                body=message,
-                from_=f"whatsapp:{self.from_number}",
-                to=f"whatsapp:{user_id}"
-            )
-            
-            return {
-                'success': True,
-                'message_id': message.sid,
-                'timestamp': datetime.now().isoformat()
-            }
-            
-        except TwilioRestException as e:
-            logger.error(f"Error de Twilio enviando mensaje de iniciación: {str(e)}")
-            return {
-                'success': False,
-                'error': str(e)
-            }
-    
-    async def send_notification(
-        self,
-        message: str,
-        options: Optional[Dict[str, Any]] = None,
-        priority: int = 0
-    ) -> Dict[str, Any]:
-        """
-        Envía una notificación por WhatsApp.
-        
-        Args:
-            message: Mensaje a enviar
-            options: Opciones adicionales
-            priority: Prioridad de la notificación
-        
-        Returns:
-            Dict con el resultado de la operación
-        """
-        try:
-            user_id = options.get('user_id') if options else None
-            
-            if not user_id:
-                return {
-                    'success': False,
-                    'error': 'Se requiere user_id para enviar la notificación'
-                }
-            
-            # Verificar si se puede enviar
-            if not await self.can_send_notification(user_id):
-                return await self.send_initiation_message(user_id)
-            
-            # Formatear el mensaje según la prioridad
-            formatted_message = self._format_message(message, priority)
-            
-            # Enviar el mensaje
-            message = self.client.messages.create(
-                body=formatted_message,
-                from_=f"whatsapp:{self.from_number}",
-                to=f"whatsapp:{user_id}"
-            )
-            
-            return {
-                'success': True,
-                'message_id': message.sid,
-                'timestamp': datetime.now().isoformat()
-            }
-            
-        except TwilioRestException as e:
-            logger.error(f"Error de Twilio enviando notificación: {str(e)}")
-            return {
-                'success': False,
-                'error': str(e)
-            }
-    
-    def _format_message(self, message: str, priority: int) -> str:
-        """
-        Formatea el mensaje según la prioridad.
-        
-        Args:
-            message: Mensaje original
-            priority: Nivel de prioridad (0-5)
-        
-        Returns:
-            Mensaje formateado
-        """
-        if priority >= 4:
-            return f"🚨 *URGENTE*\n\n{message}"
-        elif priority >= 2:
-            return f"⚠️ *Importante*\n\n{message}"
-        else:
-            return message 
+        raise SecurityPolicyViolation(f"{SECURITY_MSG} Ver: {ALTERNATIVE_PATH}")
+
+# Garantizar que el archivo no pueda ser importado inadvertidamente
+if __name__ != "__main__":
+    logger.warning(
+        f"Intento de importación del canal deshabilitado. "
+        f"Usar la implementación autorizada en: {ALTERNATIVE_PATH}"
+    )
+
+
+class SecurityError(Exception):
+    """Error de seguridad por intento de uso de integración prohibida."""
+    pass

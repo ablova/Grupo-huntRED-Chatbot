@@ -1,14 +1,12 @@
+# app/ats/integrations/services/gamification/__init__.py
 """
 GAMIFICATION SERVICES - Grupo huntRED®
 Servicios avanzados de gamificación con analytics predictivo
 """
 
-from .predictive_analytics import PredictiveGamificationAnalytics, predictive_analytics
-from .gamification import GamificationService, gamification_service
+from app.ats.integrations.services.gamification.predictive_analytics import PredictiveGamificationAnalytics, predictive_analytics
 
 __all__ = [
     'PredictiveGamificationAnalytics',
-    'predictive_analytics',
-    'GamificationService',
-    'gamification_service'
+    'predictive_analytics'
 ] 

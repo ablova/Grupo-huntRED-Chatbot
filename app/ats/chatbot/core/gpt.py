@@ -841,6 +841,141 @@ class GPTHandler:
             self._handler_cache.clear()
 
 # Updated HANDLER_MAPPING to support xai(grok) and xai (grok)
+class MetaAIHandler(BaseHandler):
+    """Handler para Meta AI (Llama 3) y otros modelos de Meta.
+    Optimizado para Meta Conversations 2025."""
+    
+    async def initialize(self):
+        """Inicializa el cliente con configuración optimizada para Meta AI."""
+        try:
+            import httpx
+            self.client = httpx.AsyncClient(
+                timeout=httpx.Timeout(self.config.timeout or GPT_DEFAULTS["timeout"]),
+                limits=httpx.Limits(
+                    max_keepalive_connections=10,
+                    max_connections=20,
+                    keepalive_expiry=30
+                ),
+                http2=True
+            )
+            self.api_key = self.config.api_key
+            self.api_base = self.config.endpoint or "https://api.meta.ai/v1"
+            self.model = self.config.model or "meta-llama-3-70b-instruct"
+            self.initialized = True
+            logger.info(f"MetaAIHandler inicializado con modelo {self.model}")
+        except Exception as e:
+            logger.error(f"Error inicializando MetaAIHandler: {str(e)}")
+            self._increment_failure()
+            raise
+            
+    async def generate_response(self, prompt: str, business_unit=None, channel_api=None):
+        """Genera una respuesta utilizando Meta AI (Llama 3)."""
+        if not self.initialized:
+            await self.initialize()
+            
+        # Verificar circuit breaker
+        if self._check_circuit_breaker():
+            logger.warning("Circuit breaker abierto para Meta AI")
+            return "⚠️ Servicio no disponible temporalmente. Intente más tarde."
+            
+        # Verificar caché
+        cached = get_cached_response(self.model, prompt, business_unit)
+        if cached:
+            logger.debug("Respuesta recuperada de caché para Meta AI")
+            return cached
+            
+        try:
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json"
+            }
+            
+            payload = {
+                "model": self.model,
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": self.config.max_tokens or GPT_DEFAULTS["max_tokens"],
+                "temperature": self.config.temperature or GPT_DEFAULTS["temperature"],
+                "top_p": self.config.top_p or GPT_DEFAULTS["top_p"]
+            }
+            # Buscar verificación Meta en el canal correspondiente
+            if channel_api and hasattr(channel_api, 'meta_verified') and channel_api.meta_verified:
+                payload["meta_verified"] = True
+                if getattr(channel_api, 'meta_verified_badge_url', None):
+                    payload["badge_url"] = channel_api.meta_verified_badge_url
+            # Hooks para futuras capacidades (voz, foto, video)
+            # if hasattr(self, 'voice_config'):
+            #     payload['voice'] = self.voice_config
+            # if hasattr(self, 'image_config'):
+            #     payload['image'] = self.image_config
+            # if hasattr(self, 'video_config'):
+            #     payload['video'] = self.video_config
+            start_time = time.time()
+            response = await self.client.post(
+                f"{self.api_base}/completions",
+                headers=headers,
+                json=payload
+            )
+            elapsed = time.time() - start_time
+            response.raise_for_status()
+            response_data = response.json()
+            # Extraer respuesta y metadata
+            result = response_data.get("choices", [{}])[0].get("message", {}).get("content", "")
+            tokens_used = response_data.get("usage", {}).get("total_tokens", 0)
+            self._reset_failures()
+            self._update_token_usage(tokens_used, business_unit)
+            cache_response(self.model, prompt, result, business_unit)
+            logger.info(f"Meta AI response generated in {elapsed:.2f}s using {tokens_used} tokens")
+            return result
+        except Exception as e:
+            self._increment_failure()
+            error_msg = str(e)
+            logger.error(f"Error generando respuesta con Meta AI: {error_msg}")
+            if "quota exceeded" in error_msg.lower() or "rate limit" in error_msg.lower():
+                await self._notify_quota_exceeded()
+                return "⚠️ Límite de cuota excedido. Se ha notificado al administrador."
+            return f"Error: {error_msg}"
+            
+    async def _notify_quota_exceeded(self):
+        """Notifica a los administradores sobre cuota excedida."""
+        try:
+            from app.ats.integrations.services import EmailService
+            
+            # Determinar destinatarios según BusinessUnit
+            if hasattr(self, 'current_business_unit') and self.current_business_unit:
+                bu_name = self.current_business_unit.name
+                recipients = [self.current_business_unit.admin_email] if hasattr(self.current_business_unit, 'admin_email') else []
+            else:
+                bu_name = "Meta AI Service"
+                recipients = ["admin@grupohuntred.com"]
+                
+            if not recipients:
+                recipients = ["admin@grupohuntred.com"]
+                
+            # Enviar notificación
+            for recipient in recipients:
+                await EmailService.send_email_async(
+                    subject=f"Alerta: Cuota de Meta AI excedida para {bu_name}",
+                    to_email=recipient,
+                    body=f"La cuota de Meta AI (Llama 3) ha sido excedida para {bu_name}. "  
+                         f"Por favor, revise su suscripción o contacte con Meta Business Support.",
+                    from_email="no-reply@grupohuntred.com"
+                )
+                
+            logger.info(f"Notificación de cuota excedida enviada a {', '.join(recipients)}")
+            
+        except Exception as e:
+            logger.error(f"Error enviando notificación de cuota excedida: {str(e)}")
+            
+    async def close(self):
+        """Cierra recursos."""
+        if hasattr(self, 'client') and self.client:
+            await self.client.aclose()
+            self.client = None
+            
+        self.initialized = False
+        logger.debug("MetaAIHandler cerrado correctamente")
+
+# Mapeo actualizado para incluir Meta AI
 HANDLER_MAPPING = {
     'openai': OpenAIHandler,
     'xai': GrokHandler,
@@ -852,7 +987,11 @@ HANDLER_MAPPING = {
     'vertex': VertexAIHandler,
     'mistral': MistralAIHandler,
     'mistral ai': MistralAIHandler,
-    'mistralai': MistralAIHandler
+    'mistralai': MistralAIHandler,
+    'meta': MetaAIHandler,
+    'meta ai': MetaAIHandler,
+    'meta-llama': MetaAIHandler,
+    'llama-3': MetaAIHandler
 }
 
 async def get_handler(config: GptApi) -> BaseHandler:

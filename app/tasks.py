@@ -2418,3 +2418,170 @@ def import_candidates_from_smartrecruiters(self):
     # Notificar admins (puedes usar tu sistema de notificaciones)
     # send_admin_notification(f"Importación de candidatos finalizada. Total: {total}")
     return total
+
+# =========================================================
+# Tareas de Optimización de Comunicación
+# =========================================================
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=60, queue='notifications')
+@with_retry
+def optimize_communication_task(self, user_id: int, notification_type: str, content: str, business_unit: str = None):
+    """
+    Optimiza automáticamente una comunicación basándose en el perfil del usuario.
+    
+    Args:
+        user_id: ID del usuario
+        notification_type: Tipo de notificación
+        content: Contenido original
+        business_unit: Unidad de negocio (opcional)
+    """
+    try:
+        from app.middleware.communication_optimization import optimize_notification_for_user
+        
+        # Optimizar la notificación
+        optimization_result = optimize_notification_for_user(
+            user_id=user_id,
+            notification_type=notification_type,
+            content=content,
+            business_unit=business_unit
+        )
+        
+        # Registrar el resultado para aprendizaje
+        logger.info(f"Comunicación optimizada para usuario {user_id}: {optimization_result}")
+        
+        # Si hay error, registrar pero no fallar
+        if 'error' in optimization_result:
+            logger.warning(f"Error en optimización para usuario {user_id}: {optimization_result['error']}")
+            return optimization_result
+        
+        return optimization_result
+        
+    except Exception as e:
+        logger.error(f"Error optimizando comunicación para usuario {user_id}: {e}")
+        raise self.retry(exc=e)
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=300, queue='analytics')
+@with_retry
+def analyze_communication_patterns_task(self, business_unit: str = None, days: int = 30):
+    """
+    Analiza patrones de comunicación para una unidad de negocio.
+    
+    Args:
+        business_unit: Unidad de negocio (opcional)
+        days: Número de días a analizar
+    """
+    try:
+        from app.models import Notification, Person
+        from app.ml.aura.predictive.sentiment_analyzer import SentimentAnalyzer
+        from django.utils import timezone
+        from datetime import timedelta
+        
+        # Obtener notificaciones recientes
+        cutoff_date = timezone.now() - timedelta(days=days)
+        notifications = Notification.objects.filter(
+            created_at__gte=cutoff_date
+        )
+        
+        # Filtrar por unidad de negocio si se especifica
+        if business_unit and business_unit != 'all':
+            # Aquí podrías filtrar por unidad de negocio
+            pass
+        
+        # Analizar patrones
+        sentiment_analyzer = SentimentAnalyzer()
+        patterns = {
+            'total_notifications': notifications.count(),
+            'sent_notifications': notifications.filter(status='SENT').count(),
+            'failed_notifications': notifications.filter(status='FAILED').count(),
+            'channel_distribution': {},
+            'sentiment_analysis': {
+                'positive': 0,
+                'negative': 0,
+                'neutral': 0
+            },
+            'response_patterns': {},
+            'optimization_opportunities': []
+        }
+        
+        # Analizar distribución por canal
+        for notification in notifications:
+            channel = notification.channel
+            if channel not in patterns['channel_distribution']:
+                patterns['channel_distribution'][channel] = {
+                    'total': 0,
+                    'sent': 0,
+                    'failed': 0
+                }
+            
+            patterns['channel_distribution'][channel]['total'] += 1
+            if notification.status == 'SENT':
+                patterns['channel_distribution'][channel]['sent'] += 1
+            elif notification.status == 'FAILED':
+                patterns['channel_distribution'][channel]['failed'] += 1
+        
+        # Calcular tasas de éxito por canal
+        for channel, stats in patterns['channel_distribution'].items():
+            if stats['total'] > 0:
+                stats['success_rate'] = round(stats['sent'] / stats['total'], 3)
+            else:
+                stats['success_rate'] = 0.0
+        
+        # Identificar oportunidades de optimización
+        for channel, stats in patterns['channel_distribution'].items():
+            if stats['success_rate'] < 0.7:
+                patterns['optimization_opportunities'].append({
+                    'type': 'channel_optimization',
+                    'channel': channel,
+                    'current_success_rate': stats['success_rate'],
+                    'recommendation': f'Mejorar tasa de éxito del canal {channel}'
+                })
+        
+        logger.info(f"Análisis de patrones completado para {business_unit or 'todas las unidades'}")
+        return patterns
+        
+    except Exception as e:
+        logger.error(f"Error analizando patrones de comunicación: {e}")
+        raise self.retry(exc=e)
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=600, queue='analytics')
+@with_retry
+def update_user_communication_profiles_task(self):
+    """
+    Actualiza los perfiles de comunicación de todos los usuarios.
+    """
+    try:
+        from app.models import Person
+        from app.middleware.communication_optimization import CommunicationOptimizationMiddleware
+        from django.core.cache import cache
+        
+        # Crear instancia del middleware
+        middleware = CommunicationOptimizationMiddleware(lambda r: None)
+        
+        # Obtener todos los usuarios activos
+        users = Person.objects.filter(active=True)
+        updated_count = 0
+        
+        for user in users:
+            try:
+                # Obtener perfil actualizado
+                profile = middleware._get_user_communication_profile(user.id)
+                
+                # Guardar en caché
+                cache_key = f"comm_profile_{user.id}"
+                cache.set(cache_key, profile, 1800)  # 30 minutos
+                
+                updated_count += 1
+                
+            except Exception as e:
+                logger.error(f"Error actualizando perfil de usuario {user.id}: {e}")
+                continue
+        
+        logger.info(f"Perfiles de comunicación actualizados: {updated_count}/{users.count()}")
+        return {
+            'total_users': users.count(),
+            'updated_profiles': updated_count
+        }
+        
+    except Exception as e:
+        logger.error(f"Error actualizando perfiles de comunicación: {e}")
+        raise self.retry(exc=e)

@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Mis Habilidades Emergentes - AURA Grupo huntRED{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.css">
+<style>
+    .user-skills-section { margin-bottom: 2.5rem; }
+    .user-skills-card { border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); margin-bottom: 1.5rem; }
+    .user-skills-title { font-weight: 600; font-size: 1.1rem; }
+    .user-skills-list { margin-bottom: 0; }
+    .summary-card { background: #f8f9fa; border-radius: 8px; padding: 1.5rem; margin-bottom: 2rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="h3">
+                <i class="fas fa-brain me-2 text-primary"></i>Mis Habilidades Emergentes
+            </h2>
+            <p class="text-muted">Análisis personalizado de gaps técnicos y soft skills, y recomendaciones de upskilling</p>
+        </div>
+    </div>
+
+    <!-- Resumen de gaps y comparativa -->
+    <div class="summary-card">
+        <h4 class="mb-3"><i class="fas fa-lightbulb text-warning me-2"></i>Resumen de Gaps</h4>
+        <div class="row">
+            <div class="col-md-6">
+                <h5 class="mb-2">Gaps técnicos y soft skills:</h5>
+                <ul class="user-skills-list">
+                    {% for gap in user_skills.gaps %}
+                        <li>{{ gap }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div class="col-md-6">
+                <h5 class="mb-2">Comparativa con mi segmento</h5>
+                <canvas id="skillsSegmentChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recomendaciones de upskilling/reskilling -->
+    <div class="user-skills-section">
+        <div class="user-skills-card p-4">
+            <h5 class="user-skills-title text-secondary mb-3">
+                <i class="fas fa-graduation-cap text-success me-2"></i>Recomendaciones de Upskilling/Reskilling
+            </h5>
+            <ul class="user-skills-list">
+                {% for rec in user_skills.recommendations %}
+                    <li>{{ rec }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <!-- Explicabilidad y contexto de red -->
+    <div class="user-skills-section">
+        <div class="user-skills-card p-4">
+            <h5 class="user-skills-title text-secondary mb-3">
+                <i class="fas fa-network-wired text-info me-2"></i>Contexto de Red y Explicabilidad
+            </h5>
+            <ul class="user-skills-list">
+                {% for exp in user_skills.explainability %}
+                    <li>{{ exp }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+    <script>
+        // Ejemplo de datos, reemplazar con datos reales del contexto
+        var skillsSegmentData = {
+            labels: ['Tú', 'Promedio Segmento'],
+            datasets: [{
+                label: 'Gap de Skills',
+                data: [{{ user_skills.gap_score }}, {{ user_skills.segment_avg }}],
+                backgroundColor: ['#36a2eb', '#ffce56']
+            }]
+        };
+        var ctxSkillsSegment = document.getElementById('skillsSegmentChart').getContext('2d');
+        new Chart(ctxSkillsSegment, {
+            type: 'bar',
+            data: skillsSegmentData,
+            options: { responsive: true, plugins: { legend: { display: false } } }
+        });
+    </script>
+</div>
+{% endblock %} 

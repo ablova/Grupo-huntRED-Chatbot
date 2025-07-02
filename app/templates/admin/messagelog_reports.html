@@ -1,0 +1,407 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{% block extrastyle %}
+<style>
+    .dashboard-container {
+        padding: 20px;
+        background-color: #f9f9f9;
+    }
+    .card {
+        background: #fff;
+        border-radius: 4px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+        padding: 20px;
+    }
+    .card h2 {
+        color: #333;
+        font-size: 18px;
+        margin-top: 0;
+        margin-bottom: 15px;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 10px;
+    }
+    .stats-container {
+        display: flex;
+        flex-wrap: wrap;
+        margin: 0 -10px;
+    }
+    .stat-card {
+        flex: 1;
+        min-width: 200px;
+        background: #fff;
+        border-radius: 4px;
+        margin: 10px;
+        padding: 15px;
+        text-align: center;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .stat-card.meta {
+        border-left: 4px solid #3498db;
+    }
+    .stat-card.non-meta {
+        border-left: 4px solid #95a5a6;
+    }
+    .stat-value {
+        font-size: 24px;
+        font-weight: bold;
+        margin: 10px 0;
+    }
+    .stat-label {
+        color: #666;
+        font-size: 14px;
+    }
+    .filter-form {
+        margin-bottom: 20px;
+        padding: 15px;
+        background: #fff;
+        border-radius: 4px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .filter-form .form-row {
+        display: flex;
+        flex-wrap: wrap;
+        margin-bottom: 10px;
+    }
+    .filter-form .form-group {
+        flex: 1;
+        padding: 0 10px;
+        min-width: 200px;
+    }
+    .filter-form label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+    }
+    .filter-form select, 
+    .filter-form input {
+        width: 100%;
+        padding: 6px 8px;
+        border: 1px solid #ddd;
+        border-radius: 3px;
+    }
+    .filter-form button {
+        background: #2980b9;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 3px;
+        cursor: pointer;
+        margin-top: 10px;
+    }
+    .filter-form button:hover {
+        background: #3498db;
+    }
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+    }
+    .data-table th, .data-table td {
+        padding: 12px 8px;
+        text-align: left;
+        border-bottom: 1px solid #eee;
+    }
+    .data-table th {
+        background-color: #f5f5f5;
+        font-weight: bold;
+    }
+    .data-table tr:hover {
+        background-color: #f9f9f9;
+    }
+    .chart-container {
+        width: 100%;
+        max-width: 100%;
+        height: 350px;
+        margin-bottom: 20px;
+    }
+    .meta-tag {
+        background-color: #3498db;
+        color: white;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 12px;
+        margin-left: 5px;
+    }
+    .cost-value {
+        font-weight: bold;
+        color: #e74c3c;
+    }
+    .tabs {
+        display: flex;
+        border-bottom: 1px solid #ddd;
+        margin-bottom: 20px;
+    }
+    .tab {
+        padding: 10px 20px;
+        cursor: pointer;
+        background: #f9f9f9;
+        margin-right: 2px;
+        border: 1px solid #ddd;
+        border-bottom: none;
+        border-radius: 4px 4px 0 0;
+    }
+    .tab.active {
+        background: white;
+        border-bottom: 1px solid white;
+        margin-bottom: -1px;
+    }
+    .tab-content {
+        display: none;
+    }
+    .tab-content.active {
+        display: block;
+    }
+    .back-link {
+        display: inline-block;
+        margin-bottom: 20px;
+        padding: 8px 16px;
+        background: #f5f5f5;
+        border-radius: 3px;
+        text-decoration: none;
+        color: #333;
+    }
+    .back-link:hover {
+        background: #e5e5e5;
+    }
+    .no-data {
+        padding: 40px;
+        text-align: center;
+        color: #999;
+        font-style: italic;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <h1>{{ title }}</h1>
+    
+    <a href="{% url 'admin:app_messagelog_changelist' %}" class="back-link">
+        &laquo; Volver a la lista de mensajes
+    </a>
+    
+    <!-- Filtros -->
+    <div class="card filter-form">
+        <h2>Filtros</h2>
+        <form method="get">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="start_date">Fecha inicio:</label>
+                    <input type="date" id="start_date" name="start_date" value="{{ start_date }}">
+                </div>
+                <div class="form-group">
+                    <label for="end_date">Fecha fin:</label>
+                    <input type="date" id="end_date" name="end_date" value="{{ end_date }}">
+                </div>
+                <div class="form-group">
+                    <label for="business_unit">Unidad de Negocio:</label>
+                    <select id="business_unit" name="business_unit">
+                        <option value="">Todas</option>
+                        {% for bu in business_units %}
+                            <option value="{{ bu.id }}" {% if selected_bu == bu.id|stringformat:"s" %}selected{% endif %}>
+                                {{ bu.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="channel">Canal:</label>
+                    <select id="channel" name="channel">
+                        <option value="">Todos</option>
+                        <option value="whatsapp" {% if selected_channel == "whatsapp" %}selected{% endif %}>WhatsApp</option>
+                        <option value="messenger" {% if selected_channel == "messenger" %}selected{% endif %}>Messenger</option>
+                        <option value="instagram" {% if selected_channel == "instagram" %}selected{% endif %}>Instagram</option>
+                        <option value="telegram" {% if selected_channel == "telegram" %}selected{% endif %}>Telegram</option>
+                        <option value="slack" {% if selected_channel == "slack" %}selected{% endif %}>Slack</option>
+                        <option value="email" {% if selected_channel == "email" %}selected{% endif %}>Email</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <button type="submit">Aplicar filtros</button>
+                </div>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Estadísticas principales -->
+    <div class="card">
+        <h2>Resumen</h2>
+        <div class="stats-container">
+            <div class="stat-card">
+                <div class="stat-label">Total Mensajes</div>
+                <div class="stat-value">{{ total_messages }}</div>
+            </div>
+            <div class="stat-card meta">
+                <div class="stat-label">Meta Conversations</div>
+                <div class="stat-value">{{ meta_messages }}</div>
+                <div>{{ meta_messages|default:0|floatformat:1 }}% del total</div>
+            </div>
+            <div class="stat-card non-meta">
+                <div class="stat-label">Otros Canales</div>
+                <div class="stat-value">{{ non_meta_messages }}</div>
+                <div>{{ non_meta_messages|default:0|floatformat:1 }}% del total</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Costo Total Meta</div>
+                <div class="stat-value cost-value">${{ total_cost|default:0|floatformat:2 }}</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Pestañas para diferentes reportes -->
+    <div class="tabs">
+        <div class="tab active" data-target="tab-channels">Por Canal</div>
+        <div class="tab" data-target="tab-business-units">Por Unidad de Negocio</div>
+        <div class="tab" data-target="tab-pricing">Categorías de Precio Meta</div>
+        <div class="tab" data-target="tab-templates">Top Plantillas</div>
+    </div>
+    
+    <!-- Contenido de pestañas -->
+    <div id="tab-channels" class="tab-content active">
+        <div class="card">
+            <h2>Mensajes por Canal</h2>
+            {% if messages_by_channel %}
+                {% if channel_graph %}
+                    <div class="chart-container">
+                        <img src="{{ channel_graph }}" style="max-width: 100%; height: auto;">
+                    </div>
+                {% endif %}
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Canal</th>
+                            <th>Mensajes</th>
+                            <th>Costo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in messages_by_channel %}
+                        <tr>
+                            <td>
+                                {{ item.channel|default:"Sin canal" }}
+                                {% if item.channel == "whatsapp" or item.channel == "messenger" or item.channel == "instagram" %}
+                                    <span class="meta-tag">Meta</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ item.total }}</td>
+                            <td class="cost-value">${{ item.cost|default:0|floatformat:2 }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <div class="no-data">No hay datos disponibles</div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div id="tab-business-units" class="tab-content">
+        <div class="card">
+            <h2>Mensajes por Unidad de Negocio</h2>
+            {% if messages_by_bu %}
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Unidad de Negocio</th>
+                            <th>Mensajes</th>
+                            <th>Costo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in messages_by_bu %}
+                        <tr>
+                            <td>{{ item.business_unit__name|default:"Sin BU" }}</td>
+                            <td>{{ item.total }}</td>
+                            <td class="cost-value">${{ item.cost|default:0|floatformat:2 }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <div class="no-data">No hay datos disponibles</div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div id="tab-pricing" class="tab-content">
+        <div class="card">
+            <h2>Mensajes Meta por Categoría de Precio</h2>
+            {% if meta_by_pricing %}
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Categoría</th>
+                            <th>Mensajes</th>
+                            <th>Costo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in meta_by_pricing %}
+                        <tr>
+                            <td>{{ item.meta_pricing_category|default:"Sin categoría" }}</td>
+                            <td>{{ item.total }}</td>
+                            <td class="cost-value">${{ item.cost|default:0|floatformat:2 }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <div class="no-data">No hay datos de categorías de precio disponibles</div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div id="tab-templates" class="tab-content">
+        <div class="card">
+            <h2>Top Plantillas</h2>
+            {% if messages_by_template %}
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Plantilla</th>
+                            <th>Mensajes</th>
+                            <th>Costo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in messages_by_template %}
+                        <tr>
+                            <td>{{ item.template_name }}</td>
+                            <td>{{ item.total }}</td>
+                            <td class="cost-value">${{ item.cost|default:0|floatformat:2 }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <div class="no-data">No hay datos de plantillas disponibles</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const tabs = document.querySelectorAll('.tab');
+        
+        tabs.forEach(tab => {
+            tab.addEventListener('click', function() {
+                // Eliminar clase activa de todas las pestañas y contenidos
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                
+                // Agregar clase activa a la pestaña seleccionada
+                this.classList.add('active');
+                
+                // Mostrar el contenido correspondiente
+                const target = this.getAttribute('data-target');
+                document.getElementById(target).classList.add('active');
+            });
+        });
+    });
+</script>
+{% endblock %}

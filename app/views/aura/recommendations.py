@@ -9,7 +9,7 @@ Recomendaciones Personalizadas AURA
 from .base import AuraBaseView
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
-from app.ml.aura import AuraEngine
+from app.ml.aura.aura import AuraEngine
 
 class AuraRecommendationsView(AuraBaseView):
     """
