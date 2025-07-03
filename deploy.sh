@@ -49,8 +49,17 @@ apt-get install -y python3-pip python3-venv nginx supervisor postgresql postgres
 
 # Configurar PostgreSQL
 print_message "Configurando PostgreSQL..."
+
+# Read password from environment variable for security
+DB_PASSWORD="${DB_PASSWORD:-}"
+if [ -z "$DB_PASSWORD" ]; then
+    print_error "DB_PASSWORD environment variable not set"
+    print_error "Please set it with: export DB_PASSWORD='your_secure_password'"
+    exit 1
+fi
+
 sudo -u postgres psql -c "CREATE DATABASE g_huntred_ai_db;"
-sudo -u postgres psql -c "CREATE USER g_huntred_pablo WITH PASSWORD 'Natalia&Patricio1113!';"
+sudo -u postgres psql -c "CREATE USER g_huntred_pablo WITH PASSWORD '$DB_PASSWORD';"
 sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE g_huntred_ai_db TO g_huntred_pablo;"
 
 # Crear y activar entorno virtual
