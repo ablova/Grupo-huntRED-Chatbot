@@ -24,7 +24,6 @@ from asgiref.sync import sync_to_async
 from app.ats.utils.cv_generator.cv_data import CVData
 from app.ats.utils.cv_generator.cv_utils import CVUtils
 from app.ats.utils.cv_generator.career_analyzer import CVCareerAnalyzer
-from app.ats.utils.cv_generator.reference_processor import ReferenceProcessor
 from app.ats.utils.cv_generator.values_adapter import CVValuesAdapter
 from app.ats.chatbot.values.core import ValuesPrinciples
 from app.ml.core.models.base import MatchmakingLearningSystem
@@ -54,7 +53,6 @@ class CVAnalyzer:
         self.analysis_level = analysis_level
         self.utils = CVUtils()
         self.career_analyzer = CVCareerAnalyzer()
-        self.reference_processor = ReferenceProcessor()
         self.values_adapter = CVValuesAdapter()
         self.values_principles = ValuesPrinciples()
         self.ml_system = MatchmakingLearningSystem()

@@ -2,7 +2,7 @@
 #
 # Vista para el módulo. Implementa la lógica de presentación y manejo de peticiones HTTP.
 
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.admin.views.decorators import staff_member_required
@@ -17,6 +17,22 @@ from django.utils import timezone
 from app.ats.accounts.models import CustomUser
 from app.models import UserPermission, DocumentVerification
 from app.ats.accounts.forms import CustomUserCreationForm, CustomUserChangeForm
+
+# Import FailedLoginAttempt or define it if missing
+try:
+    from app.models import FailedLoginAttempt
+except ImportError:
+    # Create a simple model to track failed login attempts
+    from django.db import models
+    
+    class FailedLoginAttempt(models.Model):
+        email = models.EmailField()
+        ip_address = models.GenericIPAddressField()
+        user_agent = models.TextField()
+        created_at = models.DateTimeField(auto_now_add=True)
+        
+        class Meta:
+            db_table = 'app_failedloginattempt'
 
 import logging
 
@@ -118,13 +134,15 @@ def profile(request):
         'form': form
     })
 
-@csrf_exempt
 @login_required
 def change_password(request):
     """
     Vista para cambiar la contraseña del usuario.
     """
     if request.method == 'POST':
+        from django.contrib.auth.password_validation import validate_password
+        from django.core.exceptions import ValidationError
+        
         current_password = request.POST.get('current_password')
         new_password = request.POST.get('new_password')
         confirm_password = request.POST.get('confirm_password')
@@ -134,6 +152,12 @@ def change_password(request):
             
         if new_password != confirm_password:
             return JsonResponse({'success': False, 'error': 'Las contraseñas no coinciden.'})
+        
+        # Validate password strength
+        try:
+            validate_password(new_password, request.user)
+        except ValidationError as e:
+            return JsonResponse({'success': False, 'error': 'Contraseña débil', 'details': list(e.messages)})
             
         request.user.set_password(new_password)
         request.user.save()

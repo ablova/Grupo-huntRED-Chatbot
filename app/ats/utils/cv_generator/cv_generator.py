@@ -24,7 +24,6 @@ from app.ats.utils.cv_generator.cv_template import CVTemplate
 from app.ats.utils.cv_generator.cv_utils import CVUtils
 from app.ats.utils.cv_generator.cv_data import CVData
 from app.ats.utils.cv_generator.career_analyzer import career_analyzer, CVCareerAnalyzer
-from app.ats.utils.cv_generator.reference_processor import ReferenceProcessor
 from app.ats.chatbot.values.core import ValuesPrinciples
 from app.ml.core.models.base import MatchmakingLearningSystem
 # Importamos las funciones adaptadoras de career_analyzer
@@ -385,6 +384,7 @@ class EnhancedCVGenerator(CVGenerator):
                 raise ValueError(f"No se encontró la persona con ID {candidate_id}")
             
             # Inicializar procesador de referencias
+            from app.ats.utils.cv_generator.reference_processor import ReferenceProcessor
             self.reference_processor = ReferenceProcessor(business_unit)
             self.audience_type = audience_type
             

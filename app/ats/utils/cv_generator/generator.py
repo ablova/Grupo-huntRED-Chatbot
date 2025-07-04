@@ -12,10 +12,8 @@ from app.ats.utils.cv_generator.personality_integration import (
     PersonalityCVIntegrator,
     CVOptimization
 )
-from app.ats.integrations.services.gamification import (
-    ActivityType,
-    gamification_service
-)
+from app.ats.integrations.services.gamification import gamification_service
+from app.ats.integrations.services.gamification import ActivityType
 
 logger = logging.getLogger(__name__)
 

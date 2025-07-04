@@ -24,9 +24,11 @@ def send_sms_test(phone_number, message):
     # URL de la API de MessageBird
     api_url = "https://rest.messagebird.com/messages"
     
-    # API Key (es necesario obtener una key real de MessageBird para pruebas)
-    # En una implementación real, debería estar en variables de entorno o settings
-    api_key = "YOUR_MESSAGEBIRD_API_KEY"  # Reemplazar con una clave real
+    # API Key - obtener de variable de entorno por seguridad
+    import os
+    api_key = os.getenv('MESSAGEBIRD_API_KEY')
+    if not api_key:
+        raise ValueError("MESSAGEBIRD_API_KEY environment variable not set. Set it with: export MESSAGEBIRD_API_KEY='your_key'")
     
     # Cabeceras para autenticación
     headers = {

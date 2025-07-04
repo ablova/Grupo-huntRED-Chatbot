@@ -32,6 +32,15 @@ from django.core.exceptions import ValidationError
 from dataclasses import dataclass
 # from app.ats.utils.text_processing import TextProcessor  # Import roto, comentado temporalmente
 # from app.ats.utils.validation import DocumentValidator  # Import roto, comentado temporalmente
+from app.models import ConfiguracionBU, Person, BusinessUnit, Division, Skill, Vacante
+from app.ats.integrations.services import EmailService, MessageService
+from app.ats.chatbot.components.chat_state_manager import ChatStateManager
+from app.ats.chatbot.workflow.common.common import get_possible_transitions, process_business_unit_transition
+from app.ats.chatbot.workflow.business_units.huntred.huntred import process_huntred_candidate
+from app.ats.chatbot.workflow.business_units.huntu.huntu import process_huntu_candidate
+from app.ats.chatbot.workflow.business_units.amigro.amigro import process_amigro_candidate
+from app.ats.chatbot.workflow.business_units.sexsi.sexsi import process_sexsi_payment
+from app.ats.utils.report_generator import ReportGenerator
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -58,7 +67,7 @@ try:
     import trafilatura
     import pdfplumber
     from docx import Document
-    from langdetect import detect, LangDetectException
+    from langdetect import detect
     from langdetect.lang_detect_exception import LangDetectException as LDE
     import spacy
     from spacy.language import Language
@@ -73,8 +82,6 @@ try:
     from asgiref.sync import sync_to_async
     from app.ats.chatbot.utils.nlp_utils import NLPUtils
     from app.ats.chatbot.nlp.nlp import NLPProcessor
-    from app.models import ConfiguracionBU, Person, BusinessUnit, Division, Skill, Conversation, Vacante
-    from app.ats.integrations.services import EmailService, MessageService
     from app.ats.chatbot.components.chat_state_manager import ChatStateManager
     from app.ats.chatbot.workflow.common.common import get_possible_transitions, process_business_unit_transition
     from app.ats.chatbot.workflow.business_units.huntred.huntred import process_huntred_candidate
@@ -155,7 +162,7 @@ def detect_language(text: str, default: str = DEFAULT_LANGUAGE) -> str:
             cache.set(cache_key, lang, CACHE_TIMEOUT)
             return lang
         return default
-    except (LangDetectException, LDE, Exception) as e:
+    except (LDE, Exception) as e:
         logger.warning(f"Language detection error: {e}")
         return default
 

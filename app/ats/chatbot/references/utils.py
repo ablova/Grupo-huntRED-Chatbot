@@ -7,13 +7,13 @@ from typing import Dict, List, Optional
 from app.models import Reference, Person
 from django.utils import timezone
 from app.ats.chatbot.nlp.nlp import NLPProcessor
-from app.ats.utils.cv_generator.cv_generator import CVGenerator
 
 class ReferenceUtils:
     """Clase con utilidades para el manejo de referencias."""
     
     def __init__(self):
         self.nlp = NLPProcessor()
+        from app.ats.utils.cv_generator.cv_generator import CVGenerator
         self.cv_generator = CVGenerator()
     
     def calculate_reference_score(self, feedback: Dict) -> float:

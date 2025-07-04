@@ -23,6 +23,8 @@ from app.ats.integrations.services import MessageService, get_business_unit
 
 import json
 import logging
+import phonenumbers
+from asgiref.sync import async_to_sync
 
 logger = logging.getLogger(__name__)
 
@@ -33,11 +35,20 @@ def interacciones_por_unidad(request):
     """
     Vista para mostrar estadísticas de interacciones por unidad de negocio.
     """
+    from django.db.models import Count, Q, F
+    
+    # Optimized query using annotation to avoid N+1 problem
+    units = BusinessUnit.objects.annotate(
+        interaction_count=Count(
+            'chatstate_set',
+            filter=Q(chatstate_set__platform__icontains=F('name'))
+        )
+    ).all()
+    
     data = []
-    units = BusinessUnit.objects.prefetch_related('chatstate_set').all()
     for unit in units:
-        count = unit.chatstate_set.filter(platform__icontains=unit.name.lower()).count()
-        data.append({'unidad': unit.name, 'interacciones': count})
+        data.append({'unidad': unit.name, 'interacciones': unit.interaction_count})
+    
     return render(request, 'admin/estadisticas/interacciones.html', {'data': data})
 
 @login_required

@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from django.db.models import Count, Q
 from app.models import Reference, BusinessUnit, Person
 from app.ats.chatbot.workflow.business_units.reference_config import get_reference_config
-from app.ats.integrations.services.gamification import ActivityType, gamification_service
+from app.ats.integrations.services import gamification
 
 class ReferenceGamification:
     """Sistema de gamificación para referencias."""
@@ -32,9 +32,9 @@ class ReferenceGamification:
             points = await self._calculate_reference_points(reference)
             
             # Registrar actividad en el sistema global
-            result = await gamification_service.record_activity(
+            result = await gamification.gamification_service.record_activity(
                 user=reference.reference,
-                activity_type=ActivityType.FEEDBACK_PROVIDED,
+                activity_type=gamification.ActivityType.FEEDBACK_PROVIDED,
                 xp_amount=points,
                 metadata={
                     'reference_id': reference.id,
@@ -116,7 +116,7 @@ class ReferenceGamification:
         """
         try:
             # Obtener perfil de gamificación
-            profile = await gamification_service.get_user_progress(reference.reference)
+            profile = await gamification.gamification_service.get_user_progress(reference.reference)
             
             # Obtener puntos específicos de la referencia
             points = reference.metadata.get('gamification', {}).get('points_awarded', 0)
@@ -146,7 +146,7 @@ class ReferenceGamification:
         """
         try:
             # Obtener ranking del sistema global
-            leaderboard = await gamification_service.get_leaderboard(
+            leaderboard = await gamification.gamification_service.get_leaderboard(
                 category='feedback',
                 limit=10
             )

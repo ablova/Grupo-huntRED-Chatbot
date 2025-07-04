@@ -159,7 +159,7 @@ class ChatBotHandler:
         self.response_generator = ResponseGenerator()
         self.state_manager = ChatStateManager()
         self.message_service = MessageService()
-        # Usar la instancia global del servicio de gamificación
+        from app.ats.integrations.services.gamification import gamification_service
         self.gamification_service = gamification_service
         self.cv_parser = CVParser()
         
@@ -827,7 +827,7 @@ class ChatBotHandler:
             metadata: Metadatos adicionales para la actividad
         """
         try:
-            from app.ats.integrations.services.gamification import ActivityType, gamification_service
+            from app.ats.integrations.services.gamification import ActivityType
             
             # Mapeo de tipos de actividad antiguos a los nuevos
             activity_mapping = {
