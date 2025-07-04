@@ -29,6 +29,7 @@ from asgiref.sync import sync_to_async
 
 from app.models import Company as Empresa, BusinessUnit, Person, ClientFeedback, ClientFeedbackSchedule, CLIENT_FEEDBACK_PERIODS
 from app.ml.onboarding_processor import OnboardingMLProcessor
+from app.ats.integrations.services import send_message, email_service
 
 logger = logging.getLogger(__name__)
 
@@ -211,7 +212,11 @@ class ClientFeedbackController:
                 if respondent.email:
                     try:
                         email_subject = f"Encuesta de Satisfacción - {business_unit.name}"
-                        send_email(respondent.email, email_subject, message)
+                        email_service.send_email(
+                            to_email=respondent.email,
+                            subject=email_subject,
+                            body=message
+                        )
                         sent = True
                         logger.info(f"Encuesta enviada por email a {respondent.email} para empresa {empresa.name}")
                     except Exception as e:

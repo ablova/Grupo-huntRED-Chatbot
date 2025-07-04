@@ -9,6 +9,7 @@ from django.conf import settings
 from app.models import VerificationCode
 from app.ats.integrations.services import send_email  # Asegúrate de que esta función esté correctamente implementada
 import logging
+from app.ats.integrations.services import email_service
 
 logger = logging.getLogger('chatbot')
 
@@ -72,8 +73,12 @@ Saludos,
 El equipo de {business_unit.name}
 """
     try:
-        # Se asume que la función send_email acepta parámetros: business_unit_name, subject, destinatario, body.
-        send_email(business_unit.name.lower(), subject, person.email, body)
+        # Enviar email de invitación
+        email_service.send_email(
+            to_email=person.email,
+            subject=subject,
+            body=body
+        )
         logger.info(f"Invitación enviada a {person.email}")
     except Exception as e:
         logger.error(f"Error enviando invitación a {person.email}: {e}")

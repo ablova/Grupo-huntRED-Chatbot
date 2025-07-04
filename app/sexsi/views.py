@@ -19,7 +19,7 @@ from django.core.files.base import ContentFile
 
 from app.models import ConsentAgreement, PaymentTransaction, Preference, DiscountCoupon
 from app.ats.sexsi.forms import ConsentAgreementForm
-from app.ats.integrations.services import send_email, send_message
+from app.ats.integrations.services import send_message, email_service
 from asgiref.sync import async_to_sync
 import json
 import os

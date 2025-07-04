@@ -8,7 +8,7 @@ from django.conf import settings
 from app.models import Person, Vacante, BusinessUnit, ChatState, Application
 from app.ats.utils.signature.pdf_generator import generate_contract_pdf, generate_candidate_summary
 from app.ats.utils.signature.digital_sign import request_digital_signature
-from app.ats.integrations.services import EmailService, send_message, send_options_async, send_menu
+from app.ats.integrations.services import EmailService, send_message, send_options, send_menu
 from app.ats.chatbot.workflow.common.common import (
     iniciar_creacion_perfil, ofrecer_prueba_personalidad, continuar_registro,
     transfer_candidate_to_new_division, get_possible_transitions
@@ -95,7 +95,7 @@ async def continuar_perfil_amigro(plataforma: str, user_id: str, unidad_negocio:
             {"title": "Extranjero", "payload": "extranjero"}
         ]
         await send_message(plataforma, user_id, mensaje, bu_name)
-        await send_options_async(plataforma, user_id, "Selecciona una opción:", botones, bu_name)
+        await send_options(plataforma, user_id, "Selecciona una opción:", botones, bu_name)
         estado_chat.state = "waiting_for_tipo_candidato"
         await sync_to_async(estado_chat.save)()
         return
@@ -110,7 +110,7 @@ async def continuar_perfil_amigro(plataforma: str, user_id: str, unidad_negocio:
         elif estado_chat.context.get('tipo_candidato') == "extranjero":
             if estado_chat.state != "waiting_for_pais":
                 await send_message(plataforma, user_id, "¿De qué país vienes? Selecciona una opción:", bu_name)
-                await send_options_async(plataforma, user_id, "Elige tu país:", PAISES_FRECUENTES, bu_name)
+                await send_options(plataforma, user_id, "Elige tu país:", PAISES_FRECUENTES, bu_name)
                 estado_chat.state = "waiting_for_pais"
                 await sync_to_async(estado_chat.save)()
             return
@@ -119,7 +119,7 @@ async def continuar_perfil_amigro(plataforma: str, user_id: str, unidad_negocio:
     if "migratory_status" not in persona.metadata:
         if estado_chat.state != "waiting_for_migratory_status":
             await send_message(plataforma, user_id, "¿Cuál es tu estatus migratorio actual en México?", bu_name)
-            await send_options_async(plataforma, user_id, "Selecciona una opción:", ESTATUS_MIGRATORIO, bu_name)
+            await send_options(plataforma, user_id, "Selecciona una opción:", ESTATUS_MIGRATORIO, bu_name)
             estado_chat.state = "waiting_for_migratory_status"
             await sync_to_async(estado_chat.save)()
         return
@@ -173,7 +173,7 @@ async def manejar_respuesta_amigro(plataforma: str, user_id: str, texto: str,
                 {"title": "Mexicano", "payload": "mexicano"},
                 {"title": "Extranjero", "payload": "extranjero"}
             ]
-            await send_options_async(plataforma, user_id, "Selecciona una opción:", botones, bu_name)
+            await send_options(plataforma, user_id, "Selecciona una opción:", botones, bu_name)
         return True
 
     if estado_chat.state == "waiting_for_pais":
@@ -188,7 +188,7 @@ async def manejar_respuesta_amigro(plataforma: str, user_id: str, texto: str,
             await continuar_perfil_amigro(plataforma, user_id, unidad_negocio, estado_chat, persona)
         else:
             await send_message(plataforma, user_id, "Por favor, selecciona un país válido.", bu_name)
-            await send_options_async(plataforma, user_id, "Elige tu país:", PAISES_FRECUENTES, bu_name)
+            await send_options(plataforma, user_id, "Elige tu país:", PAISES_FRECUENTES, bu_name)
         return True
 
     if estado_chat.state == "waiting_for_migratory_status":
@@ -202,7 +202,7 @@ async def manejar_respuesta_amigro(plataforma: str, user_id: str, texto: str,
             await continuar_perfil_amigro(plataforma, user_id, unidad_negocio, estado_chat, persona)
         else:
             await send_message(plataforma, user_id, "Por favor, selecciona una opción válida.", bu_name)
-            await send_options_async(plataforma, user_id, "Selecciona una opción:", ESTATUS_MIGRATORIO, bu_name)
+            await send_options(plataforma, user_id, "Selecciona una opción:", ESTATUS_MIGRATORIO, bu_name)
         return True
 
     return False

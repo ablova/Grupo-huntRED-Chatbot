@@ -19,7 +19,14 @@ from app.ats.integrations.services.message import (
     TelegramMessageService,
     MessengerMessageService,
     InstagramMessageService,
-    SlackMessageService
+    SlackMessageService,
+    send_message,
+    send_message_async,
+    send_menu,
+    send_options,
+    send_smart_options,
+    send_image,
+    send_document
 )
 
 from app.ats.integrations.services.menu import (
@@ -38,12 +45,9 @@ from app.ats.integrations.services.assessment import (
     assessment_service
 )
 
+from app.ats.integrations.services.email import EmailService, email_service
 from app.ats.integrations.services.gamification.achievement import Achievement
-
-from app.ats.integrations.services.email import (
-    EmailService,
-    email_service
-)
+from app.ats.integrations.services.gamification.predictive_analytics import PredictiveGamificationAnalytics, predictive_analytics
 
 from app.ats.integrations.notifications.channels.sms import SMSNotificationChannel as SMSService
 
@@ -70,6 +74,13 @@ __all__ = [
     'MessengerMessageService',
     'InstagramMessageService',
     'SlackMessageService',
+    'send_message',
+    'send_message_async',
+    'send_menu',
+    'send_options',
+    'send_smart_options',
+    'send_image',
+    'send_document',
 
     # Menu
     'MenuOption',
@@ -85,6 +96,8 @@ __all__ = [
 
     # Gamification
     'Achievement',
+    'PredictiveGamificationAnalytics',
+    'predictive_analytics',
 
     # Email
     'EmailService',

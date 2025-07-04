@@ -206,7 +206,7 @@ def initialize_with_progress(catalog: str, batch_size: int, embeddings_cache: st
         return False
 
 if __name__ == "__main__":
-    from app.ats.integrations.services import send_message_async
+    from app.ats.integrations.services import send_message
     import asyncio
     try:
         logger.info("Iniciando generación de embeddings")
@@ -231,7 +231,7 @@ if __name__ == "__main__":
             logger.info("Embeddings pre-generados y guardados en caché")
             # Enviar notificación de éxito
             asyncio.run(asyncio.gather(*[
-                send_message_async(
+                send_message(
                     platform="telegram",
                     user_id="871198362",
                     message="✅ Generación de embeddings completada exitosamente.",
@@ -242,7 +242,7 @@ if __name__ == "__main__":
             logger.error("Generación de embeddings incompleta")
             # Enviar notificación de fallo
             asyncio.run(asyncio.gather(*[
-                send_message_async(
+                send_message(
                     platform="telegram",
                     user_id="871198362",
                     message="❌ Generación de embeddings fallida. Revisa los logs.",
@@ -253,7 +253,7 @@ if __name__ == "__main__":
         logger.error(f"Error crítico generando embeddings: {str(e)}", exc_info=True)
         # Enviar notificación de error
         asyncio.run(asyncio.gather(*[
-            send_message_async(
+            send_message(
                 platform="telegram",
                 user_id="871198362",
                 message=f"❌ Error crítico en generate_embeddings.py: {str(e)}",
