@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Propuesta Grupo hunt<span class="text-red">RED®</span> - {{ client.name }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/css/proposal-premium.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --hunt-blue: #1f3544;
+            --hunt-red: #ff3300;
+            --footer-height: 50px;
+        }
+        
+        @page {
+            size: A4;
+            margin: 1cm 0.8cm 1.5cm 0.8cm;
+        }
+        
+        @media print {
+            html, body {
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 100% !important;
+                height: 100% !important;
+                background: white !important;
+                font-size: 10pt !important;
+                line-height: 1.4 !important;
+                color: #000 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            
+            .page-break {
+                page-break-after: always;
+                break-after: page;
+            }
+            
+            .no-break {
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
+            
+            .print-footer {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                height: var(--footer-height);
+                background: white;
+                border-top: 1px solid #eee;
+                padding: 10px 20px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                font-size: 9pt;
+                color: #666;
+                width: 100%;
+                max-width: none;
+            }
+            
+            .content {
+                margin-top: 80px;
+                margin-bottom: 60px;
+            }
+            
+            img {
+                max-width: 100% !important;
+                height: auto !important;
+                page-break-inside: avoid;
+            }
+            
+            h1, h2, h3, h4, h5, h6 {
+                page-break-after: avoid;
+                page-break-inside: avoid;
+            }
+            
+            table {
+                page-break-inside: auto;
+            }
+            
+            tr {
+                page-break-inside: avoid;
+                page-break-after: auto;
+            }
+            
+            a {
+                color: #1a56db;
+                text-decoration: underline;
+            }
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        
+        .text-red {
+            color: var(--hunt-red);
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+            background: #f4f4f4;
+            box-shadow: 0 0 20px rgba(70, 37, 37, 0.1);
+            min-height: 100vh;
+            position: relative;
+        }
+        
+        .page-break {
+            page-break-after: always;
+        }
+        
+        .footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: #666;
+            border-top: 1px solid #ddd;
+            z-index: 1000;
+        }
+        
+        .footer img {
+            height: 20px;
+        }
+        
+        .cover-page {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 90vh;
+            text-align: center;
+            padding: 4rem 2rem;
+            background: linear-gradient(135deg, rgba(255,255,255,1) 0%, rgba(240,240,245,1) 100%);
+        }
+        
+        .cover-logos {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+        
+        .cover-logo img {
+            max-height: 100px;
+            max-width: 100%;
+        }
+        
+        .cover-title {
+            margin: 4rem 0;
+        }
+        
+        .cover-title h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: #2c3e50;
+        }
+        
+        .cover-title h2 {
+            font-size: 1.5rem;
+            font-weight: 400;
+            color: #7f8c8d;
+        }
+        
+        .cover-footer {
+            margin-top: auto;
+            padding-top: 2rem;
+            border-top: 1px solid #eee;
+            font-size: 0.9rem;
+            color: #666;
+        }
+        
+        .accent-gradient {
+            background: linear-gradient(135deg, var(--hunt-blue) 0%, var(--hunt-red) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .section-divider {
+            height: 3px;
+            background: linear-gradient(90deg, var(--hunt-blue), var(--hunt-red));
+            margin: 2rem 0;
+            border-radius: 2px;
+        }
+        
+        .badge-offlimits {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            display: inline-block;
+        }
+        
+        .badge-guarantee {
+            background: linear-gradient(135deg, #4ecdc4, #44a08d);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            display: inline-block;
+        }
+        
+        .aura-hint {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+        
+        .minimal-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+        }
+        
+        .minimal-table th,
+        .minimal-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .minimal-table th {
+            background-color: #f9fafb;
+            font-weight: 600;
+            color: #374151;
+        }
+        
+        .minimal-table tr:hover {
+            background-color: #f9fafb;
+        }
+        
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--hunt-blue);
+            margin: 2rem 0 1rem 0;
+        }
+        
+        .divider {
+            height: 2px;
+            background: linear-gradient(90deg, var(--hunt-blue), var(--hunt-red));
+            margin: 1rem 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Portada -->
+        <section class="cover-page page-break">
+            <div class="cover-logos">
+                <div class="cover-logo">
+                    <img src="/static/proposals/Grupo_huntred.png" alt="Grupo huntRED®" onerror="this.style.display='none'">
+                </div>
+                <div class="cover-logo">
+                    {% if company.logo_url %}
+                        <img src="{{ company.logo_url }}" alt="{{ company.name }}" onerror="this.style.display='none'">
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="cover-title">
+                <h1>Propuesta de Servicios</h1>
+                <h2>Reclutamiento y Selección de Talento</h2>
+                <div class="mt-8">
+                    <p class="text-xl text-gray-600">Para: {{ client.name }}</p>
+                    <p class="text-lg text-gray-500">{{ client.industry|default:"Industria" }}</p>
+                </div>
+            </div>
+            
+            <div class="cover-footer">
+                <p><strong>Grupo huntRED®</strong> - Encontrando el talento que transforma empresas</p>
+                <p>Fecha: {{ proposal.created_at|date:"d/m/Y" }} | Válida hasta: {{ proposal.valid_until|date:"d/m/Y" }}</p>
+            </div>
+        </section>
+
+        <!-- Resumen Ejecutivo -->
+        <section class="mb-12">
+            <h2 class="section-title">1. Resumen Ejecutivo</h2>
+            <div class="divider"></div>
+            
+            <div class="bg-white rounded-lg p-6 shadow-sm">
+                <p class="text-gray-700 mb-4">
+                    Grupo huntRED® presenta esta propuesta integral de servicios de reclutamiento y selección 
+                    diseñada específicamente para {{ client.name }}, con el objetivo de identificar y atraer 
+                    al talento que impulse el crecimiento y la innovación de su organización.
+                </p>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+                    <div class="text-center p-4 bg-blue-50 rounded-lg">
+                        <i class="fas fa-target text-3xl text-blue-600 mb-2"></i>
+                        <h3 class="font-semibold text-blue-800">Objetivo</h3>
+                        <p class="text-sm text-blue-600">Identificar candidatos excepcionales que se alineen con su cultura y objetivos</p>
+                    </div>
+                    <div class="text-center p-4 bg-green-50 rounded-lg">
+                        <i class="fas fa-clock text-3xl text-green-600 mb-2"></i>
+                        <h3 class="font-semibold text-green-800">Tiempo</h3>
+                        <p class="text-sm text-green-600">Proceso optimizado para reducir el tiempo de contratación en un 60%</p>
+                    </div>
+                    <div class="text-center p-4 bg-purple-50 rounded-lg">
+                        <i class="fas fa-shield-alt text-3xl text-purple-600 mb-2"></i>
+                        <h3 class="font-semibold text-purple-800">Garantía</h3>
+                        <p class="text-sm text-purple-600">Compromiso total con la calidad y permanencia de las contrataciones</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Servicios Contratados -->
+        <section class="mb-12">
+            <h2 class="section-title">2. Servicios Contratados</h2>
+            <div class="divider"></div>
+            
+            <table class="minimal-table">
+                <thead>
+                    <tr>
+                        <th>Servicio</th>
+                        <th>Unidad de Negocio</th>
+                        <th>Inicio</th>
+                        <th>OffLimits</th>
+                        <th>Garantía</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for servicio in servicios %}
+                    <tr>
+                        <td>{{ servicio.nombre }}</td>
+                        <td>{{ servicio.business_unit }}</td>
+                        <td>{{ servicio.inicio|date:"d/m/Y" }}</td>
+                        <td>
+                            {% if servicio.is_offlimits %}
+                                <span class="badge-offlimits">Off Limits hasta {{ servicio.offlimits_end|date:"d/m/Y" }}</span>
+                            {% else %}-{% endif %}
+                        </td>
+                        <td>
+                            {% if servicio.garantia %}
+                                <span class="badge-guarantee">{{ servicio.garantia }}</span>
+                            {% else %}-{% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            
+            <!-- Hints de AURA -->
+            {% if not aura_contratado %}
+            <div class="aura-hint">
+                <b>¿Sabías que puedes potenciar tu proceso con <span style="color:#6366f1;">AURA</span>?</b><br>
+                IA para selección sin sesgos, matching predictivo y análisis avanzado de talento. 
+                <a href="#" style="color:#6366f1; text-decoration:underline;">Solicita una demo</a>.
+            </div>
+            {% endif %}
+        </section>
+
+        <!-- Cronograma y Precios -->
+        <section class="mb-12">
+            <h2 class="section-title">3. Cronograma y Precios</h2>
+            <div class="divider"></div>
+            
+            <div class="bg-white rounded-lg p-6 shadow-sm">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                    <div class="text-center p-4 bg-gray-50 rounded-lg">
+                        <p class="text-sm text-gray-500">Subtotal</p>
+                        <p class="text-xl font-bold">{{ pricing.currency }} {{ pricing.subtotal|floatformat:"2" }}</p>
+                    </div>
+                    <div class="text-center p-4 bg-gray-50 rounded-lg">
+                        <p class="text-sm text-gray-500">Addons</p>
+                        <p class="text-xl font-bold">{{ pricing.currency }} {{ pricing.addons_total|floatformat:"2" }}</p>
+                    </div>
+                    <div class="text-center p-4 bg-gray-50 rounded-lg">
+                        <p class="text-sm text-gray-500">Descuentos</p>
+                        <p class="text-xl font-bold">{{ pricing.currency }} {{ pricing.discount_amount|floatformat:"2" }}</p>
+                    </div>
+                    <div class="text-center p-4 bg-blue-50 rounded-lg">
+                        <p class="text-sm text-blue-500">Total</p>
+                        <p class="text-xl font-bold text-blue-600">{{ pricing.currency }} {{ pricing.total|floatformat:"2" }}</p>
+                    </div>
+                </div>
+                
+                <table class="minimal-table">
+                    <thead>
+                        <tr>
+                            <th>Posición</th>
+                            <th>Unidad de Negocio</th>
+                            <th>Modelo</th>
+                            <th>Importe</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in pricing.items %}
+                        <tr>
+                            <td>
+                                <div>
+                                    <p class="font-medium">{{ item.vacancy.title }}</p>
+                                    <p class="text-xs text-gray-500">{{ item.vacancy.location|default:'Ubicación flexible' }}</p>
+                                </div>
+                            </td>
+                            <td class="text-center">
+                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium 
+                                    {% if item.vacancy.business_unit.name == 'huntRED Executive' %}
+                                        bg-red-100 text-red-800
+                                    {% elif item.vacancy.business_unit.name == 'huntRED' %}
+                                        bg-blue-100 text-blue-800
+                                    {% elif item.vacancy.business_unit.name == 'huntU' %}
+                                        bg-purple-100 text-purple-800
+                                    {% elif item.vacancy.business_unit.name == 'Amigro' %}
+                                        bg-green-100 text-green-800
+                                    {% else %}
+                                        bg-gray-100 text-gray-800
+                                    {% endif %}">
+                                    {{ item.vacancy.business_unit.name }}
+                                </span>
+                            </td>
+                            <td class="text-center">
+                                <span class="inline-flex items-center px-3 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                                    {{ item.model_type }}
+                                </span>
+                            </td>
+                            <td class="text-right font-medium">{{ pricing.currency }} {{ item.total|floatformat:"2" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Términos y Condiciones -->
+        <section class="mb-12 page-break">
+            <h2 class="section-title">4. Términos y Condiciones</h2>
+            <div class="divider"></div>
+            
+            <div class="bg-white rounded-lg p-6 shadow-sm">
+                {% if show_offlimits or show_guarantee %}
+                <div class="mb-6 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded">
+                    <h3 class="text-lg font-semibold text-yellow-800 mb-2">Políticas de Off Limits y Garantía</h3>
+                    
+                    {% if show_offlimits %}
+                    <div class="mb-3 text-sm text-gray-700">
+                        <strong>Política de Off Limits:</strong> Como parte de nuestro compromiso ético y profesional, 
+                        Grupo huntRED® aplica una política de Off Limits para todos los servicios de reclutamiento 
+                        sujetos a esta condición. Esto significa que, durante el periodo comprendido entre el inicio 
+                        del servicio ({{ offlimits_start|date:"d/m/Y" }}) y el <strong>{{ offlimits_end|date:"d/m/Y" }}</strong>, 
+                        <strong>{{ company.name }}</strong> estará protegido ante la búsqueda activa de talento por parte 
+                        de otros clientes en la unidad de negocio <strong>{{ business_unit }}</strong> y modalidad 
+                        <strong>{{ service_type }}</strong>. Esta restricción no aplica si un candidato inicia el proceso 
+                        de manera voluntaria. La política es válida únicamente si los servicios contratados están 
+                        cubiertos al 100% conforme a lo pactado.
+                    </div>
+                    {% endif %}
+                    
+                    {% if show_guarantee %}
+                    <div class="text-sm text-gray-700">
+                        <strong>Política de Garantía:</strong> {{ guarantee_text|default:"Ofrecemos garantía de reemplazo sin costo adicional en caso de que el candidato contratado no cumpla con las expectativas establecidas." }}
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+                
+                <div class="text-sm text-gray-700 space-y-3">
+                    <p><strong>1. Alcance del Servicio:</strong> Los servicios incluyen búsqueda, evaluación, presentación de candidatos y seguimiento durante el proceso de integración.</p>
+                    <p><strong>2. Confidencialidad:</strong> Toda la información compartida será tratada con absoluta confidencialidad.</p>
+                    <p><strong>3. Pagos:</strong> Los pagos se realizarán según los hitos establecidos en esta propuesta.</p>
+                    <p><strong>4. Garantía:</strong> Ofrecemos garantía de reemplazo sin costo adicional según los términos establecidos.</p>
+                    <p><strong>5. Exclusividad:</strong> Durante el período de Off Limits, no realizaremos búsquedas activas para otros clientes en la misma empresa.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Firma y Aceptación -->
+        <section class="mb-12 page-break">
+            <h2 class="section-title">5. Firma y Aceptación</h2>
+            <div class="divider"></div>
+            
+            <div class="bg-white rounded-lg p-6 shadow-sm">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div>
+                        <h3 class="font-semibold text-gray-800 mb-4">Cliente</h3>
+                        <div class="space-y-3">
+                            <p><strong>Empresa:</strong> {{ client.name }}</p>
+                            <p><strong>Representante:</strong> {{ client.contact_name|default:"Por definir" }}</p>
+                            <p><strong>Cargo:</strong> {{ client.contact_position|default:"Por definir" }}</p>
+                            <p><strong>Email:</strong> {{ client.contact_email|default:"Por definir" }}</p>
+                        </div>
+                        <div class="mt-6 pt-4 border-t">
+                            <p class="text-sm text-gray-600">Firma:</p>
+                            <div class="h-20 border-2 border-dashed border-gray-300 rounded mt-2"></div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h3 class="font-semibold text-gray-800 mb-4">Grupo huntRED®</h3>
+                        <div class="space-y-3">
+                            <p><strong>Empresa:</strong> Grupo huntRED®</p>
+                            <p><strong>Representante:</strong> {{ company.account_manager|default:"Equipo huntRED" }}</p>
+                            <p><strong>Email:</strong> {{ company.email|default:"contacto@huntred.com" }}</p>
+                            <p><strong>Teléfono:</strong> {{ company.phone|default:"+52 55 1234 5678" }}</p>
+                        </div>
+                        <div class="mt-6 pt-4 border-t">
+                            <p class="text-sm text-gray-600">Firma:</p>
+                            <div class="h-20 border-2 border-dashed border-gray-300 rounded mt-2"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-8 p-4 bg-gray-50 rounded-lg">
+                    <p class="text-sm text-gray-700">
+                        <strong>Fecha de aceptación:</strong> _________________<br>
+                        <strong>Vigencia:</strong> Esta propuesta es válida hasta {{ proposal.valid_until|date:"d/m/Y" }}
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="bg-white border-t border-gray-200 mt-12 py-8">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="md:flex md:items-center md:justify-between">
+                    <div class="text-center md:text-left mb-4 md:mb-0">
+                        <p class="text-sm text-gray-600">
+                            {{ client.name }} - Grupo huntRED® a través de {{ company.name }}
+                        </p>
+                    </div>
+                    <div class="flex justify-center space-x-6">
+                        <a href="https://www.facebook.com/grupohuntred" target="_blank" class="text-gray-400 hover:text-gray-600 transition-colors">
+                            <span class="sr-only">Facebook</span>
+                            <i class="fab fa-facebook text-xl"></i>
+                        </a>
+                        <a href="https://www.linkedin.com/company/grupohuntred/" target="_blank" class="text-gray-400 hover:text-gray-600 transition-colors">
+                            <span class="sr-only">LinkedIn</span>
+                            <i class="fab fa-linkedin text-xl"></i>
+                        </a>
+                        <a href="https://www.instagram.com/grupohuntred/" target="_blank" class="text-gray-400 hover:text-gray-600 transition-colors">
+                            <span class="sr-only">Instagram</span>
+                            <i class="fab fa-instagram text-xl"></i>
+                        </a>
+                    </div>
+                    <div class="mt-4 md:mt-0 text-center md:text-right">
+                        <p class="text-xs text-gray-500">
+                            &copy; {{ now|date:"Y" }} Grupo huntRED®. Todos los derechos reservados.
+                            <br class="sm:hidden">
+                            <a href="https://huntred.com/aviso-de-privacidad/" target="_blank" class="hover:underline text-gray-600 hover:text-gray-900 transition-colors">Aviso de Privacidad</a> | 
+                            <a href="https://huntred.com/terminos-y-condiciones/" target="_blank" class="hover:underline text-gray-600 hover:text-gray-900 transition-colors">Términos del Servicio</a>
+                        </p>
+                    </div>
+                </div>
+                <div class="mt-4 text-center">
+                    <span class="page-number text-xs text-gray-400"></span>
+                </div>
+            </div>
+        </footer>
+
+        <!-- Print footer -->
+        <div class="print-footer">
+            <div class="print-footer-content">
+                <div class="print-company-info">
+                    <span class="font-medium">Grupo huntRED®</span>
+                    {% if company and company.name %}
+                        - {{ company.name }}
+                    {% endif %}
+                    {% if company and company.phone or company and company.email %}|{% endif %}
+                    {% if company and company.phone %}
+                        {{ company.phone }}
+                    {% endif %}
+                    {% if company and company.email and company.phone %}|{% endif %}
+                    {% if company and company.email %}
+                        {{ company.email }}
+                    {% endif %}
+                </div>
+                <div class="print-page-info">
+                    Página <span class="page-number"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Print-specific styles -->
+    <style>
+        @media print {
+            @page {
+                size: A4;
+                margin: 1cm 1cm 1.5cm 1cm;
+            }
+
+            .print-footer {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                background: white;
+                border-top: 1px solid #e5e7eb;
+                padding: 8px 15px;
+                font-size: 10px;
+                color: #6b7280;
+                z-index: 1000;
+                width: 100%;
+                max-width: none;
+            }
+
+            .print-footer-content {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                max-width: 100%;
+                margin: 0 auto;
+            }
+
+            body {
+                padding: 0.5cm 0.5cm 1cm 0.5cm !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                margin: 0 auto !important;
+            }
+            
+            .container {
+                width: 100% !important;
+                max-width: 100% !important;
+                padding: 0 0.5cm !important;
+                margin: 0 !important;
+            }
+
+            * {
+                -webkit-print-color-adjust: exact !important;
+                color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            .page-break {
+                page-break-before: always;
+                break-before: page;
+            }
+
+            .avoid-break-inside {
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
+
+            img {
+                max-width: 100% !important;
+                height: auto !important;
+            }
+            
+            table, .grid, .grid > * {
+                width: 100% !important;
+                max-width: 100% !important;
+                table-layout: fixed;
+            }
+            
+            h1, h2, h3, h4, h5, h6, 
+            .section, .section-divider, 
+            .avoid-break-inside {
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
+        }
+    </style>
+
+    <script>
+        // Actualizar números de página
+        function updatePageNumbers() {
+            const pageNumbers = document.querySelectorAll('.page-number');
+            pageNumbers.forEach((el, index) => {
+                el.textContent = index + 1;
+            });
+        }
+        
+        updatePageNumbers();
+        window.addEventListener('afterprint', updatePageNumbers);
+        
+        console.log('Propuesta inicializada correctamente');
+    </script>
+</body>
+</html> 

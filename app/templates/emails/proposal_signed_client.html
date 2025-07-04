@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Propuesta Firmada - Grupo huntRED®</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background: linear-gradient(135deg, #1f3544 0%, #ff3300 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            border-radius: 10px 10px 0 0;
+        }
+        .content {
+            background: #f9f9f9;
+            padding: 30px;
+            border-radius: 0 0 10px 10px;
+        }
+        .highlight {
+            background: #e8f4fd;
+            border-left: 4px solid #3b82f6;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .button {
+            display: inline-block;
+            background: #ff3300;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            color: #666;
+            font-size: 12px;
+        }
+        .signature-info {
+            background: #f0f9ff;
+            border: 1px solid #0ea5e9;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>✅ Propuesta Firmada Exitosamente</h1>
+        <p>Grupo huntRED® - Servicios de Reclutamiento y Selección</p>
+    </div>
+    
+    <div class="content">
+        <h2>Estimado/a {{ client_name }},</h2>
+        
+        <p>Nos complace informarle que su propuesta de servicios de reclutamiento y selección ha sido <strong>firmada exitosamente</strong> y está lista para comenzar.</p>
+        
+        <div class="highlight">
+            <h3>📋 Detalles de la Propuesta</h3>
+            <ul>
+                <li><strong>ID de Propuesta:</strong> #{{ proposal_id }}</li>
+                <li><strong>Fecha de Firma:</strong> {{ signed_date }}</li>
+                <li><strong>Inversión Total:</strong> ${{ total_amount|floatformat:2 }}</li>
+                <li><strong>Servicios Incluidos:</strong> {{ services|length }} módulos</li>
+            </ul>
+        </div>
+        
+        <div class="signature-info">
+            <h4>🔐 Certificación Digital</h4>
+            <p>Esta propuesta ha sido firmada digitalmente con tecnología blockchain y validación biométrica, garantizando su validez legal y trazabilidad completa.</p>
+            <ul>
+                <li>✅ Firma digital certificada</li>
+                <li>✅ Sello de tiempo oficial</li>
+                <li>✅ Validación biométrica</li>
+                <li>✅ Respaldo blockchain</li>
+            </ul>
+        </div>
+        
+        <h3>🚀 Próximos Pasos</h3>
+        <ol>
+            <li><strong>Confirmación del Equipo:</strong> Nuestro equipo de consultores se pondrá en contacto en las próximas 24 horas para coordinar el inicio del proyecto.</li>
+            <li><strong>Kick-off Meeting:</strong> Programaremos una reunión inicial para alinear expectativas y definir el cronograma detallado.</li>
+            <li><strong>Inicio de Proceso:</strong> Comenzaremos inmediatamente con la fase de análisis y búsqueda de candidatos.</li>
+        </ol>
+        
+        <h3>📞 Contacto Directo</h3>
+        <p>Para cualquier consulta o urgencia, puede contactarnos directamente:</p>
+        <ul>
+            <li><strong>Pablo Lelo de Larrea H.</strong> - Sr. Managing Partner</li>
+            <li><strong>Email:</strong> pablo@huntred.com</li>
+            <li><strong>WhatsApp:</strong> +52 55 1234 5678</li>
+        </ul>
+        
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="{{ pdf_url }}" class="button">📄 Descargar Propuesta Firmada</a>
+        </div>
+        
+        <div class="highlight">
+            <h4>💡 ¿Sabía que...?</h4>
+            <p>Con nuestra tecnología AURA®, podemos identificar candidatos con hasta un <strong>40% mayor probabilidad de éxito</strong> en su organización, basándonos en análisis predictivo de redes profesionales y compatibilidad cultural.</p>
+        </div>
+    </div>
+    
+    <div class="footer">
+        <p><strong>Grupo huntRED®</strong> - Transformando el Reclutamiento con IA</p>
+        <p>Este es un email automático generado por nuestro sistema de firma digital.</p>
+        <p>Si tiene alguna pregunta, no dude en contactarnos.</p>
+    </div>
+</body>
+</html> 

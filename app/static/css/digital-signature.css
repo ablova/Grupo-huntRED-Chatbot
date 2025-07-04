@@ -1,0 +1,381 @@
+/* Estilos para el Sistema de Firma Digital huntRED® */
+
+.signature-pad-container {
+    position: relative;
+    border: 2px dashed #d1d5db;
+    border-radius: 8px;
+    background: #f9fafb;
+    transition: all 0.3s ease;
+    cursor: crosshair;
+}
+
+.signature-pad-container:hover {
+    border-color: #3b82f6;
+    background: #f0f9ff;
+}
+
+.signature-pad-container.has-signature {
+    border-color: #10b981;
+    background: #f0fdf4;
+}
+
+.signature-pad-container canvas {
+    width: 100%;
+    height: 100%;
+    border-radius: 6px;
+}
+
+.signature-status {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    color: white;
+    transition: all 0.3s ease;
+}
+
+.signature-status.pending {
+    background: #f59e0b;
+}
+
+.signature-status.valid {
+    background: #10b981;
+}
+
+.signature-status.invalid {
+    background: #ef4444;
+}
+
+.signature-controls {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.signature-btn {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.signature-btn.clear {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+.signature-btn.clear:hover {
+    background: #e5e7eb;
+    color: #374151;
+}
+
+.signature-btn.save {
+    background: #3b82f6;
+    color: white;
+}
+
+.signature-btn.save:hover {
+    background: #2563eb;
+}
+
+.signature-btn.save:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+}
+
+/* Modal de firma */
+.signature-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+}
+
+.signature-modal.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.signature-modal-content {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    max-width: 600px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    transform: scale(0.9);
+    transition: transform 0.3s ease;
+}
+
+.signature-modal.active .signature-modal-content {
+    transform: scale(1);
+}
+
+/* Animaciones para el proceso de firma */
+.signature-processing {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+.signature-success {
+    animation: bounce 0.6s ease;
+}
+
+@keyframes bounce {
+    0%, 20%, 53%, 80%, 100% {
+        transform: translate3d(0, 0, 0);
+    }
+    40%, 43% {
+        transform: translate3d(0, -30px, 0);
+    }
+    70% {
+        transform: translate3d(0, -15px, 0);
+    }
+    90% {
+        transform: translate3d(0, -4px, 0);
+    }
+}
+
+/* Estilos para el resumen de propuesta */
+.proposal-summary {
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 20px;
+    margin: 20px 0;
+}
+
+.proposal-summary h3 {
+    color: #1e293b;
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.proposal-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.proposal-summary-item {
+    background: white;
+    padding: 12px;
+    border-radius: 8px;
+    border-left: 4px solid #3b82f6;
+}
+
+.proposal-summary-item h4 {
+    font-size: 12px;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+
+.proposal-summary-item p {
+    font-size: 14px;
+    color: #1e293b;
+    font-weight: 500;
+}
+
+/* Estilos para el botón de guardar propuesta */
+.btn-save-proposal {
+    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 4px 6px -1px rgba(220, 38, 38, 0.1);
+}
+
+.btn-save-proposal:hover {
+    background: linear-gradient(135deg, #b91c1c 0%, #991b1b 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 8px -1px rgba(220, 38, 38, 0.2);
+}
+
+.btn-save-proposal:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.btn-save-proposal i {
+    transition: transform 0.2s ease;
+}
+
+.btn-save-proposal:hover i {
+    transform: scale(1.1);
+}
+
+/* Notificaciones */
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 12px 20px;
+    border-radius: 8px;
+    color: white;
+    font-weight: 500;
+    z-index: 1001;
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+}
+
+.notification.show {
+    transform: translateX(0);
+}
+
+.notification.success {
+    background: #10b981;
+}
+
+.notification.warning {
+    background: #f59e0b;
+}
+
+.notification.error {
+    background: #ef4444;
+}
+
+.notification.info {
+    background: #3b82f6;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .signature-modal-content {
+        width: 95%;
+        padding: 16px;
+    }
+    
+    .proposal-summary-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .signature-controls {
+        flex-direction: column;
+    }
+    
+    .btn-save-proposal {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* Estilos para el certificado digital */
+.digital-certificate {
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    border: 1px solid #0ea5e9;
+    border-radius: 8px;
+    padding: 12px;
+    margin-top: 12px;
+}
+
+.digital-certificate-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.digital-certificate-icon {
+    width: 20px;
+    height: 20px;
+    background: #0ea5e9;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 10px;
+}
+
+.digital-certificate-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: #0c4a6e;
+}
+
+.digital-certificate-details {
+    font-size: 10px;
+    color: #0369a1;
+    line-height: 1.4;
+}
+
+/* Estilos para el loading */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1002;
+}
+
+.loading-spinner {
+    width: 50px;
+    height: 50px;
+    border: 4px solid #f3f4f6;
+    border-top: 4px solid #3b82f6;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.loading-text {
+    color: white;
+    margin-top: 16px;
+    font-weight: 500;
+} 

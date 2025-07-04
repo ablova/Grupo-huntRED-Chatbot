@@ -1,3 +1,4 @@
+# app/ats/utils/monitoring/monitoring.py
 """
 Módulo de monitoreo para métricas y rendimiento.
 
@@ -19,37 +20,58 @@ logger = logging.getLogger(__name__)
 # Tipo genérico para funciones
 F = TypeVar('F', bound=Callable[..., Any])
 
-# Métricas de LinkedIn
-LINKEDIN_REQUESTS = Counter(
-    'linkedin_requests_total',
-    'Total de solicitudes a la API de LinkedIn',
-    ['endpoint', 'status']
-)
+# Métricas de LinkedIn (con verificación de duplicación)
+try:
+    LINKEDIN_REQUESTS = Counter(
+        'linkedin_requests_total',
+        'Total de solicitudes a la API de LinkedIn',
+        ['endpoint', 'status']
+    )
+except ValueError:
+    # Si ya existe, obtener la instancia existente
+    from prometheus_client import REGISTRY
+    LINKEDIN_REQUESTS = REGISTRY._names_to_collectors.get('linkedin_requests_total')
 
-LINKEDIN_LATENCY = Histogram(
-    'linkedin_request_latency_seconds',
-    'Latencia de las solicitudes a LinkedIn',
-    ['endpoint']
-)
+try:
+    LINKEDIN_LATENCY = Histogram(
+        'linkedin_request_latency_seconds',
+        'Latencia de las solicitudes a LinkedIn',
+        ['endpoint']
+    )
+except ValueError:
+    from prometheus_client import REGISTRY
+    LINKEDIN_LATENCY = REGISTRY._names_to_collectors.get('linkedin_request_latency_seconds')
 
-LINKEDIN_SCRAPE_DURATION = Histogram(
-    'linkedin_scrape_duration_seconds',
-    'Duración del scraping de perfiles de LinkedIn',
-    ['status']
-)
+try:
+    LINKEDIN_SCRAPE_DURATION = Histogram(
+        'linkedin_scrape_duration_seconds',
+        'Duración del scraping de perfiles de LinkedIn',
+        ['status']
+    )
+except ValueError:
+    from prometheus_client import REGISTRY
+    LINKEDIN_SCRAPE_DURATION = REGISTRY._names_to_collectors.get('linkedin_scrape_duration_seconds')
 
-# Métricas de la aplicación
-TASK_DURATION = Histogram(
-    'task_duration_seconds',
-    'Duración de las tareas en segundos',
-    ['task_name', 'status']
-)
+# Métricas de la aplicación (con verificación de duplicación)
+try:
+    TASK_DURATION = Histogram(
+        'task_duration_seconds',
+        'Duración de las tareas en segundos',
+        ['task_name', 'status']
+    )
+except ValueError:
+    from prometheus_client import REGISTRY
+    TASK_DURATION = REGISTRY._names_to_collectors.get('task_duration_seconds')
 
-TASKS_IN_PROGRESS = Gauge(
-    'tasks_in_progress',
-    'Número de tareas actualmente en progreso',
-    ['task_name']
-)
+try:
+    TASKS_IN_PROGRESS = Gauge(
+        'tasks_in_progress',
+        'Número de tareas actualmente en progreso',
+        ['task_name']
+    )
+except ValueError:
+    from prometheus_client import REGISTRY
+    TASKS_IN_PROGRESS = REGISTRY._names_to_collectors.get('tasks_in_progress')
 
 def monitor_task(task_name: str) -> Callable[[F], F]:
     """
@@ -194,7 +216,7 @@ from datetime import datetime, timedelta
 from celery import Celery
 from django.core.cache import cache
 from django.conf import settings
-from app.tasks import with_retry
+from app.ats.tasks.base import with_retry
 from celery import shared_task
 
 logger = logging.getLogger(__name__)

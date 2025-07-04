@@ -1,3 +1,4 @@
+# app/ats/chatbot/workflow/assessments/professional_dna/questions.py
 """
 Módulo de preguntas para la evaluación de personalidad avanzada.
 """
@@ -5,11 +6,35 @@ from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 from enum import Enum
 
+# ---------------------------------------------
+# NOTA IMPORTANTE SOBRE BusinessUnit:
+# ---------------------------------------------
+# Este archivo NO define BusinessUnit.
+# Para lógica de negocio y análisis, usa el Enum BusinessUnit
+# definido en: app/ats/chatbot/integrations/matchmaking/factors.py
+# Para operaciones de base de datos, usa el modelo BusinessUnit
+# definido en: app/models.py
+#
+# Ejemplo de importación del Enum:
+# from app.ats.chatbot.integrations.matchmaking.factors import BusinessUnit
+# ---------------------------------------------
+
 class QuestionType(Enum):
     RATING = "rating"
     MULTIPLE_CHOICE = "multiple_choice"
     BOOLEAN = "boolean"
     TEXT = "text"
+
+class QuestionCategory(Enum):
+    """Categorías de preguntas para el análisis Professional DNA."""
+    LEADERSHIP = "leadership"
+    INNOVATION = "innovation"
+    COMMUNICATION = "communication"
+    RESILIENCE = "resilience"
+    RESULTS = "results"
+    PERSONALITY = "personality"
+    DERAILERS = "derailers"
+    VALUES = "values"
 
 @dataclass
 class Question:
@@ -17,8 +42,12 @@ class Question:
     text: str
     type: QuestionType
     weight: float
-    options: Optional[List[Dict[str, Any]]] = None
+    options: Optional[List[Any]] = None  # Puede ser List[Dict[str, Any]] o List[str]
     max_selections: Optional[int] = None
+    category: Optional[QuestionCategory] = None
+    weights: Optional[Dict[str, float]] = None
+    difficulty_level: Optional[str] = None
+    dimensions: Optional[List[str]] = None
 
 class PersonalityQuestions:
     """Clase para gestionar las preguntas de personalidad."""
@@ -264,7 +293,7 @@ class AdvancedAssessmentQuestions:
         self.derailers = DerailerQuestions()
         self.values = ValueQuestions()
     
-    def get_all_questions(self) -> Dict[str, List[Question]]:
+    def get_all_questions(self) -> Dict[str, Any]:
         """Obtiene todas las preguntas organizadas por categoría."""
         return {
             'personality': {

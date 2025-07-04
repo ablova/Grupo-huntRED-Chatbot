@@ -1,13 +1,13 @@
-# /home/pablo/app/com/chatbot/workflow/assessments/professional_dna/analysis.py
+# app/ats/chatbot/workflow/assessments/professional_dna/analysis.py
 """
 Análisis de resultados de la evaluación Professional DNA
 """
 from typing import Dict, List, Optional, Tuple, Set
 from dataclasses import dataclass
 from enum import Enum
+from app.ats.chatbot.integrations.matchmaking.factors import BusinessUnit
 from app.ats.chatbot.workflow.assessments.professional_dna.questions import (
     QuestionCategory,
-    BusinessUnit,
     Question
 )
 

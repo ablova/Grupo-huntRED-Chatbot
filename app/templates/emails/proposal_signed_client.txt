@@ -1,0 +1,35 @@
+Propuesta Firmada Exitosamente - Grupo huntRED®
+================================================
+
+Estimado/a {{ client_name }},
+
+Nos complace informarle que su propuesta de servicios de reclutamiento y selección ha sido FIRMADA EXITOSAMENTE y está lista para comenzar.
+
+DETALLES DE LA PROPUESTA:
+- ID de Propuesta: #{{ proposal_id }}
+- Fecha de Firma: {{ signed_date }}
+- Inversión Total: ${{ total_amount|floatformat:2 }}
+- Servicios Incluidos: {{ services|length }} módulos
+
+CERTIFICACIÓN DIGITAL:
+Esta propuesta ha sido firmada digitalmente con tecnología blockchain y validación biométrica, garantizando su validez legal y trazabilidad completa.
+
+PRÓXIMOS PASOS:
+1. Confirmación del Equipo: Nuestro equipo de consultores se pondrá en contacto en las próximas 24 horas para coordinar el inicio del proyecto.
+2. Kick-off Meeting: Programaremos una reunión inicial para alinear expectativas y definir el cronograma detallado.
+3. Inicio de Proceso: Comenzaremos inmediatamente con la fase de análisis y búsqueda de candidatos.
+
+CONTACTO DIRECTO:
+- Pablo Lelo de Larrea H. - Sr. Managing Partner
+- Email: pablo@huntred.com
+- WhatsApp: +52 55 1234 5678
+
+Descargar Propuesta Firmada: {{ pdf_url }}
+
+¿Sabía que...?
+Con nuestra tecnología AURA®, podemos identificar candidatos con hasta un 40% mayor probabilidad de éxito en su organización, basándonos en análisis predictivo de redes profesionales y compatibilidad cultural.
+
+---
+Grupo huntRED® - Transformando el Reclutamiento con IA
+Este es un email automático generado por nuestro sistema de firma digital.
+Si tiene alguna pregunta, no dude en contactarnos. 

@@ -10,6 +10,7 @@ from django.contrib.postgres.fields import ArrayField
 from django.db.models import JSONField
 from django.utils import timezone
 from django.utils.functional import cached_property
+from enum import Enum
 
 # Importar modelos culturales
 from django.core.validators import MinValueValidator, MaxValueValidator
@@ -6284,3 +6285,65 @@ def migrate_meta_verified_to_channels():
                 ig.meta_verified_since = bu.meta_verified_since
                 ig.meta_verified_badge_url = bu.meta_verified_badge_url
                 ig.save()
+
+class OffLimitsServiceType(Enum):
+    HUMAN = "humano"
+    HYBRID = "hibrido"
+    AI = "ai"
+
+class OffLimitsBusinessUnit(Enum):
+    EXECUTIVE = "huntRED_executive"
+    HUNTRED = "huntRED"
+    HUNTU = "huntU"
+    AMIGRO = "amigro"
+
+# Tabla de períodos en meses
+OFFLIMITS_PERIODS = {
+    (OffLimitsBusinessUnit.EXECUTIVE.value, OffLimitsServiceType.HUMAN.value): 12,
+    (OffLimitsBusinessUnit.EXECUTIVE.value, OffLimitsServiceType.HYBRID.value): 9,
+    (OffLimitsBusinessUnit.EXECUTIVE.value, OffLimitsServiceType.AI.value): 8,
+    (OffLimitsBusinessUnit.HUNTRED.value, OffLimitsServiceType.HUMAN.value): 12,
+    (OffLimitsBusinessUnit.HUNTRED.value, OffLimitsServiceType.HYBRID.value): 6,
+    (OffLimitsBusinessUnit.HUNTRED.value, OffLimitsServiceType.AI.value): 4,
+    (OffLimitsBusinessUnit.HUNTU.value, OffLimitsServiceType.AI.value): 4,
+    (OffLimitsBusinessUnit.AMIGRO.value, OffLimitsServiceType.AI.value): 3,
+}
+
+def calculate_offlimits_end_date(start_date, bu, service_type):
+    months = OFFLIMITS_PERIODS.get((bu, service_type), 0)
+    if months == 0:
+        return start_date
+    # Sumar meses a la fecha de inicio
+    year = start_date.year + ((start_date.month - 1 + months) // 12)
+    month = ((start_date.month - 1 + months) % 12) + 1
+    day = min(start_date.day, 28)  # Evitar problemas con meses cortos
+    return start_date.replace(year=year, month=month, day=day)
+
+class OffLimitsRestriction(models.Model):
+    company = models.ForeignKey('Company', on_delete=models.CASCADE, related_name='offlimits_restrictions')
+    business_unit = models.CharField(max_length=32, choices=[(tag.value, tag.name) for tag in OffLimitsBusinessUnit])
+    service_type = models.CharField(max_length=16, choices=[(tag.value, tag.name) for tag in OffLimitsServiceType])
+    # El periodo inicia con el inicio del servicio de reclutamiento
+    start_date = models.DateField(help_text="Fecha de inicio del servicio de reclutamiento (inicio del OffLimits)")
+    end_date = models.DateField()
+    process = models.ForeignKey('RecruitmentProcess', on_delete=models.CASCADE, related_name='offlimits_restrictions')
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Restricción OffLimits"
+        verbose_name_plural = "Restricciones OffLimits"
+        indexes = [
+            models.Index(fields=['company', 'business_unit', 'service_type', 'is_active']),
+            models.Index(fields=['end_date']),
+        ]
+        unique_together = ('company', 'business_unit', 'service_type', 'process')
+
+    def save(self, *args, **kwargs):
+        if not self.end_date:
+            self.end_date = calculate_offlimits_end_date(self.start_date, self.business_unit, self.service_type)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"OffLimits: {self.company} ({self.business_unit}, {self.service_type}) desde {self.start_date} hasta {self.end_date}"

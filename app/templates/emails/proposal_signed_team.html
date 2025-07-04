@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nueva Propuesta Firmada - huntRED®</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 700px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background: linear-gradient(135deg, #1f3544 0%, #ff3300 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            border-radius: 10px 10px 0 0;
+        }
+        .content {
+            background: #f9f9f9;
+            padding: 30px;
+            border-radius: 0 0 10px 10px;
+        }
+        .alert {
+            background: #fef3c7;
+            border: 1px solid #f59e0b;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .success {
+            background: #d1fae5;
+            border: 1px solid #10b981;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .info {
+            background: #dbeafe;
+            border: 1px solid #3b82f6;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .button {
+            display: inline-block;
+            background: #ff3300;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            color: #666;
+            font-size: 12px;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #3b82f6;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #1f3544;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎉 ¡Nueva Propuesta Firmada!</h1>
+        <p>Equipo huntRED® - Sistema de Notificaciones</p>
+    </div>
+    
+    <div class="content">
+        <div class="success">
+            <h3>✅ Propuesta Firmada Exitosamente</h3>
+            <p><strong>{{ client_name }}</strong> ha firmado la propuesta #{{ proposal_id }} por un valor de <strong>${{ total_amount|floatformat:2 }}</strong>.</p>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value">${{ total_amount|floatformat:0 }}</div>
+                <div class="stat-label">Valor Total</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ services|length }}</div>
+                <div class="stat-label">Servicios</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ contacts|length }}</div>
+                <div class="stat-label">Contactos</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ signed_date|date:"d/m" }}</div>
+                <div class="stat-label">Fecha</div>
+            </div>
+        </div>
+        
+        <div class="info">
+            <h4>📋 Detalles del Cliente</h4>
+            <ul>
+                <li><strong>Cliente:</strong> {{ client_name }}</li>
+                <li><strong>ID Propuesta:</strong> #{{ proposal_id }}</li>
+                <li><strong>Fecha de Firma:</strong> {{ signed_date }}</li>
+                <li><strong>Contactos:</strong> {{ contacts|join:", " }}</li>
+            </ul>
+        </div>
+        
+        <div class="info">
+            <h4>🛠️ Servicios Contratados</h4>
+            <ul>
+                {% for service in services %}
+                <li><strong>{{ service.name }}</strong> - ${{ service.price|floatformat:2 }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        
+        <div class="alert">
+            <h4>🚨 Acciones Requeridas</h4>
+            <ol>
+                <li><strong>Asignar Consultor:</strong> Designar el consultor principal para este proyecto</li>
+                <li><strong>Programar Kick-off:</strong> Coordinar reunión inicial con el cliente</li>
+                <li><strong>Configurar AURA:</strong> Inicializar análisis predictivo para el perfil requerido</li>
+                <li><strong>Crear Proyecto:</strong> Configurar el proyecto en el sistema interno</li>
+            </ol>
+        </div>
+        
+        <h3>📊 Métricas de Rendimiento</h3>
+        <ul>
+            <li><strong>Tiempo de Respuesta:</strong> {{ signed_date|timesince }} desde la creación</li>
+            <li><strong>Valor Promedio:</strong> ${{ total_amount|floatformat:2 }} (comparar con métricas del mes)</li>
+            <li><strong>Servicios Populares:</strong> {{ services|length }} módulos seleccionados</li>
+        </ul>
+        
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="{{ pdf_url }}" class="button">📄 Ver Propuesta Completa</a>
+        </div>
+        
+        <div class="info">
+            <h4>🔐 Información de Seguridad</h4>
+            <ul>
+                <li>✅ Firma digital validada biométricamente</li>
+                <li>✅ IP registrada: {{ ip_address }}</li>
+                <li>✅ Timestamp certificado: {{ signed_date }}</li>
+                <li>✅ Documento respaldado en blockchain</li>
+            </ul>
+        </div>
+        
+        <h3>📞 Contactos del Cliente</h3>
+        <ul>
+            {% for contact in contacts %}
+            <li><strong>Email:</strong> {{ contact }}</li>
+            {% endfor %}
+        </ul>
+        
+        <div class="alert">
+            <h4>💡 Recomendaciones AURA</h4>
+            <p>Basándonos en el perfil del cliente y los servicios contratados, AURA® recomienda:</p>
+            <ul>
+                <li>Priorizar búsqueda en redes profesionales específicas del sector</li>
+                <li>Utilizar análisis predictivo de compatibilidad cultural</li>
+                <li>Aplicar filtros de retención y éxito laboral</li>
+                <li>Considerar candidatos pasivos con alta probabilidad de respuesta</li>
+            </ul>
+        </div>
+    </div>
+    
+    <div class="footer">
+        <p><strong>Grupo huntRED®</strong> - Sistema de Notificaciones Automáticas</p>
+        <p>Este email fue generado automáticamente por nuestro sistema de firma digital.</p>
+        <p>Para más información, consulte el dashboard interno.</p>
+    </div>
+</body>
+</html> 

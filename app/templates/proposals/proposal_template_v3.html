@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Propuesta Comercial Grupo huntRED® - {{ client.name }}</title>
+    <link rel="stylesheet" href="/static/css/proposal-premium.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { font-family: 'Inter', Arial, sans-serif; background: #f7f9fb; color: #222; margin: 0; padding: 0; }
+        .container { max-width: 900px; margin: 0 auto; background: #fff; box-shadow: 0 2px 16px #e3e8ee; border-radius: 16px; padding: 48px 40px 40px 40px; }
+        .accent { color: #1f3544; }
+        .aura-hint { background: linear-gradient(90deg, #e0e7ff 0%, #f0fdfa 100%); border-left: 4px solid #6366f1; padding: 16px 24px; border-radius: 8px; margin: 32px 0; font-size: 1rem; color: #222; }
+        .section-title { font-size: 1.5rem; font-weight: 700; margin-top: 48px; margin-bottom: 16px; color: #1f3544; letter-spacing: -1px; }
+        .divider { height: 3px; width: 80px; background: linear-gradient(90deg, #1f3544, #ff3300); border-radius: 2px; margin: 24px 0; }
+        .minimal-table { width: 100%; border-collapse: collapse; margin: 24px 0; }
+        .minimal-table th, .minimal-table td { padding: 12px 16px; border-bottom: 1px solid #e5e7eb; text-align: left; }
+        .minimal-table th { background: #f7f9fb; color: #1f3544; font-weight: 600; }
+        .badge-offlimits { background: #ffe4e6; color: #b91c1c; border-radius: 6px; padding: 2px 10px; font-size: 0.95em; margin-left: 8px; }
+        .badge-guarantee { background: #e0f2fe; color: #0369a1; border-radius: 6px; padding: 2px 10px; font-size: 0.95em; margin-left: 8px; }
+        .signature-block { margin-top: 64px; padding: 32px 0 0 0; border-top: 1px solid #e5e7eb; text-align: center; }
+        .footer { text-align: center; color: #888; font-size: 13px; margin-top: 48px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Portada -->
+        <div style="text-align:center; margin-bottom: 48px;">
+            <img src="/static/images/logo-huntred.png" alt="Grupo huntRED®" style="height: 60px; margin-bottom: 16px;">
+            <h1 class="accent" style="font-size:2.2rem; font-weight:800; margin-bottom:8px;">Propuesta Comercial</h1>
+            <div style="font-size:1.1rem; color:#555;">{{ client.name }}<br>{{ proposal.created_at|date:"d/m/Y" }}</div>
+            <div style="margin-top:16px; color:#ff3300; font-weight:600;">HR-Tech | Talento | IA | Consultoría</div>
+        </div>
+        <!-- Tabla de Contenidos -->
+        <div style="margin-bottom:40px;">
+            <div class="section-title">Contenido</div>
+            <div class="divider"></div>
+            <ol style="color:#444; font-size:1.05rem; line-height:1.7;">
+                <li>Resumen Ejecutivo</li>
+                <li>Servicios Contratados y Alcance</li>
+                <li>Cronograma y Precios</li>
+                <li>Políticas de Exclusividad y Garantía</li>
+                <li>Términos y Condiciones</li>
+                <li>Anexos y Extras</li>
+                <li>Firma y Aceptación</li>
+            </ol>
+        </div>
+        <!-- Resumen Ejecutivo -->
+        <div class="section-title">1. Resumen Ejecutivo</div>
+        <div class="divider"></div>
+        <p>En Grupo huntRED® potenciamos la atracción y selección de talento con tecnología de vanguardia, experiencia consultiva y un enfoque ético y personalizado. Esta propuesta detalla el alcance, condiciones y beneficios de nuestro servicio para <b>{{ client.name }}</b>.</p>
+        <!-- Servicios Contratados y Alcance -->
+        <div class="section-title">2. Servicios Contratados y Alcance</div>
+        <div class="divider"></div>
+        <table class="minimal-table">
+            <thead>
+                <tr><th>Servicio</th><th>Unidad de Negocio</th><th>Inicio</th><th>OffLimits</th><th>Garantía</th></tr>
+            </thead>
+            <tbody>
+                {% for servicio in servicios %}
+                <tr>
+                    <td>{{ servicio.nombre }}</td>
+                    <td>{{ servicio.business_unit }}</td>
+                    <td>{{ servicio.inicio|date:"d/m/Y" }}</td>
+                    <td>
+                        {% if servicio.is_offlimits %}
+                            <span class="badge-offlimits">Off Limits hasta {{ servicio.offlimits_end|date:"d/m/Y" }}</span>
+                        {% else %}-{% endif %}
+                    </td>
+                    <td>
+                        {% if servicio.garantia %}
+                            <span class="badge-guarantee">{{ servicio.garantia }}</span>
+                        {% else %}-{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <!-- Hints de AURA -->
+        {% if not aura_contratado %}
+        <div class="aura-hint">
+            <b>¿Sabías que puedes potenciar tu proceso con <span style="color:#6366f1;">AURA</span>?</b><br>
+            IA para selección sin sesgos, matching predictivo y análisis avanzado de talento. <a href="#" style="color:#6366f1; text-decoration:underline;">Solicita una demo</a>.
+        </div>
+        {% endif %}
+        <!-- Cronograma y Precios -->
+        <div class="section-title">3. Cronograma y Precios</div>
+        <div class="divider"></div>
+        <table class="minimal-table">
+            <thead>
+                <tr><th>Etapa</th><th>Fecha Inicio</th><th>Fecha Fin</th><th>Responsable</th></tr>
+            </thead>
+            <tbody>
+                {% for etapa in cronograma %}
+                <tr>
+                    <td>{{ etapa.nombre }}</td>
+                    <td>{{ etapa.inicio|date:"d/m/Y" }}</td>
+                    <td>{{ etapa.fin|date:"d/m/Y" }}</td>
+                    <td>{{ etapa.responsable }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <div style="margin:24px 0; font-size:1.1rem; color:#1f3544;">
+            <b>Total inversión:</b> {{ pricing.total|floatformat:2 }} {{ pricing.currency }}
+        </div>
+        <!-- Políticas de Exclusividad y Garantía -->
+        <div class="section-title">4. Políticas de Exclusividad y Garantía</div>
+        <div class="divider"></div>
+        {% if show_offlimits %}
+        <div class="mb-2 text-xs text-gray-600">
+            <b>Política de Off Limits:</b> Durante el periodo comprendido entre el inicio del servicio ({{ offlimits_start|date:"d/m/Y" }}) y el <b>{{ offlimits_end|date:"d/m/Y" }}</b>, <b>{{ client.name }}</b> estará protegido ante la búsqueda activa de talento por parte de otros clientes en la unidad de negocio <b>{{ business_unit }}</b> y modalidad <b>{{ service_type }}</b>. Esta restricción no aplica si un candidato inicia el proceso de manera voluntaria. Válido solo si los servicios están cubiertos al 100% conforme a lo pactado.
+        </div>
+        {% endif %}
+        {% if show_guarantee %}
+        <div class="mb-2 text-xs text-gray-600">
+            <b>Garantía de Servicio:</b> Garantía de <b>{{ guarantee_period }}</b> bajo las siguientes condiciones: {{ guarantee_conditions }}. Aplica solo si los servicios están cubiertos al 100% conforme a lo pactado.
+        </div>
+        {% endif %}
+        <!-- Términos y Condiciones -->
+        <div class="section-title">5. Términos y Condiciones</div>
+        <div class="divider"></div>
+        <ul style="color:#444; font-size:1rem; line-height:1.7;">
+            <li>Todos los honorarios e importes deben ser abonados conforme a las condiciones pactadas.</li>
+            <li>La garantía y OffLimits solo aplican si el servicio está pagado al 100%.</li>
+            <li>El cliente debe notificar cualquier rescisión o terminación de contrato en un plazo de 7 días.</li>
+            <li>La confidencialidad y protección de datos están garantizadas conforme a la ley vigente.</li>
+            <li>Para condiciones especiales, anexos o acuerdos adicionales, consultar la sección correspondiente.</li>
+        </ul>
+        <!-- Anexos y Extras -->
+        <div class="section-title">6. Anexos y Extras</div>
+        <div class="divider"></div>
+        {% if anexos %}
+            {% for anexo in anexos %}
+                <div style="margin-bottom:16px;">
+                    <b>{{ anexo.titulo }}</b><br>
+                    <span style="color:#555;">{{ anexo.descripcion }}</span>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div style="color:#888;">No hay anexos adicionales.</div>
+        {% endif %}
+        <!-- Firma y Aceptación -->
+        <div class="section-title">7. Firma y Aceptación</div>
+        <div class="divider"></div>
+        <div class="signature-block">
+            <div style="margin-bottom:24px;">Al firmar, acepto los términos, condiciones y servicios descritos en esta propuesta.</div>
+            <div style="display:flex; justify-content:space-between; align-items:center; max-width:500px; margin:0 auto;">
+                <div>
+                    <div style="font-size:1rem; color:#1f3544; font-weight:600;">{{ client.primary_contact_name }}</div>
+                    <div style="font-size:0.95rem; color:#888;">{{ client.primary_contact_position }}</div>
+                </div>
+                <div style="width:180px; border-bottom:1px solid #bbb; height:32px;"></div>
+                <div>
+                    <div style="font-size:1rem; color:#1f3544; font-weight:600;">Fecha:</div>
+                    <div style="width:120px; border-bottom:1px solid #bbb; height:32px;"></div>
+                </div>
+            </div>
+        </div>
+        <div class="footer">
+            &copy; {{ now|date:"Y" }} Grupo huntRED®. HR-Tech | Talento | IA | Consultoría
+        </div>
+    </div>
+</body>
+</html> 

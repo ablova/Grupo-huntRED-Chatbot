@@ -19,6 +19,7 @@ from .views import (
     OnboardingCreateView,
     OnboardingUpdateView
 )
+from .views.proposal_signature import process_proposal_signature, get_proposal_signature_status
 
 app_name = 'ats'
 
@@ -28,6 +29,10 @@ urlpatterns = [
     path('proposals/<uuid:pk>/', ProposalDetailView.as_view(), name='proposal_detail'),
     path('proposals/create/', ProposalCreateView.as_view(), name='proposal_create'),
     path('proposals/<uuid:pk>/update/', ProposalUpdateView.as_view(), name='proposal_update'),
+    
+    # 🔐 FIRMA DIGITAL DE PROPUESTAS
+    path('api/proposals/sign/', process_proposal_signature, name='proposal_signature'),
+    path('api/proposals/<int:proposal_id>/signature-status/', get_proposal_signature_status, name='proposal_signature_status'),
     
     # Entrevistas
     path('interviews/', InterviewListView.as_view(), name='interview_list'),

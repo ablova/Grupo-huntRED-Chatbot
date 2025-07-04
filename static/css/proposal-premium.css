@@ -3,11 +3,12 @@
 /* Variables CSS para temas */
 :root {
     --hunt-red: #E53E3E;
-    --hunt-blue: #1F3548;
+    --hunt-blue: #1F3544;
     --hunt-gold: #FFD700;
     --primary-color: var(--hunt-red);
     --secondary-color: var(--hunt-blue);
     --accent-color: var(--hunt-gold);
+    --footer-height: 50px;
 }
 
 /* Tema Profesional */
@@ -808,4 +809,390 @@
 @keyframes loading {
     0% { background-position: 200% 0; }
     100% { background-position: -200% 0; }
+}
+
+/* Estilos para propuestas premium */
+:root {
+    --hunt-blue: #1f3544;
+    --hunt-red: #ff3300;
+}
+
+/* Estilos para acordeones */
+.accordion-content {
+    transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out, padding 0.3s ease-in-out;
+    opacity: 0;
+    max-height: 0;
+    overflow: hidden;
+    padding: 0 1.25rem;
+    margin: 0;
+}
+
+.accordion-header[aria-expanded="true"] + .accordion-content {
+    opacity: 1;
+    padding: 0 1.25rem 1.25rem;
+    transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out 0.1s, padding 0.3s ease-in-out;
+}
+
+.accordion-header {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.accordion-header:focus {
+    outline: 2px solid var(--hunt-blue);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+}
+
+.accordion-header:hover {
+    background-color: #f8fafc !important;
+}
+
+.accordion-header[aria-expanded="true"] {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    border-left: 3px solid var(--hunt-blue);
+}
+
+/* Estilos para impresión */
+@media print {
+    .accordion-content {
+        max-height: none !important;
+        opacity: 1 !important;
+        display: block !important;
+        overflow: visible !important;
+        padding: 0 1.25rem 1.25rem !important;
+    }
+    
+    .accordion-header {
+        page-break-after: avoid;
+        background-color: #f8fafc !important;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+    }
+    
+    .accordion-content {
+        page-break-inside: avoid;
+    }
+    
+    .accordion-header i.fa-chevron-down {
+        display: none !important;
+    }
+}
+
+/* Mejoras de rendimiento */
+.accordion-content * {
+    will-change: transform, opacity;
+}
+
+/* Soporte para modo oscuro */
+@media (prefers-color-scheme: dark) {
+    .accordion-header {
+        background-color: #1f2937 !important;
+        color: #f9fafb !important;
+    }
+    
+    .accordion-content {
+        background-color: #111827 !important;
+        color: #f9fafb !important;
+    }
+}
+
+/* Estilos adicionales para propuestas */
+.proposal-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+    background: #f4f4f4;
+    box-shadow: 0 0 20px rgba(70, 37, 37, 0.1);
+    min-height: 100vh;
+    position: relative;
+}
+
+.proposal-header {
+    background: linear-gradient(135deg, var(--hunt-blue) 0%, #2c5282 100%);
+    color: white;
+    padding: 2rem;
+    border-radius: 10px;
+    margin-bottom: 2rem;
+}
+
+.proposal-section {
+    background: white;
+    padding: 2rem;
+    border-radius: 10px;
+    margin-bottom: 2rem;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.proposal-footer {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    max-width: 1200px;
+    background: #fff;
+    padding: 1rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: #666;
+    border-top: 1px solid #ddd;
+}
+
+/* Estilos para botones */
+.btn-primary {
+    background: var(--hunt-blue);
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.btn-primary:hover {
+    background: #2c5282;
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
+}
+
+/* Estilos para tablas */
+.proposal-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+}
+
+.proposal-table th,
+.proposal-table td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+.proposal-table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+}
+
+/* Estilos para listas */
+.proposal-list {
+    list-style: none;
+    padding: 0;
+}
+
+.proposal-list li {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #eee;
+}
+
+.proposal-list li:last-child {
+    border-bottom: none;
+}
+
+/* Estilos para badges */
+.badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 0.25rem;
+    text-transform: uppercase;
+}
+
+.badge-primary {
+    background-color: var(--hunt-blue);
+    color: white;
+}
+
+.badge-success {
+    background-color: #28a745;
+    color: white;
+}
+
+.badge-warning {
+    background-color: #ffc107;
+    color: #212529;
+}
+
+.badge-danger {
+    background-color: var(--hunt-red);
+    color: white;
+}
+
+/* Estilos para alertas */
+.alert {
+    padding: 1rem;
+    margin: 1rem 0;
+    border-radius: 5px;
+    border-left: 4px solid;
+}
+
+.alert-info {
+    background-color: #d1ecf1;
+    border-color: #17a2b8;
+    color: #0c5460;
+}
+
+.alert-success {
+    background-color: #d4edda;
+    border-color: #28a745;
+    color: #155724;
+}
+
+.alert-warning {
+    background-color: #fff3cd;
+    border-color: #ffc107;
+    color: #856404;
+}
+
+.alert-danger {
+    background-color: #f8d7da;
+    border-color: var(--hunt-red);
+    color: #721c24;
+}
+
+/* Estilos para formularios */
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: #333;
+}
+
+.form-control {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 1rem;
+    transition: border-color 0.3s ease;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--hunt-blue);
+    box-shadow: 0 0 0 3px rgba(31, 53, 68, 0.1);
+}
+
+/* Estilos para grid */
+.grid {
+    display: grid;
+    gap: 1rem;
+}
+
+.grid-2 {
+    grid-template-columns: repeat(2, 1fr);
+}
+
+.grid-3 {
+    grid-template-columns: repeat(3, 1fr);
+}
+
+.grid-4 {
+    grid-template-columns: repeat(4, 1fr);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .proposal-container {
+        padding: 1rem;
+    }
+    
+    .proposal-header {
+        padding: 1rem;
+    }
+    
+    .proposal-section {
+        padding: 1rem;
+    }
+    
+    .grid-2,
+    .grid-3,
+    .grid-4 {
+        grid-template-columns: 1fr;
+    }
+    
+    .proposal-footer {
+        flex-direction: column;
+        text-align: center;
+        gap: 0.5rem;
+    }
+}
+
+/* Estilos para animaciones */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.fade-in {
+    animation: fadeIn 0.5s ease-out;
+}
+
+/* Estilos para tooltips */
+.tooltip {
+    position: relative;
+    display: inline-block;
+}
+
+.tooltip .tooltiptext {
+    visibility: hidden;
+    width: 200px;
+    background-color: #333;
+    color: white;
+    text-align: center;
+    border-radius: 6px;
+    padding: 5px;
+    position: absolute;
+    z-index: 1;
+    bottom: 125%;
+    left: 50%;
+    margin-left: -100px;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.tooltip:hover .tooltiptext {
+    visibility: visible;
+    opacity: 1;
+}
+
+/* Estilos para loading */
+.loading {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid var(--hunt-blue);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }

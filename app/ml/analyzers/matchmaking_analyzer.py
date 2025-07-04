@@ -1,3 +1,4 @@
+# app/ml/analyzers/matchmaking_analyzer.py
 """
 Analizador de matchmaking.
 Integra múltiples fuentes de datos para un matching más preciso.
@@ -7,12 +8,14 @@ import logging
 from datetime import datetime
 
 from app.ml.core.models.matchmaking.factors_model import FactorsMatchmakingModel
-from app.ats.utils.cv_generator.cv_analyzer import CVAnalyzer
-from app.ats.integrations.channels.linkedin.profile_analyzer import LinkedInProfileAnalyzer
+
+
 from app.ats.chatbot.workflow.assessments.professional_dna.analysis import ProfessionalDNAAnalysis
 from app.ats.chatbot.workflow.assessments.personality.personality_workflow import PersonalityAssessment
 
 # Importar analizadores adicionales
+from app.ml.core.cv_analyzer import CVAnalyzer
+from app.ml.analyzers.linkedin_profile_analyzer import LinkedInProfileAnalyzer
 from app.ml.analyzers.personality_analyzer import PersonalityAnalyzer
 from app.ml.analyzers.cultural_analyzer import CulturalAnalyzer
 from app.ml.analyzers.professional_analyzer import ProfessionalAnalyzer
@@ -31,11 +34,11 @@ class MatchmakingAnalyzer:
         # Modelo base de matchmaking
         self.model = FactorsMatchmakingModel()
         
-        # Analizadores de fuentes externas
-        self.cv_analyzer = CVAnalyzer()
-        self.linkedin_analyzer = LinkedInProfileAnalyzer()
-        self.professional_dna = ProfessionalDNAAnalysis()
-        self.personality = PersonalityAssessment()
+        # Analizadores de fuentes externas (comentados temporalmente)
+        # self.cv_analyzer = CVAnalyzer()
+        # self.linkedin_analyzer = LinkedInProfileAnalyzer()
+        # self.professional_dna = ProfessionalDNAAnalysis()
+        # self.personality = PersonalityAssessment()
         
         # Analizadores especializados
         self.personality_analyzer = PersonalityAnalyzer()
@@ -65,15 +68,18 @@ class MatchmakingAnalyzer:
             Dict con resultados del análisis
         """
         try:
-            # 1. Análisis de fuentes externas
-            cv_insights = await self._analyze_cv(candidate_data)
-            linkedin_insights = await self._analyze_linkedin(candidate_data)
+            # 1. Análisis de fuentes externas (comentado temporalmente)
+            # cv_insights = await self._analyze_cv(candidate_data)
+            # linkedin_insights = await self._analyze_linkedin(candidate_data)
+            cv_insights = {}
+            linkedin_insights = {}
             
-            # 2. Análisis de assessments
-            assessment_insights = await self._analyze_assessments(
-                candidate_data,
-                business_unit
-            )
+            # 2. Análisis de assessments (comentado temporalmente)
+            # assessment_insights = await self._analyze_assessments(
+            #     candidate_data,
+            #     business_unit
+            # )
+            assessment_insights = {}
             
             # 3. Análisis especializado
             specialized_insights = await self._analyze_specialized(
@@ -113,11 +119,13 @@ class MatchmakingAnalyzer:
             
     async def _analyze_cv(self, candidate_data: Dict) -> Dict:
         """Analiza el CV del candidato."""
-        return await self.cv_analyzer.analyze(candidate_data['cv'])
+        # return await self.cv_analyzer.analyze(candidate_data['cv'])
+        return {}
         
     async def _analyze_linkedin(self, candidate_data: Dict) -> Dict:
         """Analiza el perfil de LinkedIn."""
-        return await self.linkedin_analyzer.analyze(candidate_data['linkedin_url'])
+        # return await self.linkedin_analyzer.analyze(candidate_data['linkedin_url'])
+        return {}
         
     async def _analyze_assessments(
         self,
@@ -125,18 +133,22 @@ class MatchmakingAnalyzer:
         business_unit: str
     ) -> Dict:
         """Analiza los assessments del candidato."""
-        professional_insights = await self.professional_dna.analyze(
-            candidate_data,
-            business_unit
-        )
+        # professional_insights = await self.professional_dna.analyze(
+        #     candidate_data,
+        #     business_unit
+        # )
         
-        personality_insights = await self.personality.analyze(
-            candidate_data
-        )
+        # personality_insights = await self.personality.analyze(
+        #     candidate_data
+        # )
         
+        # return {
+        #     'professional': professional_insights,
+        #     'personality': personality_insights
+        # }
         return {
-            'professional': professional_insights,
-            'personality': personality_insights
+            'professional': {},
+            'personality': {}
         }
         
     async def _analyze_specialized(

@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Propuesta Grupo hunt<span class="text-red">RED®</span> - {{ client.name }}</title>
+    <title>Propuesta de Prestacion de Servicios de Grupo hunt<span class="text-red">RED®</span> - {{ client.name }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Font Awesome para iconos -->
     <link rel="stylesheet" href="/static/css/proposal-premium.css">
+    <link rel="stylesheet" href="/static/css/digital-signature.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         :root {
@@ -848,11 +849,8 @@
                                     
                                     <div class="text-right">
                                         <div class="inline-block px-3 py-1 text-xs rounded-full" style="background-color: rgba(31, 53, 68, 0.1); color: var(--hunt-blue);">Tiempo promedio de colocación: 45-60 días</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                </div>
+            </div>
                     
                     <!-- huntRED -->
                     <div class="mb-10 bg-white rounded-lg shadow-sm overflow-hidden">
@@ -889,11 +887,8 @@
                                     <div class="text-right">
                                         <div class="inline-block px-3 py-1 text-xs rounded-full" style="background-color: rgba(31, 53, 68, 0.1); color: var(--hunt-blue);">Tiempo promedio de colocación: 30-45 días</div><br>
                                         <div class="inline-block px-3 py-1 text-xs rounded-full" style="background-color: rgba(31, 53, 68, 0.1); color: var(--hunt-blue);">Tiempo promedio de colocación con AI: 10-15 días</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                </div>
+            </div>
                     
                     <!-- huntU -->
                     <div class="mb-10 bg-white rounded-lg shadow-sm overflow-hidden">
@@ -962,11 +957,8 @@
                                     
                                     <div class="text-right">
                                         <div class="inline-block px-3 py-1 text-xs rounded-full" style="background-color: rgba(31, 53, 68, 0.1); color: var(--hunt-blue);">Tiempo promedio de colocación: 10-15 días</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                </div>
+            </div>
                     
                     <!-- Amigro -->
                     <div class="mb-10 bg-white rounded-lg shadow-sm overflow-hidden">
@@ -1037,11 +1029,8 @@
                                     <div class="flex justify-between items-center mt-4">
                                         <div class="text-xs text-gray-500">Operaciones en 6 países de Latinoamérica</div>
                                         <div class="inline-block px-3 py-1 text-xs rounded-full" style="background-color: rgba(31, 53, 68, 0.1); color: var(--hunt-blue);">Nuestro módelo más acelerado</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                </div>
+            </div>
                     
                     <!-- Gráfico de ML sobre contrataciones exitosas -->
                     <div class="mt-8 mb-4">
@@ -1061,8 +1050,8 @@
                             const ctx = document.getElementById('mlChart').getContext('2d');
                             const clientIndustry = '{{ client.industry }}';
                             
-                            // Divisiones de la empresa
-                            let industries = [
+                            // Divisiones de la empresa,
+let industries = [
                                 'Servicios Financieros', 
                                 'Legal', 
                                 'Energía', 
@@ -1076,27 +1065,27 @@
                             
                             // Tasas de éxito por industria (datos de ejemplo basados en estadísticas del sector)
                             let successRates = [
-                                96,  // Servicios Financieros
-                                92,  // Legal
-                                87,  // Energía
-                                93,  // Healthcare
-                                88,  // Ventas y Mercadotecnia
-                                94,  // Finanzas y Contabilidad
-                                86,  // Manufactura e Industria
-                                94,  // Tecnologías de la Información
-                                97   // Sustentabilidad
+                                96,  // Servicios Financieros,
+92,  // Legal,
+87,  // Energía,
+93,  // Healthcare,
+88,  // Ventas y Mercadotecnia,
+94,  // Finanzas y Contabilidad,
+86,  // Manufactura e Industria,
+94,  // Tecnologías de la Información,
+97   // Sustentabilidad
                             ];
                             
-                            // Si la industria del cliente no está en la lista, la agregamos
-                            if (clientIndustry && !industries.includes(clientIndustry)) {
+                            // Si la industria del cliente no está en la lista, la agregamos,
+if (clientIndustry && !industries.includes(clientIndustry)) {
                                 industries.push(clientIndustry);
-                                // Promedio de las tasas existentes para la nueva industria
-                                const averageRate = Math.round(successRates.reduce((a, b) => a + b, 0) / successRates.length);
+                                // Promedio de las tasas existentes para la nueva industria,
+const averageRate = Math.round(successRates.reduce((a, b) => a + b, 0) / successRates.length);
                                 successRates.push(averageRate);
                             }
                             
-                            // Encontrar el índice de la industria del cliente para resaltarla
-                            const clientIndustryIndex = industries.findIndex(ind => ind === clientIndustry);
+                            // Encontrar el índice de la industria del cliente para resaltarla,
+const clientIndustryIndex = industries.findIndex(ind => ind === clientIndustry);
                             const backgroundColors = industries.map((_, index) => 
                                 index === clientIndustryIndex 
                                     ? 'rgba(255, 51, 0, 0.9)'  // Rojo huntRED para la industria del cliente
@@ -1115,18 +1104,18 @@
                                 .filter(i => i !== clientIndustryIndex)
                                 .sort((a, b) => successRates[b] - successRates[a]);
                             
-                            // Reconstruir los arrays ordenados
-                            const sortedIndustries = [clientIndustry, ...sortedIndices.map(i => industries[i])];
+                            // Reconstruir los arrays ordenados,
+const sortedIndustries = [clientIndustry, ...sortedIndices.map(i => industries[i])];
                             const sortedSuccessRates = [successRates[clientIndustryIndex], ...sortedIndices.map(i => successRates[i])];
                             const sortedBackgroundColors = [backgroundColors[clientIndustryIndex], ...sortedIndices.map(i => backgroundColors[i])];
                             const sortedBorderColors = [borderColors[clientIndustryIndex], ...sortedIndices.map(i => borderColors[i])];
                             
-                            // Configuración de ancho de barras
-                            const barPercentage = 0.7; // Controla el ancho de las barras en relación con el ancho de categoría disponible
-                            const categoryPercentage = 0.8; // Controla el ancho de categoría en relación con el ancho total disponible
+                            // Configuración de ancho de barras,
+const barPercentage = 0.85; // Controla el ancho de las barras en relación con el ancho de categoría disponible,
+const categoryPercentage = 0.9; // Controla el ancho de categoría en relación con el ancho total disponible
                             
-                            // Configuración de sombras y efectos
-                            const shadowColor = 'rgba(0, 0, 0, 0.3)';
+                            // Configuración de sombras y efectos,
+const shadowColor = 'rgba(0, 0, 0, 0.3)';
                             const shadowBlur = 15;
                             const shadowOffsetX = 0;
                             const shadowOffsetY = 8;
@@ -1145,18 +1134,18 @@
                                         borderSkipped: false,
                                         barPercentage: barPercentage,
                                         categoryPercentage: categoryPercentage,
-                                        // Asegurar que solo la primera barra (la del cliente) sea más ancha
-                                        barThickness: (context) => {
+                                        // Asegurar que solo la primera barra (la del cliente) sea más ancha,
+barThickness: (context) => {
                                             return context.dataIndex === 0 ? 40 : 15; // Barra del cliente más ancha
                                         },
-                                        // Mejorar el efecto visual de la barra del cliente
-                                        shadowColor: (context) => context.dataIndex === 0 ? shadowColor : 'transparent',
+                                        // Mejorar el efecto visual de la barra del cliente,
+shadowColor: (context) => context.dataIndex === 0 ? shadowColor : 'transparent',
                                         shadowBlur: (context) => context.dataIndex === 0 ? shadowBlur : 0,
                                         shadowOffsetX: (context) => context.dataIndex === 0 ? shadowOffsetX : 0,
                                         shadowOffsetY: (context) => context.dataIndex === 0 ? shadowOffsetY : 0,
-                                        // Asegurar que el hover solo afecte a la barra del cliente
-                                        hoverBackgroundColor: (context) => 
-                                            context.dataIndex === 0 ? 'rgba(255, 51, 0, 1)' : 'rgba(31, 53, 68, 0.4)'
+                                        // Asegurar que el hover solo afecte a la barra del cliente,
+hoverBackgroundColor: (context) => 
+                                            context.dataIndex === 0 ? 'rgba(255, 51, 0, 1)' : 'rgba(31, 53, 68, 0.7)'
                                     }]
                                 },
                                 options: {
@@ -1193,9 +1182,9 @@
                                                     color: context.index === 0 ? '#1f3544' : '#4a5568'
                                                 }),
                                                 padding: 8,
-                                                // Asegurar que todas las etiquetas sean visibles
-                                                callback: (value, index) => {
-                                                    const label = this.getLabelForValue(value);
+                                                // Asegurar que todas las etiquetas sean visibles,
+callback: (value, index) => {
+                                                    const label = value;
                                                     return index === 0 ? `★ ${label} ★` : label;
                                                 }
                                             },
@@ -1209,8 +1198,8 @@
                                                 },
                                                 padding: {top: 20, bottom: 5}
                                             },
-                                            // Asegurar que las etiquetas no se corten
-                                            afterFit: function(axis) {
+                                            // Asegurar que las etiquetas no se corten,
+afterFit: function(axis) {
                                                 axis.paddingTop = 10;
                                             }
                                         }
@@ -1454,6 +1443,83 @@
                     </ul>
                     <div class="mt-4 pt-3 border-t border-orange-200 text-xs text-right text-orange-600 font-semibold">
                         <i class="fas fa-arrow-up mr-1"></i>Evaluación inteligente y adaptativa
+                    </div>
+                </div>
+                <!-- Evaluación Competencial -->
+                <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                    <div class="text-center mb-4">
+                            <i class="fas fa-clipboard-check text-4xl text-red-600"></i>
+                        <h3 class="text-xl font-bold text-gray-800 mt-2">Evaluación Competencial</h3>
+                    </div>
+                    <p class="text-sm text-gray-600 leading-relaxed">
+                        Módulo integral de evaluaciones que nos permite obtener una comprensión completa y profunda de cada candidato, su entorno, combinando análisis técnico y soft skills.
+                    </p>
+                    <ul class="mt-4 space-y-2">
+                        <li class="flex items-center text-sm text-gray-600">
+                            <i class="fas fa-check-circle text-red-500 mr-2"></i>
+                            Evaluación técnica, soft skills y fit cultural
+                        </li>
+                        <li class="flex items-center text-sm text-gray-600">
+                            <i class="fas fa-check-circle text-red-500 mr-2"></i>
+                            Análisis integral del candidato, área y organización
+                        </li>
+                        <li class="flex items-center text-sm text-gray-600">
+                            <i class="fas fa-check-circle text-red-500 mr-2"></i>
+                            Reportes detallados y personalizados y con plan de carrera
+                        </li>
+                    </ul>
+                    <div class="mt-4 pt-3 border-t border-gray-100 text-xs text-right text-red-600 font-semibold">
+                        <i class="fas fa-arrow-up mr-1"></i>Evaluación integral 
+                    </div>
+                </div>
+                <!-- Comunicación 360 -->
+                <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                    <div class="text-center mb-4">
+                            <i class="fas fa-envelopes-bulk text-4xl text-red-600"></i>
+                        <h3 class="text-xl font-bold text-gray-800 mt-2">Comunicación 360</h3>
+                    </div>
+                    <p class="text-sm text-gray-600 leading-relaxed">
+                        Comunicación multicanal automatizada que mantiene a todos los stakeholders informados y conectados, optimizando la gestión del proceso de reclutamiento, a lo largo de cada etapa del proceso de reclutamiento y selección.
+                    </p>
+                    <ul class="mt-4 space-y-2">
+                        <li class="flex items-center text-sm text-gray-600">
+                            <i class="fas fa-check-circle text-red-500 mr-2"></i>
+                            WhatsApp como canal principal
+                        </li>
+                        <li class="flex items-center text-sm text-gray-600">
+                            <i class="fas fa-check-circle text-red-500 mr-2"></i>
+                            Notificaciones push y email
+                        </li>
+                    </ul>
+                    <div class="mt-4 pt-3 border-t border-gray-100 text-xs text-right text-red-600 font-semibold">
+                        <i class="fas fa-arrow-up mr-1"></i>Comunicación 360° garantizada
+                    </div>
+                </div>
+                <!-- Onboarding & Followup -->
+                <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                    <div class="text-center mb-4">
+                            <i class="fas fa-user-plus text-4xl text-red-600"></i>
+                        <h3 class="text-xl font-bold text-gray-800 mt-2">Onboarding &amp; Followup</h3>
+                    </div>
+                    <p class="text-sm text-gray-600 leading-relaxed">
+                        Proceso de integración automatizado y personalizado que asegura una adaptación exitosa del nuevo colaborador, maximizando su productividad desde el primer día.
+                    </p>
+                    <ul class="mt-4 space-y-2">
+                        <li class="flex items-center text-sm text-gray-600">
+                            <i class="fas fa-check-circle text-red-500 mr-2"></i>
+                            Seguimiento paso a paso
+                        </li>
+                        <li class="flex items-center text-sm text-gray-600">
+                            <i class="fas fa-check-circle text-red-500 mr-2"></i>
+                            Check-ins automáticos
+                        </li>
+                        <li class="flex items-center text-sm text-gray-600">
+                            <i class="fas fa-check-circle text-red-500 mr-2"></i>
+                            Dashboard de seguimiento y control para el cliente
+                        </li>
+                    </ul>
+                    <div class="mt-4 pt-3 border-t border-gray-100 text-xs text-right text-red-600 font-semibold">
+                        <i class="fas fa-arrow-up mr-1"></i>Integración exitosa 
                     </div>
                 </div>
             </div>
@@ -1984,7 +2050,6 @@
                 </form>
             </div>
         </div>
-        
 
         <!-- Conocimiento del Cliente -->
         <section class="mb-12 page-break" style="padding-bottom: 20px;" name="Entendiendo su Negocio" aria-labelledby="business-knowledge">
@@ -2041,7 +2106,7 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- Análisis de Datos -->
                 <div class="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200 mb-6">
                     <div class="p-4 bg-gray-50 border-b border-gray-200">
@@ -2050,8 +2115,60 @@
                     <div class="p-5">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <!-- Gráfico o Visualización -->
-                            <div>
-                                <canvas id="talentMarketChart" height="200"></canvas>
+                            <div class="bg-white rounded-lg border border-gray-200 p-4">
+                                <canvas id="talentMarketChart" height="300"></canvas>
+                                <script>
+                                document.addEventListener('DOMContentLoaded', function() {
+                                    const ctx = document.getElementById('talentMarketChart').getContext('2d');
+                                    
+                                    new Chart(ctx, {
+                                        type: 'doughnut',
+                                        data: {
+                                            labels: ['Talentos Disponibles', 'Talentos Pasivos', 'Escasez Crítica', 'Oportunidades'],
+                                            datasets: [{
+                                                data: [35, 28, 27, 10],
+                                                backgroundColor: [
+                                                    'rgba(34, 197, 94, 0.8)',   // Verde para disponibles
+                                                    'rgba(59, 130, 246, 0.8)',  // Azul para pasivos
+                                                    'rgba(239, 68, 68, 0.8)',   // Rojo para escasez
+                                                    'rgba(168, 85, 247, 0.8)'   // Púrpura para oportunidades
+                                                ],
+                                                borderColor: [
+                                                    'rgba(34, 197, 94, 1)',
+                                                    'rgba(59, 130, 246, 1)',
+                                                    'rgba(239, 68, 68, 1)',
+                                                    'rgba(168, 85, 247, 1)'
+                                                ],
+                                                borderWidth: 2,
+                                                hoverOffset: 4
+                                            }]
+                                        },
+                                        options: {
+                                            responsive: true,
+                                            maintainAspectRatio: false,
+                                            plugins: {
+                                                legend: {
+                                                    position: 'bottom',
+                                                    labels: {
+                                                        padding: 20,
+                                                        usePointStyle: true,
+                                                        font: {
+                                                            size: 12
+                                                        }
+                                                    }
+                                                },
+                                                tooltip: {
+                                                    callbacks: {
+                                                        label: function(context) {
+                                                            return context.label + ': ' + context.parsed + '%';
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    });
+                                });
+                                </script>
                             </div>
                             
                             <!-- Insights -->
@@ -2068,8 +2185,6 @@
                                 </div>
                             </div>
                         </div>
-                    </div>
-                </div>
                 
                 <!-- Nuestro Enfoque Personalizado -->
                 <div class="bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg p-5 border border-gray-200">
@@ -2215,9 +2330,7 @@
                 </div>
             </div>
         </section>
-        
-        
-    
+
     <!-- Client Context & Opportunity Connection -->
     <section class="mb-10" style="padding-bottom: 20px;" name="Contexto y Relación" aria-labelledby="client-context">
         <div class="bg-gradient-to-r from-gray-50 to-white p-6 rounded-xl border border-gray-100 shadow-sm">
@@ -2361,7 +2474,6 @@
     <!-- Services & Pricing Section -->
     <!-- services_pricing.html -->
 <section class="mb-12 page-break print:mb-8" name="Servicios, Addons, Propuesta de Valor, ROI, Inversión en Talento Transformador" aria-labelledby="talent-investment">
-
 
     <!-- Hidden Form for Service Submission -->
     <form id="servicesForm" method="post" action="{% url 'proposals:save_proposal_services' %}">
@@ -2979,8 +3091,8 @@
         const currency = '{{ pricing.currency }}';
         const selectedServices = new Set();
         
-        // Load initial selected services from template
-        const selectedServiceIdsTemplate = document.getElementById('selectedServiceIdsTemplate');
+        // Load initial selected services from template,
+const selectedServiceIdsTemplate = document.getElementById('selectedServiceIdsTemplate');
         if (selectedServiceIdsTemplate) {
             const serviceIds = JSON.parse(selectedServiceIdsTemplate.textContent || '[]');
             serviceIds.forEach(serviceId => {
@@ -2992,8 +3104,8 @@
             });
         }
 
-        // Update services summary and ROI
-        function updateServicesSummary() {
+        // Update services summary and ROI,
+function updateServicesSummary() {
             const selectedCheckboxes = document.querySelectorAll('.service-checkbox:checked');
             let totalInvestment = 0;
             
@@ -3017,8 +3129,8 @@
                 `;
             }
 
-            // Calculate ROI if container exists
-            if (servicesRoiCalculation) {
+            // Calculate ROI if container exists,
+if (servicesRoiCalculation) {
                 const avgSalary = {% if pricing.items.0.salary_parameters.max %}{{ pricing.items.0.salary_parameters.max|escapejs }}{% else %}50000{% endif %};
                 const badHireCost = avgSalary * 5;
                 const roiPercentage = totalInvestment > 0 ? ((badHireCost - totalInvestment) / totalInvestment * 100).toFixed(2) : 0;
@@ -3035,15 +3147,15 @@
                 `;
             }
             
-            // Update the hidden input with selected services
-            const servicesInput = document.getElementById('selectedServices');
+            // Update the hidden input with selected services,
+const servicesInput = document.getElementById('selectedServices');
             if (servicesInput) {
                 servicesInput.value = JSON.stringify(Array.from(selectedServices));
             }
         }
 
-        // Update card visual state
-        function updateCardState(checkbox) {
+        // Update card visual state,
+function updateCardState(checkbox) {
             const card = checkbox.closest('.service-card');
             if (!card) return;
             
@@ -3096,8 +3208,8 @@
             });
         });
 
-        // Link "Editar" en resumen de contactos
-        const editContactsLink = document.getElementById('editContactsLink');
+        // Link "Editar" en resumen de contactos,
+const editContactsLink = document.getElementById('editContactsLink');
         if (editContactsLink) {
             editContactsLink.addEventListener('click', function(e) {
                 e.preventDefault();
@@ -3119,8 +3231,8 @@
             });
         }
 
-        // Event delegation for service checkboxes
-        if (servicesContainer) {
+        // Event delegation for service checkboxes,
+if (servicesContainer) {
             servicesContainer.addEventListener('change', (e) => {
                 if (e.target.classList.contains('service-checkbox')) {
                     updateCardState(e.target);
@@ -3129,8 +3241,8 @@
             });
         }
 
-        // Save services selection
-        if (saveServicesBtn) {
+        // Save services selection,
+if (saveServicesBtn) {
             saveServicesBtn.addEventListener('click', () => {
                 const form = document.getElementById('servicesForm');
                 if (!form) return;
@@ -3157,8 +3269,8 @@
             });
         }
 
-        // Show toast notification
-        function showToast(message, type = 'success') {
+        // Show toast notification,
+function showToast(message, type = 'success') {
             const toast = document.createElement('div');
             const iconClass = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';
             const bgColor = type === 'success' ? 'bg-green-500' : 'bg-red-500';
@@ -3176,19 +3288,17 @@
             }, 3000);
         }
 
-        // Inicialización de checkboxes
-        document.querySelectorAll('.service-checkbox').forEach(checkbox => {
+        // Inicialización de checkboxes,
+document.querySelectorAll('.service-checkbox').forEach(checkbox => {
             if (selectedServices.has(checkbox.value)) {
                 checkbox.checked = true;
                 updateCardState(checkbox);
             }
         });
-        // Inicialización de resumen
-        updateServicesSummary();
+        // Inicialización de resumen,
+updateServicesSummary();
     });
     </script>
-
-            </p>
                 <!-- Cronograma del Proceso -->
     <section class="mb-12 page-break" id="cronograma-proceso">
         <h2 class="text-2xl font-bold mb-4 accent-gradient">8. Cronograma del Proceso</h2>
@@ -3465,7 +3575,6 @@
             </div>
         </div>
     </section>
-    
 
     <!-- Preguntas Frecuentes -->
     <section class="mb-12 page-break" id="preguntas-frecuentes">
@@ -3569,18 +3678,63 @@
                 </div>
             </div>
             
-            <!-- Pregunta 3 -->
+            <!-- Pregunta 3 - OffLimits -->
             <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200">
                 <button class="accordion-header w-full text-left p-5 bg-gradient-to-r from-gray-50 to-white hover:from-gray-50 hover:to-gray-50 transition-all duration-200 flex justify-between items-center group" 
                         aria-expanded="false" 
                         aria-controls="faq-3">
+                    <span class="font-medium text-gray-800 text-lg group-hover:text-blue-600 transition-colors">
+                        <i class="fas fa-shield-alt text-red-500 mr-2"></i>
+                        ¿Qué es la política OffLimits™ y cómo me protege?
+                    </span>
+                    <i class="fas fa-chevron-down text-gray-400 group-aria-expanded:rotate-180 transition-transform duration-200"></i>
+                </button>
+                <div id="faq-3" class="accordion-content p-0 max-h-0 overflow-hidden transition-all duration-300 ease-in-out">
+                    <div class="p-5 pt-0 text-gray-700 bg-white border-t border-gray-100">
+                        <div class="bg-red-50 border-l-4 border-red-400 p-4 mb-4">
+                            <p class="font-medium text-red-800">OffLimits™ es nuestra exclusiva política de protección de exclusividad</p>
+                        </div>
+                        
+                        <p class="mb-4">Durante el periodo de servicio activo, <strong>{{ client.name }}</strong> estará protegido ante la búsqueda activa de talento por parte de otros clientes en la misma unidad de negocio y modalidad de servicio.</p>
+                        
+                        <div class="grid md:grid-cols-2 gap-4 mb-4">
+                            <div class="flex items-start">
+                                <i class="fas fa-lock text-red-500 mt-1 mr-2"></i>
+                                <div>
+                                    <p class="font-medium">Protección Exclusiva</p>
+                                    <p class="text-sm text-gray-600">No trabajaremos con competidores directos en su misma unidad de negocio durante el periodo de servicio.</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start">
+                                <i class="fas fa-calendar-alt text-blue-500 mt-1 mr-2"></i>
+                                <div>
+                                    <p class="font-medium">Periodo de Protección</p>
+                                    <p class="text-sm text-gray-600">La protección se extiende desde el inicio del servicio hasta 30 días después de su finalización.</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mt-4">
+                            <p class="text-sm text-yellow-800">
+                                <span class="font-medium">Importante:</span> Esta política solo aplica si el servicio está pagado al 100% y se mantiene activo. No incluye candidatos que contacten a huntRED® por iniciativa propia.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Pregunta 4 -->
+            <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200">
+                <button class="accordion-header w-full text-left p-5 bg-gradient-to-r from-gray-50 to-white hover:from-gray-50 hover:to-gray-50 transition-all duration-200 flex justify-between items-center group" 
+                        aria-expanded="false" 
+                        aria-controls="faq-4">
                     <span class="font-medium text-gray-800 text-lg group-hover:text-blue-600 transition-colors">
                         <i class="fas fa-star text-yellow-500 mr-2"></i>
                         ¿Cómo se diferencia huntRED® de otras empresas de reclutamiento?
                     </span>
                     <i class="fas fa-chevron-down text-gray-400 group-aria-expanded:rotate-180 transition-transform duration-200"></i>
                 </button>
-                <div id="faq-3" class="accordion-content p-0 max-h-0 overflow-hidden transition-all duration-300 ease-in-out">
+                <div id="faq-4" class="accordion-content p-0 max-h-0 overflow-hidden transition-all duration-300 ease-in-out">
                     <div class="p-5 pt-0 text-gray-700 bg-white border-t border-gray-100">
                         <div class="grid md:grid-cols-2 gap-6">
                             <div class="space-y-4">
@@ -3638,18 +3792,18 @@
                 </div>
             </div>
             
-            <!-- Pregunta 4 -->
+            <!-- Pregunta 5 -->
             <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200">
                 <button class="accordion-header w-full text-left p-5 bg-gradient-to-r from-gray-50 to-white hover:from-gray-50 hover:to-gray-50 transition-all duration-200 flex justify-between items-center group" 
                         aria-expanded="false" 
-                        aria-controls="faq-4">
+                        aria-controls="faq-5">
                     <span class="font-medium text-gray-800 text-lg group-hover:text-blue-600 transition-colors">
                         <i class="fas fa-clipboard-check text-indigo-500 mr-2"></i>
                         ¿Cómo evalúan a los candidatos?
                     </span>
                     <i class="fas fa-chevron-down text-gray-400 group-aria-expanded:rotate-180 transition-transform duration-200"></i>
                 </button>
-                <div id="faq-4" class="accordion-content p-0 max-h-0 overflow-hidden transition-all duration-300 ease-in-out">
+                <div id="faq-5" class="accordion-content p-0 max-h-0 overflow-hidden transition-all duration-300 ease-in-out">
                     <div class="p-5 pt-0 text-gray-700 bg-white border-t border-gray-100">
                         <p class="mb-4">Nuestro proceso de evaluación integral está diseñado para identificar a los mejores talentos mediante múltiples capas de análisis:</p>
                         
@@ -3730,18 +3884,18 @@
                     </div>
                 </div>
             </div>
-            <!-- Pregunta 5 -->
+            <!-- Pregunta 6 -->
             <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200">
                 <button class="accordion-header w-full text-left p-5 bg-gradient-to-r from-gray-50 to-white hover:from-gray-50 hover:to-gray-50 transition-all duration-200 flex justify-between items-center group" 
                         aria-expanded="false" 
-                        aria-controls="faq-5">
+                        aria-controls="faq-6">
                     <span class="font-medium text-gray-800 text-lg group-hover:text-blue-600 transition-colors">
                         <i class="fas fa-file-signature text-amber-500 mr-2"></i>
                         ¿Qué incluye el proceso de contratación?
                     </span>
                     <i class="fas fa-chevron-down text-gray-400 group-aria-expanded:rotate-180 transition-transform duration-200"></i>
                 </button>
-                <div id="faq-5" class="accordion-content p-0 max-h-0 overflow-hidden transition-all duration-300 ease-in-out">
+                <div id="faq-6" class="accordion-content p-0 max-h-0 overflow-hidden transition-all duration-300 ease-in-out">
                     <div class="p-5 pt-0 text-gray-700 bg-white border-t border-gray-100">
                         <p class="mb-4">Nuestro proceso de contratación está diseñado para garantizar el éxito a largo plazo de cada colocación. Incluye:</p>
                         
@@ -3800,31 +3954,175 @@
                     </div>
                 </div>
             </div>
-                    </ul>
+            
+            <!-- Pregunta 7 -->
+            <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200">
+                <button class="accordion-header w-full text-left p-5 bg-gradient-to-r from-gray-50 to-white hover:from-gray-50 hover:to-gray-50 transition-all duration-200 flex justify-between items-center group" 
+                        aria-expanded="false" 
+                        aria-controls="faq-7">
+                    <span class="font-medium text-gray-800 text-lg group-hover:text-blue-600 transition-colors">
+                        <i class="fas fa-info-circle text-blue-500 mr-2"></i>
+                        ¿Qué información recibiré sobre los candidatos?
+                    </span>
+                    <i class="fas fa-chevron-down text-gray-400 group-aria-expanded:rotate-180 transition-transform duration-200"></i>
+                </button>
+                <div id="faq-7" class="accordion-content p-0 max-h-0 overflow-hidden transition-all duration-300 ease-in-out">
+                    <div class="p-5 pt-0 text-gray-700 bg-white border-t border-gray-100">
+                        <p class="mb-3">Para cada candidato finalista, recibirá:</p>
+                        <ul class="list-disc pl-5 space-y-1 text-gray-700">
+                            <li>CV detallado y actualizado</li>
+                            <li>Informe de evaluación con análisis de fortalezas y áreas de desarrollo</li>
+                            <li>Resumen de entrevista con hallazgos clave</li>
+                            <li>Expectativas salariales y de beneficios</li>
+                            <li>Disponibilidad para inicio de labores</li>
+                            <li>Informe de verificación de referencias (con autorización del candidato)</li>
+                            <li>Recomendaciones para la entrevista con el cliente</li>
+                        </ul>
+                    </div>
                 </div>
             </div>
             
-            <!-- Pregunta 5 -->
-            <div class="border border-gray-200 rounded-lg overflow-hidden">
-                <button class="accordion-header w-full text-left p-4 bg-gray-50 hover:bg-gray-100 transition-colors flex justify-between items-center">
-                    <span class="font-medium">¿Qué información recibiré sobre los candidatos?</span>
-                    <i class="fas fa-chevron-down text-gray-400"></i>
+            <!-- Pregunta 8 -->
+            <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200">
+                <button class="accordion-header w-full text-left p-5 bg-gradient-to-r from-gray-50 to-white hover:from-gray-50 hover:to-gray-50 transition-all duration-200 flex justify-between items-center group" 
+                        aria-expanded="false" 
+                        aria-controls="faq-8">
+                    <span class="font-medium text-gray-800 text-lg group-hover:text-blue-600 transition-colors">
+                        <i class="fas fa-chart-line text-green-500 mr-2"></i>
+                        ¿Qué métricas y reportes recibo durante el proceso?
+                    </span>
+                    <i class="fas fa-chevron-down text-gray-400 group-aria-expanded:rotate-180 transition-transform duration-200"></i>
                 </button>
-                <div class="accordion-content p-4 border-t border-gray-200 bg-white">
-                    <p class="text-gray-700 mb-3">Para cada candidato finalista, recibirá:</p>
-                    <ul class="list-disc pl-5 space-y-1 text-gray-700">
-                        <li>CV detallado y actualizado</li>
-                        <li>Informe de evaluación con análisis de fortalezas y áreas de desarrollo</li>
-                        <li>Resumen de entrevista con hallazgos clave</li>
-                        <li>Expectativas salariales y de beneficios</li>
-                        <li>Disponibilidad para inicio de labores</li>
-                        <li>Informe de verificación de referencias (con autorización del candidato)</li>
-                        <li>Recomendaciones para la entrevista con el cliente</li>
-                    </ul>
+                <div id="faq-8" class="accordion-content p-0 max-h-0 overflow-hidden transition-all duration-300 ease-in-out">
+                    <div class="p-5 pt-0 text-gray-700 bg-white border-t border-gray-100">
+                        <p class="mb-4">Mantenemos una comunicación transparente y detallada durante todo el proceso de selección:</p>
+                        
+                        <div class="grid md:grid-cols-2 gap-6 mb-4">
+                            <div class="space-y-3">
+                                <div class="flex items-start">
+                                    <div class="flex-shrink-0 h-6 w-6 rounded-full bg-blue-100 flex items-center justify-center mr-3 mt-0.5">
+                                        <i class="fas fa-users text-blue-600 text-xs"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-medium text-gray-800">Reportes Semanales</h4>
+                                        <p class="text-sm text-gray-600">Actualización semanal con candidatos identificados, entrevistados y en proceso.</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="flex items-start">
+                                    <div class="flex-shrink-0 h-6 w-6 rounded-full bg-green-100 flex items-center justify-center mr-3 mt-0.5">
+                                        <i class="fas fa-chart-bar text-green-600 text-xs"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-medium text-gray-800">Métricas de Progreso</h4>
+                                        <p class="text-sm text-gray-600">Tiempo de respuesta, tasa de aceptación y calidad de candidatos.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="space-y-3">
+                                <div class="flex items-start">
+                                    <div class="flex-shrink-0 h-6 w-6 rounded-full bg-purple-100 flex items-center justify-center mr-3 mt-0.5">
+                                        <i class="fas fa-file-alt text-purple-600 text-xs"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-medium text-gray-800">Evaluaciones Detalladas</h4>
+                                        <p class="text-sm text-gray-600">Informes completos de cada candidato con análisis de fortalezas y áreas de desarrollo.</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="flex items-start">
+                                    <div class="flex-shrink-0 h-6 w-6 rounded-full bg-amber-100 flex items-center justify-center mr-3 mt-0.5">
+                                        <i class="fas fa-clock text-amber-600 text-xs"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-medium text-gray-800">Timeline del Proceso</h4>
+                                        <p class="text-sm text-gray-600">Cronograma detallado con hitos y fechas importantes del proceso.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4 bg-blue-50 p-4 rounded-lg border border-blue-100">
+                            <p class="text-sm text-blue-800">
+                                <i class="fas fa-info-circle text-blue-500 mr-2"></i>
+                                Todos los reportes se entregan en formato digital y pueden ser accedidos a través de nuestra plataforma cliente en tiempo real.
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
-        
+
+            <!-- Pregunta 8 -->
+            <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200">
+                <button class="accordion-header w-full text-left p-5 bg-gradient-to-r from-gray-50 to-white hover:from-gray-50 hover:to-gray-50 transition-all duration-200 flex justify-between items-center group" 
+                        aria-expanded="false" 
+                        aria-controls="faq-8">
+                    <span class="font-medium text-gray-800 text-lg group-hover:text-blue-600 transition-colors">
+                        <i class="fas fa-chart-line text-green-500 mr-2"></i>
+                        ¿Qué métricas y reportes recibo durante el proceso?
+                    </span>
+                    <i class="fas fa-chevron-down text-gray-400 group-aria-expanded:rotate-180 transition-transform duration-200"></i>
+                </button>
+                <div id="faq-8" class="accordion-content p-0 max-h-0 overflow-hidden transition-all duration-300 ease-in-out">
+                    <div class="p-5 pt-0 text-gray-700 bg-white border-t border-gray-100">
+                        <p class="mb-4">Mantenemos una comunicación transparente y detallada durante todo el proceso de selección:</p>
+                        
+                        <div class="grid md:grid-cols-2 gap-6 mb-4">
+                            <div class="space-y-3">
+                                <div class="flex items-start">
+                                    <div class="flex-shrink-0 h-6 w-6 rounded-full bg-blue-100 flex items-center justify-center mr-3 mt-0.5">
+                                        <i class="fas fa-users text-blue-600 text-xs"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-medium text-gray-800">Reportes Semanales</h4>
+                                        <p class="text-sm text-gray-600">Actualización semanal con candidatos identificados, entrevistados y en proceso.</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="flex items-start">
+                                    <div class="flex-shrink-0 h-6 w-6 rounded-full bg-green-100 flex items-center justify-center mr-3 mt-0.5">
+                                        <i class="fas fa-chart-bar text-green-600 text-xs"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-medium text-gray-800">Métricas de Progreso</h4>
+                                        <p class="text-sm text-gray-600">Tiempo de respuesta, tasa de aceptación y calidad de candidatos.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="space-y-3">
+                                <div class="flex items-start">
+                                    <div class="flex-shrink-0 h-6 w-6 rounded-full bg-purple-100 flex items-center justify-center mr-3 mt-0.5">
+                                        <i class="fas fa-file-alt text-purple-600 text-xs"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-medium text-gray-800">Evaluaciones Detalladas</h4>
+                                        <p class="text-sm text-gray-600">Informes completos de cada candidato con análisis de fortalezas y áreas de desarrollo.</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="flex items-start">
+                                    <div class="flex-shrink-0 h-6 w-6 rounded-full bg-amber-100 flex items-center justify-center mr-3 mt-0.5">
+                                        <i class="fas fa-clock text-amber-600 text-xs"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-medium text-gray-800">Timeline del Proceso</h4>
+                                        <p class="text-sm text-gray-600">Cronograma detallado con hitos y fechas importantes del proceso.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4 bg-blue-50 p-4 rounded-lg border border-blue-100">
+                            <p class="text-sm text-blue-800">
+                                <i class="fas fa-info-circle text-blue-500 mr-2"></i>
+                                Todos los reportes se entregan en formato digital y pueden ser accedidos a través de nuestra plataforma cliente en tiempo real.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>        </div>
 
         <!-- Sección de Contacto -->
         <section class="py-6 bg-gradient-to-b from-gray-50 to-white">
@@ -3877,15 +4175,15 @@
                     <form id="contactForm" class="space-y-4">
                         <div>
                             <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Nombre completo</label>
-                            <input type="text" id="name" name="name" required 
-                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                            <input type="text" id="name" name="name" required,
+class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                                    placeholder="Tu nombre">
                         </div>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Correo electrónico</label>
-                                <input type="email" id="email" name="email" required
-                                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                <input type="email" id="email" name="email" required,
+class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                                        placeholder="tu@email.com">
                             </div>
                             <div>
@@ -3942,124 +4240,724 @@
                 </div>
             </div>
         </div>
-        
-        
+
     </section>
+
+    <!-- ===== SECCIÓN DE CONTRATO Y FIRMA ===== -->
+    <!-- Firma y Aceptación -->
+            <section class="mb-12 page-break mt-16">
+                <h2 class="text-2xl font-bold mb-4 accent-gradient">12. Firma y Aceptación</h2>
+                <div class="section-divider"></div>
+                
+                <div class="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+
+                    <div class="mb-6">
+                        <p class="text-gray-700 mb-4">Al firmar esta propuesta, acepto los términos y condiciones establecidos para la contratación de los servicios de reclutamiento y selección de Grupo hunt<span class="text-red-600 font-semibold">RED®</span>.</p>
+                    </div>
+                    <!-- Políticas de Off Limits y Garantía -->
+
+                    {% if show_offlimits or show_guarantee %}
+                    
+<div class="mb-6 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded">
+                        <h3 class="text-lg font-semibold text-yellow-800 mb-2">Políticas de Off Limits y Garantía</h3>
+                        
+                        {% if show_offlimits %}
+                        <div class="mb-3 text-sm text-gray-700">
+                            <strong>Política de Off Limits:</strong> Como parte de nuestro compromiso ético y profesional, 
+                            Grupo huntRED® aplica una política de Off Limits para todos los servicios de reclutamiento,
+sujetos a esta condición. Esto significa que, durante el periodo comprendido entre el inicio,
+del servicio ({{ offlimits_start|date:"d/m/Y" }}) y el <strong>{{ offlimits_end|date:"d/m/Y" }}</strong>, 
+                            <strong>{{ company.name }}</strong> estará protegido ante la búsqueda activa de talento por parte,
+de otros clientes en la unidad de negocio <strong>{{ business_unit }}</strong> y modalidad 
+                            <strong>{{ service_type }}</strong>. Esta restricción no aplica si un candidato inicia el proceso,
+de manera voluntaria. La política es válida únicamente si los servicios contratados están,
+cubiertos al 100% conforme a lo pactado.
+                        </div>
+                        {% endif %}
+                        
+                        {% if show_guarantee %}
+                        <div class="text-sm text-gray-700">
+                            <strong>Política de Garantía:</strong> {{ guarantee_text|default:"Ofrecemos garantía de reemplazo sin costo adicional en caso de que el candidato contratado no cumpla con las expectativas establecidas." }}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    {% endif %}
+
+                    <div class="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+                        <div class="p-6">
+                            <h3 class="text-xl font-bold text-center text-gray-800 mb-2">11. Condiciones Generales</h3>
+                            <h4 class="text-md font-medium text-center text-gray-600 mb-5 italic">Contrato de prestación de servicios de selección y reclutamiento de profesionales</h4>
+                    
+                    <div class="text-xs text-gray-700">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Columna 1 -->
+                            <div class="space-y-3">
+                                <p class="mb-2"><span class="font-semibold">1.</span> Las presentes condiciones generales serán de aplicación a todos los servicios de selección de personal que sean aceptados y realizados por Grupo huntRED®. Con cada solicitud de servicio Grupo huntRED® acordará o pactará expresamente por escrito las condiciones generales y especiales, donde se expresarán las características de la prestación de servicios, consistente en el método de búsqueda de candidatos, remuneración del candidato, los honorarios específicos del encargo, gastos de publicidad, jurisdicción aplicable en caso de conflicto, así como cualquier otra que consideren oportunas las partes.</p>
+                                    
+                                <p class="mb-2"><span class="font-semibold">2.</span> En caso de conflicto, las condiciones especiales pactadas expresamente por escrito y contenidas en este Contrato y las condiciones generales del mismo, prevalecerán las primeras sobre las condiciones generales, sin embargo, en todo lo no previsto en dichas condiciones especiales, entonces serán aplicables las condiciones generales.</p>
+                                    
+                                <p class="mb-2"><span class="font-semibold">3.</span> Los honorarios derivados de la prestación del servicio por parte de Grupo huntRED® y sus empresas, consistirán en un tanto por ciento de la remuneración bruta anual fijada para el candidato o un monto fijo establecido puntualmente para cada caso, entendiéndose que para el cálculo de dicha remuneración, se incluirán los bonos fijos o variables pactados, así como cualquier otro tipo de remuneración en especie o en dinero establecido fuera del Compensación Mensual. El tanto por ciento anteriormente referido y que constituyen los honorarios a pagar por el Cliente, será fijado de común acuerdo por las partes, en las condiciones especiales contempladas en el Contrato.</p>
+                                    
+                                <p class="mb-2"><span class="font-semibold">4.</span> El Cliente abonará los honorarios que corresponden a Grupo huntRED® conforme se vayan devengando, y de la forma siguiente:</p>
+                                <p class="pl-4 mb-1"><span class="font-semibold">a)</span> Al inicio de la prestación de servicios, el Cliente abonará una provisión de honorarios, no reembolsable, previamente acordada con Grupo huntRED®, consistente en un tanto por ciento de la remuneración bruta anual fijada para el candidato por el primer año de trabajo, de acuerdo a las descripciones elaboradas por el Cliente respecto al entorno del puesto.</p>
+                                <p class="pl-4 mb-1"><span class="font-semibold">b)</span> El resto de honorarios pactados se abonará por el Cliente, en el momento de firma del contrato laboral realizada por el Cliente, que conste por escrito, y aunque dicha oferta de empleo tenga carácter mercantil, o se trate de cualquier tipo de acuerdo de colaboración entre el Cliente y el candidato.</p>
+                                <p class="pl-4 mb-2">Para el pago de los honorarios por el Cliente, huntRED® emitirá la factura por los referidos importes, cumpliendo con las disposiciones fiscales aplicables y añadiendo el IVA o impuesto equivalente, vigente en ese momento.</p>
+                                <p class="pl-4 mb-2">Lo anterior estará debidamente pactado en el Contrato de Prestación de Servicios Profesionales. Para el caso de los honorarios de los procesos realizados mediante nuestras estructuras de inteligencia artificial, se generará el cargo y facturación al inicio del proceso de selección.</p>
+                                    
+                                <p class="mb-2"><span class="font-semibold">5.</span> El Cliente igualmente abonará a Grupo huntRED® los honorarios previstos en la cláusula 3 anterior, si el candidato presentado por huntRED® no fuese aceptado por el Cliente o éste rechazase la oferta de empleo (o de colaboración) y posteriormente resultase contratado por (o colabora con) el Cliente dentro de un plazo de 12 meses a partir de la fecha de la primera entrevista con el mismo, por entenderse que se ha cumplido el servicio.</p>
+                                    
+                                <p class="mb-2"><span class="font-semibold">6.</span> En el supuesto que el Cliente decidiera contratar (o hacer colaborar) a más candidatos de los que se hubieran previsto contractualmente, el Cliente deberá pagar a Grupo huntRED® los honorarios correspondientes a cada uno de los candidatos contratados estableciéndose como honorarios a pagar por cada uno de ellos, los pactados en las condiciones especiales para el candidato inicial, y en la forma prevista en la cláusula 3 anterior.</p>
+                                    
+                                <p class="mb-2"><span class="font-semibold">7.</span> Para el caso que el Cliente presentara o cediese el candidato que ha sido seleccionado para él, a otra persona o sociedad vinculada directa o indirectamente ó sin ninguna clase de vinculación a la misma y con beneficio hacia el cliente, y si el candidato es contratado (o colabora) con esa persona o sociedad dentro de un plazo de 18 meses a contar desde la fecha de la primera presentación del candidato al Cliente, el Cliente deberá pagar igualmente a Grupo huntRED® los honorarios previstos en la cláusula 3 anterior, por considerarse que el servicio ha sido realizado.</p>
+                                    
+                                <p class="mb-2"><span class="font-semibold">8.</span> En caso de cancelación o anulación del servicio de selección de candidatos por parte del Cliente, éste deberá pagar a Grupo huntRED® los gastos publicitarios pendientes o de cualquier otro orden en que se hubiera incurrido como consecuencia del servicio. El Cliente deberá abonar esta cantidad sin perjuicio de la provisión de fondos referida en la cláusula 3 anterior.</p>
+                            </div>
+                            
+                            <!-- Columna 2 -->
+                            <div class="space-y-3">
+                                <p class="mb-2"><span class="font-semibold">9.</span> Los servicios de selección no podrán tener una duración superior a 6 meses a contar desde la firma del contrato, a menos que específicamente y en las condiciones especiales se estipule lo contrario. Si transcurrido dicho periodo, ninguno de los candidatos presentados por Grupo huntRED® hubiera sido contratado por el Cliente, el servicio será considerado anulado por el Cliente, siendo, en tal caso aplicable lo dispuesto en la cláusula novena anterior.</p>
+                                    
+                                <p class="mb-2"><span class="font-semibold">10.</span> Grupo HuntRED®, a petición del Cliente, pone a disposición del mismo la posibilidad de la utilización de un servicio de publicidad como medio de captación de candidatos, cuyos gastos de ejecución correrán siempre a cargo del Cliente, con independencia de los honorarios pactados. La anulación de un anuncio será aceptada por Grupo huntRED® siempre que ésta tenga tiempo suficiente para impedir su publicación sin coste alguno. Los gastos de publicidad serán abonados por el Cliente en un plazo de siete días a contar desde la fecha de la factura correspondiente.</p>
+                                    
+                                <p class="mb-2"><span class="font-semibold">11.</span> En el supuesto de que en un proceso de selección los candidatos o los Consultores de huntRED® tuvieran que realizar algún tipo de gasto de desplazamiento u otros similares, tales gastos serán asumidos por cuenta del Cliente, por lo que huntRED® facturará directamente dichos importes al Cliente.</p>
+                                    
+                                <p class="mb-2"><span class="font-semibold">12.</span> En caso de que el contrato de trabajo o colaboración firmado entre el Cliente y el candidato fuera rescindido o terminado por alguno de éstos durante el periodo de garantía definido en las condiciones particulares, Grupo huntRED® ofrecerá al Cliente la posibilidad de poner a su disposición, y durante un plazo no superior al pactado para la duración del servicio de selección de candidato, todos los recursos necesarios para encontrar un sustituto de acuerdo con las necesidades pactadas, sin que ello suponga gastos adicionales al Cliente, (salvo aquellos gastos publicitarios previamente acordados entre Grupo huntRED® y el Cliente), y siempre que:</p>
+                                <p class="pl-4 mb-1"><span class="font-semibold">a)</span> El Cliente haya notificado a Grupo huntRED®, por escrito, la rescisión o terminación del contrato de trabajo del candidato en un plazo de siete días desde la fecha en que tuvo lugar la resolución.</p>
+                                <p class="pl-4 mb-1"><span class="font-semibold">b)</span> El Cliente, una de sus filiales u otra sociedad del grupo no contraten al candidato dentro de un plazo de 12 meses a contar desde el fin del contrato. En este caso Grupo huntRED® podrá exigir los honorarios del candidato repuesto en los términos de la cláusula tercera anterior.</p>
+                                <p class="pl-4 mb-1"><span class="font-semibold">c)</span> La rescisión o terminación del contrato no sea imputable a un exceso de personal.</p>
+                                <p class="pl-4 mb-2"><span class="font-semibold">d)</span> Todos los honorarios e importes debidos por el Cliente hayan sido abonados conforme a las presentes condiciones generales y a las especiales aplicables.</p>
+                                    
+                                <p class="mb-2"><span class="font-semibold">13.</span> Todo lo relacionado con los exámenes médicos de los candidatos y las medidas necesarias para que los candidatos puedan obtener el correspondiente permiso de trabajo o cualquier otra autorización que sea necesaria, será responsabilidad única del Cliente, quien deberá favorecer la realización de cualquier acto encaminado a la consecución de los referidos permisos o autorizaciones. Además, el Cliente deberá asegurarse que la contratación del candidato no implica en modo alguno el incumplimiento de la legislación laboral vigente, siendo de su exclusiva responsabilidad cualquier incumplimiento en este sentido.</p>
+                                    
+                                <p class="mb-2"><span class="font-semibold">14.</span> Grupo huntRED® no será responsable en ningún caso frente al Cliente de los daños, perjuicios, costes, reclamaciones o gastos soportados a cargo del Cliente o reclamados por terceros, como consecuencia de la selección o contratación de los candidatos por el Cliente.</p>
+                                    
+                                <p class="mb-2"><span class="font-semibold">15.</span> Sin perjuicio de las condiciones previstas en la cláusula 11 anterior, todos los honorarios derivados de la ejecución del servicio serán abonados por el Cliente dentro de un plazo de quince días desde la fecha de factura.</p>
+                                    
+                                <p class="mb-2"><span class="font-semibold">16.</span> Este contrato no significa ninguna relación laboral entre las partes.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div><br>
+                <div class="bg-gray-50 p-3 rounded-lg border border-gray-200 mb-8">
+                    <p class="text-sm text-gray-600 italic">Este documento tiene validez legal una vez firmado por ambas partes y puede ser firmado de manera presencial o digital. La firma electrónica de este documento tiene la misma validez legal que una firma manuscrita.</p>
+                </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                            <!-- Cliente -->
+                            <div class="border rounded-lg overflow-hidden">
+                                <div style="background: linear-gradient(90deg, var(--hunt-blue) 0%, #3a4a5a 100%);" class="p-3 text-white">
+                                    <h3 class="font-semibold">Cliente</h3>
+                                </div>
+                                <div class="p-4">
+                                    <div class="grid grid-cols-1 gap-4 mb-6">
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">Nombre completo:</label>
+                                            <p class="p-2 border-b border-gray-300">{{ client.primary_contact_name }}</p>
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">Cargo:</label>
+                                            <p class="p-2 border-b border-gray-300">{{ client.primary_contact_position }}</p>
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">Empresa:</label>
+                                            <p class="p-2 border-b border-gray-300">{{ client.name }}</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mt-12 mb-2 border-t border-gray-300 pt-2">
+                                        <p class="text-center text-sm">Firma</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Grupo huntRED -->
+                            <div class="border rounded-lg overflow-hidden">
+                                <div style="background: linear-gradient(90deg, var(--hunt-blue) 0%, var(--hunt-red) 100%);" class="p-3 text-white">
+                                    <h3 class="font-semibold">Grupo hunt<span class="text-white">RED®</span></h3>
+                                </div>
+                                <div class="p-4">
+                                    <div class="grid grid-cols-1 gap-4 mb-6">
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">Nombre completo:</label>
+                                            <p class="p-2 border-b border-gray-300">{{ company.account_manager }}</p>
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">Cargo:</label>
+                                            <p class="p-2 border-b border-gray-300">Consultor Principal</p>
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">Unidad de Negocio:</label>
+                                            <p class="p-2 border-b border-gray-300">{{ vacancy.business_unit.name }}</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mt-12 mb-2 border-t border-gray-300 pt-2">
+                                        <p class="text-center text-sm">Firma</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex justify-between items-center mt-8">
+                            <div class="text-sm text-gray-500">
+                                <span>Fecha: {{ proposal.created_at|date:"d/m/Y" }}</span>
+                            </div>
+                            <div class="text-sm text-gray-500">
+                                <span>Propuesta válida hasta: {{ proposal.valid_until|date:"d/m/Y" }}</span>
+                            </div>
+                            <div class="flex space-x-2">
+                                <button onclick="window.print()" class="inline-block px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors">
+                                    <i class="fas fa-print mr-2"></i>Imprimir
+                                </button>
+                                <a href="{% url 'download_proposal_pdf' proposal.id %}" class="inline-block px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors">
+                                    <i class="fas fa-file-pdf mr-2"></i>Descargar PDF
+                                </a>
+                                <a href="https://ai.huntred.com/propuesta/{{ client.name|slugify }}/{{ proposal.id }}" target="_blank" class="inline-block px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+                                    <i class="fas fa-link mr-2"></i>Verificar documento
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                        <!-- Anexos -->
+        <section class="mb-12 page-break">
+            <h2 class="text-2xl font-bold mb-4 accent-gradient">Anexos</h2>
+            <div class="section-divider"></div>
+            
+            <!-- Anexo 1: Metodología -->
+            <div class="mb-8">
+                <h3 class="text-xl font-semibold text-gray-800 mb-4">Anexo 1: Metodología de Selección</h3>
+                
+                <div class="bg-white rounded-lg border border-gray-200 p-6">
+                    
+                    <p class="text-gray-700 mb-4">En Grupo huntRED® aplicamos una metodología especializada de selección que combina técnicas tradicionales con tecnología avanzada:</p>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                        <!-- Etapa 1 -->
+                        <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                            <div class="flex items-center mb-3">
+                                <div class="bg-blue-100 rounded-full w-10 h-10 flex items-center justify-center text-blue-600 mr-3">
+                                    <span class="font-bold">1</span>
+                                </div>
+                                <h4 class="font-semibold">Perfil y Sourcing</h4>
+                            </div>
+                            <ul class="text-sm text-gray-700 space-y-2 pl-4">
+                                <li>Análisis detallado del puesto</li>
+                                <li>Definición de competencias clave</li>
+                                <li>Mapeo de mercado y talento</li>
+                                <li>Activación de fuentes de reclutamiento</li>
+                            </ul>
+                        </div>
+                        
+                        <!-- Etapa 2 -->
+                        <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                            <div class="flex items-center mb-3">
+                                <div class="bg-blue-100 rounded-full w-10 h-10 flex items-center justify-center text-blue-600 mr-3">
+                                    <span class="font-bold">2</span>
+                                </div>
+                                <h4 class="font-semibold">Evaluación</h4>
+                            </div>
+                            <ul class="text-sm text-gray-700 space-y-2 pl-4">
+                                <li>Entrevistas por competencias</li>
+                                <li>Evaluaciones técnicas</li>
+                                <li>Assessment centers (cuando aplica)</li>
+                                <li>Pruebas psicometrías</li>
+                            </ul>
+                        </div>
+                        
+                        <!-- Etapa 3 -->
+                        <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                            <div class="flex items-center mb-3">
+                                <div class="bg-blue-100 rounded-full w-10 h-10 flex items-center justify-center text-blue-600 mr-3">
+                                    <span class="font-bold">3</span>
+                                </div>
+                                <h4 class="font-semibold">Validación y Selección</h4>
+                            </div>
+                            <ul class="text-sm text-gray-700 space-y-2 pl-4">
+                                <li>Verificación de referencias</li>
+                                <li>Validación de credenciales</li>
+                                <li>Entrevistas con cliente</li>
+                                <li>Toma de decisión</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-6">
+                        <h4 class="font-semibold text-gray-800 mb-2">Herramientas y tecnologías utilizadas:</h4>
+                        <div class="flex flex-wrap gap-3 mt-3">
+                            <span class="inline-block px-3 py-1 text-sm bg-blue-50 text-blue-700 rounded-full">IA para matching de candidatos</span>
+                            <span class="inline-block px-3 py-1 text-sm bg-blue-50 text-blue-700 rounded-full">Evaluación 360°</span>
+                            <span class="inline-block px-3 py-1 text-sm bg-blue-50 text-blue-700 rounded-full">Plataforma de entrevistas virtuales</span>
+                            <span class="inline-block px-3 py-1 text-sm bg-blue-50 text-blue-700 rounded-full">Tests DISC y competencias</span>
+                            <span class="inline-block px-3 py-1 text-sm bg-blue-50 text-blue-700 rounded-full">Verificación digital de antecedentes</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Anexo 2: Perfil de Consultores -->
+            <div class="mb-8">
+                <h3 class="text-xl font-semibold text-gray-800 mb-4">Anexo 2: Perfil de Consultores Asignados</h3>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Consultor 1 -->
+                    <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                        <div class="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-4">
+                            <h4 class="font-semibold">{{ company.account_manager }}</h4>
+                            <p class="text-sm text-blue-100">Consultor Principal</p>
+                        </div>
+                        <div class="p-4">
+                            <div class="flex items-start mb-4">
+                                <div class="bg-gray-200 rounded-full w-16 h-16 mr-4 flex items-center justify-center text-gray-400">
+                                    <i class="fas fa-user text-2xl"></i>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-600 mb-2">Más de 8 años de experiencia en reclutamiento ejecutivo en los sectores de tecnología, finanzas y retail. Especialista en posiciones gerenciales y directivas.</p>
+                                    <div class="flex flex-wrap gap-2 mt-2">
+                                        <span class="inline-block px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded">Executive Search</span>
+                                        <span class="inline-block px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded">{{ client.industry }}</span>
+                                        <span class="inline-block px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded">Headhunting</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Consultor 2 -->
+                    <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                        <div class="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-4">
+                            <h4 class="font-semibold">Consultor de Apoyo</h4>
+                            <p class="text-sm text-blue-100">Especialista Técnico</p>
+                        </div>
+                        <div class="p-4">
+                            <div class="flex items-start mb-4">
+                                <div class="bg-gray-200 rounded-full w-16 h-16 mr-4 flex items-center justify-center text-gray-400">
+                                    <i class="fas fa-user text-2xl"></i>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-600 mb-2">5 años de experiencia en evaluación técnica de candidatos para posiciones especializadas. Experto en procesos de selección para puestos de alta complejidad técnica.</p>
+                                    <div class="flex flex-wrap gap-2 mt-2">
+                                        <span class="inline-block px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded">Evaluación Técnica</span>
+                                        <span class="inline-block px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded">{{ position.title }}</span>
+                                        <span class="inline-block px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded">Entrevistas</span>
+                                    </div>
+                </div>
+            </div>
+            </div>
+            
+            <!-- Anexo 3: Información Adicional -->
+            <div class="mb-8">
+                <h3 class="text-xl font-semibold text-gray-800 mb-4">Anexo 3: Información de Contacto y Servicio al Cliente</h3>
+                
+                <div class="bg-white rounded-lg border border-gray-200 p-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Contacto Principal -->
+                        <div>
+                            <h4 class="font-semibold text-gray-800 mb-3">Su Equipo de Servicio</h4>
+                            <div class="space-y-4">
+                                <div class="flex items-center">
+                                    <div class="text-blue-600 mr-3">
+                                        <i class="fas fa-user-tie"></i>
+                                    </div>
+                                    <div>
+                                        <p class="font-medium">{{ company.account_manager }}</p>
+                                        <p class="text-sm text-gray-600">Consultor Principal</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center">
+                                    <div class="text-blue-600 mr-3">
+                                        <i class="fas fa-phone"></i>
+                                    </div>
+                                    <div>
+                                        <p class="font-medium">+52 55 59140089 5678</p>
+                                        <p class="text-sm text-gray-600">Línea directa</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center">
+                                    <div class="text-blue-600 mr-3">
+                                        <i class="fas fa-envelope"></i>
+                                    </div>
+                                    <div>
+                                        <p class="font-medium">{{ company.email }}</p>
+                                        <p class="text-sm text-gray-600">Email principal</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center">
+                                    <div class="text-blue-600 mr-3">
+                                        <i class="fas fa-building"></i>
+                                    </div>
+                                    <div>
+                                        <p class="font-medium">{{ company.address }}</p>
+                                        <p class="text-sm text-gray-600">Oficinas centrales</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Canales y Horarios -->
+                        <div>
+                            <h4 class="font-semibold text-gray-800 mb-3">Canales de Comunicación</h4>
+                            <div class="space-y-4">
+                                <div>
+                                    <p class="font-medium">Horario de Atención</p>
+                                    <p class="text-sm text-gray-600">Lunes a Viernes: 9:00 - 18:00<br>Sábado: 9:00 - 13:00</p>
+                                </div>
+                                <div>
+                                    <p class="font-medium">Plataforma de Seguimiento</p>
+                                    <p class="text-sm text-gray-600">Acceso 24/7 a nuestra plataforma digital<br>ai.huntred.com <a href="https://ai.huntred.com" target="_blank">ai.huntred.com</a> utiliazando sus claves de acceso</p>
+                                </div>
+                                <div class="flex gap-3 mt-4">
+                                    <a href="#" class="text-blue-600 hover:text-blue-800"><i class="fab fa-linkedin text-xl"></i></a>
+                                    <a href="#" class="text-blue-600 hover:text-blue-800"><i class="fab fa-twitter text-xl"></i></a>
+                                    <a href="#" class="text-blue-600 hover:text-blue-800"><i class="fab fa-facebook text-xl"></i></a>
+                                    <a href="#" class="text-blue-600 hover:text-blue-800"><i class="fab fa-instagram text-xl"></i></a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Enlace Directo de Contacto -->
+                    <div class="mt-8 border-t border-gray-200 pt-6 text-center">
+                        <div class="inline-block text-center">
+                            <a href="https://ai.huntred.com/contacto" target="_blank" class="inline-block px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-800 text-white rounded-lg hover:from-blue-700 hover:to-blue-900 transition-all shadow-md">
+                                <i class="fas fa-headset mr-2"></i> Contactar a nuestro equipo
+                            </a>
+                            <p class="text-sm text-gray-600 mt-3">Contáctenos directamente para resolver cualquier duda adicional</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+            </div>
+            
+            <!-- Sección de firma para las condiciones generales - Tabla con ambas partes -->
+            <div class="mt-8 pt-4">
+                <p class="text-sm text-gray-700 mb-6 text-center max-w-3xl mx-auto">Al firmar, las partes reconocen haber leído y aceptado todas las condiciones generales establecidas en este documento y se comprometen a cumplir con las obligaciones estipuladas.</p>
+                
+                <!-- Tabla de firmas con dos lados: cliente y representante -->
+                <div class="border rounded-lg overflow-hidden shadow-sm max-w-4xl mx-auto">
+                    <table class="w-full">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="p-4 text-sm font-semibold text-gray-700 text-center border-r w-1/2">
+                                    <i class="fas fa-user-tie mr-2 text-blue-600"></i>Por parte de {{ client.name }}
+                                </th>
+                                <th class="p-4 text-sm font-semibold text-gray-700 text-center w-1/2">
+                                    <i class="fas fa-building mr-2 text-red-600"></i>Por parte de Grupo huntRED®
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="p-6 border-r border-gray-100">
+                                    <div class="space-y-5">
+                                        <div>
+                                            <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Nombre</p>
+                                            <div class="border-b border-gray-200 pb-1">
+                                                <p class="text-gray-800">{{ client.primary_contact_name }}</p>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Cargo</p>
+                                            <div class="border-b border-gray-200 pb-1">
+                                                <p class="text-gray-800">{{ client.primary_contact_position }}</p>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Empresa</p>
+                                            <div class="border-b border-gray-200 pb-1">
+                                                <p class="text-gray-800">{{ client.name }}</p>
+                                            </div>
+                                        </div>
+                                        <div class="pt-4">
+                                            <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Firma Digital</p>
+                                            <div class="signature-pad-container h-24" id="clientSignatureContainer">
+                                                <canvas id="clientSignaturePad" width="300" height="80"></canvas>
+                                                <div class="signature-status pending" id="clientSignatureStatus">
+                                                    <i class="fas fa-pen"></i>
+                                                </div>
+                                            </div>
+                                            <div class="signature-controls">
+                                                <button type="button" class="signature-btn clear" id="clearClientSignature">
+                                                    <i class="fas fa-eraser"></i>Limpiar
+                                                </button>
+                                            </div>
+                                            <div class="digital-certificate">
+                                                <div class="digital-certificate-header">
+                                                    <div class="digital-certificate-icon">
+                                                        <i class="fas fa-shield-alt"></i>
+                                                    </div>
+                                                    <span class="digital-certificate-title">Firma Digital Segura</span>
+                                                </div>
+                                                <div class="digital-certificate-details">
+                                                    Certificada con tecnología blockchain y validación biométrica
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="pt-2">
+                                            <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Fecha</p>
+                                            <div class="border-b-2 border-gray-300 h-10 flex items-center">
+                                                <span class="text-sm text-gray-500">{{ "now"|date:"d/m/Y" }}</span>
+                                            </div>
+                                            <!-- Certificado digital -->
+                                            <div class="mt-4 p-3 border border-gray-200 rounded-lg bg-gray-50">
+                                                <div class="flex items-center space-x-2">
+                                                    <div class="text-blue-500">
+                                                        <i class="fas fa-shield-alt"></i>
+                                                    </div>
+                                                    <div class="text-left">
+                                                        <p class="text-xs font-medium text-gray-700">Documento con certificación digital</p>
+                                                        <p class="text-xs text-gray-500">Válido y respaldado por tecnología blockchain</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="p-6">
+                                    <div class="space-y-5">
+                                        <div>
+                                            <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Nombre</p>
+                                            <div class="border-b border-gray-200 pb-1">
+                                                <p class="text-gray-800">{{ company.account_manager }}</p>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Cargo</p>
+                                            <div class="border-b border-gray-200 pb-1">
+                                                <p class="text-gray-800">Consultor Autorizado</p>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Empresa</p>
+                                            <div class="border-b border-gray-200 pb-1">
+                                                <p class="text-gray-800">Grupo huntRED® a través de {{ company.name }}</p>
+                                            </div>
+                                        </div>
+                                        <div class="pt-4">
+                                            <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Firma Digital</p>
+                                            <div class="signature-pad-container h-24" id="consultantSignatureContainer">
+                                                <canvas id="consultantSignaturePad" width="300" height="80"></canvas>
+                                                <div class="signature-status pending" id="consultantSignatureStatus">
+                                                    <i class="fas fa-pen"></i>
+                                                </div>
+                                            </div>
+                                            <div class="signature-controls">
+                                                <button type="button" class="signature-btn clear" id="clearConsultantSignature">
+                                                    <i class="fas fa-eraser"></i>Limpiar
+                                                </button>
+                                            </div>
+                                            <div class="digital-certificate">
+                                                <div class="digital-certificate-header">
+                                                    <div class="digital-certificate-icon">
+                                                        <i class="fas fa-shield-alt"></i>
+                                                    </div>
+                                                    <span class="digital-certificate-title">Firma Digital Segura</span>
+                                                </div>
+                                                <div class="digital-certificate-details">
+                                                    Certificada con tecnología blockchain y validación biométrica
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="pt-2">
+                                            <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Fecha</p>
+                                            <div class="border-b-2 border-gray-300 h-10 flex items-center">
+                                                <span class="text-sm text-gray-500">{{ "now"|date:"d/m/Y" }}</span>
+                                            </div>
+                                            <!-- Botón de guardar propuesta -->
+                                            <div class="mt-4 text-center">
+                                                <button id="btnGuardarPropuesta" class="px-6 py-2 bg-gradient-to-r from-red-600 to-red-700 text-white text-sm font-medium rounded-lg hover:from-red-700 hover:to-red-800 transition-all shadow-md flex items-center justify-center mx-auto group">
+                                                    <i class="fas fa-file-signature mr-2 transform group-hover:scale-110 transition-transform"></i>
+                                                    <span>Guardar Propuesta</span>
+                                                </button>
+                                                <p class="text-xs text-gray-500 mt-2">Al firmar, acepta los términos y condiciones de la propuesta</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Espacio adicional después de la sección de firmas -->
+                <div class="mt-8"></div>
+            </div>
+        </section>
 
         <!-- Footer -->
         <!-- Enhanced Accordion Script -->
         <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Configuración del acordeón
-            const accordionItems = document.querySelectorAll('.accordion-header');
+            // Configuración del acordeón,
+const accordionItems = document.querySelectorAll('.accordion-header');
             let activeItem = null;
             
-            // Función para abrir un ítem del acordeón
-            function openAccordion(item, animate = true) {
+            // Función para abrir un ítem del acordeón,
+function openAccordion(item, animate = true) {
+                if (!item || !item.nextElementSibling) {
+                    console.warn('Elemento de acordeón no válido:', item);
+                    return;
+                }
+                
                 const content = item.nextElementSibling;
                 const icon = item.querySelector('i.fa-chevron-down');
                 
-                // Cerrar el ítem activo actual si existe y es diferente al que se está abriendo
-                if (activeItem && activeItem !== item) {
+                // Verificar que el contenido existe,
+if (!content || !content.classList.contains('accordion-content')) {
+                    console.warn('Contenido de acordeón no encontrado para:', item);
+                    return;
+                }
+                
+                // Cerrar el ítem activo actual si existe y es diferente al que se está abriendo,
+if (activeItem && activeItem !== item) {
                     const activeContent = activeItem.nextElementSibling;
                     const activeIcon = activeItem.querySelector('i.fa-chevron-down');
                     
-                    if (animate) {
-                        activeContent.style.maxHeight = null;
-                        activeContent.style.opacity = '0';
-                    } else {
-                        activeContent.style.display = 'none';
+                    if (activeContent && activeContent.classList.contains('accordion-content')) {
+                        if (animate) {
+                            activeContent.style.maxHeight = '0';
+                            activeContent.style.opacity = '0';
+                            setTimeout(() => {
+                                if (activeContent) {
+                                    activeContent.style.display = 'none';
+                                }
+                            }, 300);
+                        } else {
+                            activeContent.style.display = 'none';
+                        }
                     }
-                    activeItem.setAttribute('aria-expanded', 'false');
-                    activeIcon.classList.remove('rotate-180');
-                    activeItem.classList.remove('from-blue-50', 'to-blue-50');
-                    activeItem.classList.add('from-gray-50', 'to-white');
+                    
+                    if (activeItem) {
+                        activeItem.setAttribute('aria-expanded', 'false');
+                        if (activeIcon) {
+                            activeIcon.classList.remove('rotate-180');
+                        }
+                        activeItem.classList.remove('from-blue-50', 'to-blue-50');
+                        activeItem.classList.add('from-gray-50', 'to-white');
+                    }
                 }
                 
-                // Alternar el ítem actual
-                if (content.style.maxHeight || content.style.display === 'block') {
-                    if (animate) {
+                // Alternar el ítem actual,
+const isOpen = content.style.maxHeight && content.style.maxHeight !== '0px' || content.style.display === 'block';
+                
+                if (isOpen) {
+                    // Cerrar el ítem,
+if (animate) {
                         content.style.maxHeight = '0';
                         content.style.opacity = '0';
                         setTimeout(() => {
-                            content.style.display = 'none';
+                            if (content) {
+                                content.style.display = 'none';
+                            }
                         }, 300);
                     } else {
                         content.style.display = 'none';
                     }
                     item.setAttribute('aria-expanded', 'false');
-                    icon.classList.remove('rotate-180');
+                    if (icon) {
+                        icon.classList.remove('rotate-180');
+                    }
                     item.classList.remove('from-blue-50', 'to-blue-50');
                     item.classList.add('from-gray-50', 'to-white');
                     activeItem = null;
                 } else {
-                    content.style.display = 'block';
+                    // Abrir el ítem,
+content.style.display = 'block';
                     if (animate) {
+                        // Forzar un reflow para obtener la altura correcta,
+content.offsetHeight;
                         content.style.maxHeight = content.scrollHeight + 'px';
                         content.style.opacity = '1';
                     }
                     item.setAttribute('aria-expanded', 'true');
-                    icon.classList.add('rotate-180');
+                    if (icon) {
+                        icon.classList.add('rotate-180');
+                    }
                     item.classList.remove('from-gray-50', 'to-white');
                     item.classList.add('from-blue-50', 'to-blue-50');
                     activeItem = item;
                     
-                    // Desplazamiento suave para asegurar que el ítem sea visible
-                    if (window.innerWidth > 768) { // Solo en desktop
-                        setTimeout(() => {
-                            item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    // Desplazamiento suave para asegurar que el ítem sea visible,
+if (window.innerWidth > 768) { // Solo en desktop,
+setTimeout(() => {
+                            try {
+                                item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                            } catch (e) {
+                                console.warn('Error en scrollIntoView:', e);
+                            }
                         }, 100);
                     }
                 }
                 
-                // Actualizar la URL con el hash para permitir compartir enlaces directos
-                if (activeItem) {
-                    const itemId = activeItem.getAttribute('aria-controls');
-                    if (history.pushState) {
-                        history.pushState(null, null, `#${itemId}`);
-                    } else {
-                        window.location.hash = `#${itemId}`;
+                // Actualizar la URL con el hash para permitir compartir enlaces directos,
+try {
+                    if (activeItem) {
+                        const itemId = activeItem.getAttribute('aria-controls');
+                        if (itemId && history.pushState) {
+                            history.pushState(null, null, `#${itemId}`);
+                        } else if (itemId) {
+                            window.location.hash = `#${itemId}`;
+                        }
+                    } else if (window.location.hash) {
+                        if (history.pushState) {
+                            history.pushState('', document.title, window.location.pathname + window.location.search);
+                        } else {
+                            window.location.hash = '';
+                        }
                     }
-                } else if (window.location.hash) {
-                    if (history.pushState) {
-                        history.pushState('', document.title, window.location.pathname + window.location.search);
-                    } else {
-                        window.location.hash = '';
-                    }
+                } catch (e) {
+                    console.warn('Error actualizando URL:', e);
                 }
             }
             
-            // Inicializar acordeones
-            function initAccordions() {
-                // Configurar cada ítem del acordeón
-                accordionItems.forEach(item => {
+            // Inicializar acordeones,
+function initAccordions() {
+                if (!accordionItems || accordionItems.length === 0) {
+                    console.warn('No se encontraron elementos de acordeón');
+                    return;
+                }
+                
+                // Configurar cada ítem del acordeón,
+accordionItems.forEach((item, index) => {
                     const content = item.nextElementSibling;
-                    const contentId = content.id || `faq-${Math.random().toString(36).substr(2, 9)}`;
                     
-                    // Configurar atributos ARIA
-                    item.setAttribute('id', `accordion-${contentId}`);
+                    if (!content) {
+                        console.warn(`Contenido no encontrado para el ítem ${index}`);
+                        return;
+                    }
+                    
+                    const contentId = content.id || `faq-${index}-${Date.now()}`;
+                    
+                    // Configurar atributos ARIA,
+item.setAttribute('id', `accordion-${contentId}`);
                     item.setAttribute('aria-controls', contentId);
                     item.setAttribute('aria-expanded', 'false');
                     item.setAttribute('role', 'button');
                     item.setAttribute('tabindex', '0');
                     
-                    // Configurar el contenido
-                    content.setAttribute('id', contentId);
+                    // Configurar el contenido,
+content.setAttribute('id', contentId);
                     content.setAttribute('aria-labelledby', `accordion-${contentId}`);
                     content.setAttribute('role', 'region');
                     content.style.display = 'none';
+                    content.style.maxHeight = '0';
+                    content.style.opacity = '0';
                     
-                    // Agregar evento de clic
-                    item.addEventListener('click', function(e) {
-                        // Prevenir el comportamiento predeterminado solo para los botones dentro del acordeón
-                        if (e.target.tagName === 'BUTTON' || e.target.closest('button, a, [role="button"]')) {
+                    // Agregar evento de clic,
+item.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
+                        // Prevenir el comportamiento predeterminado solo para los botones dentro del acordeón,
+if (e.target.tagName === 'BUTTON' || e.target.closest('button, a, [role="button"]')) {
                             return;
                         }
                         openAccordion(this);
                     });
                     
-                    // Soporte para teclado
-                    item.addEventListener('keydown', function(e) {
+                    // Soporte para teclado,
+item.addEventListener('keydown', function(e) {
                         if (e.key === 'Enter' || e.key === ' ') {
                             e.preventDefault();
                             openAccordion(this);
@@ -4067,58 +4965,72 @@
                     });
                 });
                 
-                // Abrir el ítem correspondiente al hash de la URL al cargar la página
-                const hash = window.location.hash.substring(1);
-                if (hash) {
-                    const targetItem = document.querySelector(`[aria-controls="${hash}"]`);
-                    if (targetItem) {
-                        // Pequeño retraso para asegurar que el DOM esté completamente cargado
-                        setTimeout(() => {
-                            openAccordion(targetItem, false);
-                        }, 100);
-                        return;
+                // Abrir el ítem correspondiente al hash de la URL al cargar la página,
+try {
+                    const hash = window.location.hash.substring(1);
+                    if (hash) {
+                        const targetItem = document.querySelector(`[aria-controls="${hash}"]`);
+                        if (targetItem) {
+                            // Pequeño retraso para asegurar que el DOM esté completamente cargado,
+setTimeout(() => {
+                                openAccordion(targetItem, false);
+                            }, 100);
+                            return;
+                        }
                     }
-                }
-                
-                // Abrir el primer ítem por defecto si no hay hash
-                if (accordionItems.length > 0) {
-                    setTimeout(() => {
-                        openAccordion(accordionItems[0], false);
-                    }, 300);
+                    
+                    // Abrir el primer ítem por defecto si no hay hash,
+if (accordionItems.length > 0) {
+                        setTimeout(() => {
+                            openAccordion(accordionItems[0], false);
+                        }, 300);
+                    }
+                } catch (e) {
+                    console.warn('Error inicializando acordeón:', e);
                 }
             }
             
-            // Inicializar los acordeones
-            initAccordions();
+            // Inicializar los acordeones,
+initAccordions();
             
-            // Manejar el botón de retroceso/adelante del navegador
-            window.addEventListener('popstate', function() {
-                const hash = window.location.hash.substring(1);
-                if (hash) {
-                    const targetItem = document.querySelector(`[aria-controls="${hash}"]`);
-                    if (targetItem) {
-                        openAccordion(targetItem, false);
+            // Manejar el botón de retroceso/adelante del navegador,
+window.addEventListener('popstate', function() {
+                try {
+                    const hash = window.location.hash.substring(1);
+                    if (hash) {
+                        const targetItem = document.querySelector(`[aria-controls="${hash}"]`);
+                        if (targetItem) {
+                            openAccordion(targetItem, false);
+                        }
+                    } else if (activeItem) {
+                        openAccordion(activeItem, false);
                     }
-                } else if (activeItem) {
-                    openAccordion(activeItem, false);
+                } catch (e) {
+                    console.warn('Error en popstate:', e);
                 }
             });
             
-            // Ajustar la altura de los acordeones abiertos al redimensionar la ventana
-            let resizeTimer;
+            // Ajustar la altura de los acordeones abiertos al redimensionar la ventana,
+let resizeTimer;
             window.addEventListener('resize', function() {
                 clearTimeout(resizeTimer);
                 resizeTimer = setTimeout(function() {
-                    const openContent = document.querySelector('.accordion-header[aria-expanded="true"]');
-                    if (openContent) {
-                        const content = openContent.nextElementSibling;
-                        content.style.maxHeight = content.scrollHeight + 'px';
+                    try {
+                        const openContent = document.querySelector('.accordion-header[aria-expanded="true"]');
+                        if (openContent) {
+                            const content = openContent.nextElementSibling;
+                            if (content && content.classList.contains('accordion-content')) {
+                                content.style.maxHeight = content.scrollHeight + 'px';
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('Error en resize:', e);
                     }
                 }, 250);
             });
             
-            // Añadir clase al body para indicar que el JS está cargado
-            document.body.classList.add('js-accordion-loaded');
+            // Añadir clase al body para indicar que el JS está cargado,
+document.body.classList.add('js-accordion-loaded');
         });
         </script>
         
@@ -4174,8 +5086,8 @@
                 .accordion-header {
                     page-break-after: avoid;
                     background-color: #f8fafc !important;
-                    print-color-adjust: exact;
-                    -webkit-print-color-adjust: exact;
+                    print-print-color-adjust: exact;
+                    -webkit-print-print-color-adjust: exact;
                 }
                 
                 .accordion-content {
@@ -4273,9 +5185,8 @@
     {{ proposal.title }} - Título de la propuesta
     {{ proposal.description }} - Descripción detallada de la propuesta
     {{ proposal.custom_message }} - Mensaje personalizado para el cliente
-    {{ proposal.reference_code }} - Código de referencia interno
-    
-    VARIABLES DE EMPRESA/CLIENTE
+    {{ proposal.reference_code }} - Código de referencia interno,
+VARIABLES DE EMPRESA/CLIENTE
     ---------------------------
     {{ company.name }} - Nombre de la empresa
     {{ company.address }} - Dirección
@@ -4290,9 +5201,8 @@
     {{ company.logo_url }} - URL del logo (si está disponible)
     {{ company.primary_contact_name }} - Nombre del contacto principal
     {{ company.primary_contact_position }} - Posición del contacto principal
-    {{ company.account_manager }} - Gestor de cuenta asignado
-    
-    VARIABLES DE PRECIOS
+    {{ company.account_manager }} - Gestor de cuenta asignado,
+VARIABLES DE PRECIOS
     -------------------
     {{ pricing.currency }} - Moneda (MXN, USD, etc.)
     {{ pricing.total }} - Monto total
@@ -4301,9 +5211,8 @@
     {{ pricing.tax_amount }} - Monto de impuestos
     {{ pricing.subtotal }} - Subtotal antes de impuestos
     {{ pricing.discount_amount }} - Monto de descuento (si aplica)
-    {{ pricing.discount_reason }} - Razón del descuento
-    
-    BUCLES Y ESTRUCTURAS DE DATOS
+    {{ pricing.discount_reason }} - Razón del descuento,
+BUCLES Y ESTRUCTURAS DE DATOS
     ----------------------------
     {% for item in pricing.items %} ... {% endfor %} - Para iterar sobre elementos de precio
         {{ item.vacancy.title }} - Título de la vacante
@@ -4325,20 +5234,17 @@
         {{ milestone.percentage }} - Porcentaje del pago
         {{ milestone.amount }} - Monto a pagar
         {{ milestone.trigger_event }} - Evento que desencadena el pago
-        {{ milestone.due_date_offset }} - Días después del evento
-    
-    VARIABLES DE DASHBOARD (ADDON)
+        {{ milestone.due_date_offset }} - Días después del evento,
+VARIABLES DE DASHBOARD (ADDON)
     ----------------------------
     {{ dashboard_addon.enabled }} - Si el addon de dashboard está habilitado
     {{ dashboard_addon.price }} - Precio del addon de dashboard
     {{ dashboard_addon.description }} - Descripción detallada
-    {{ dashboard_addon.sample_url }} - URL de ejemplo del dashboard
-    
-    VARIABLES DE SERVICIOS ADICIONALES
+    {{ dashboard_addon.sample_url }} - URL de ejemplo del dashboard,
+VARIABLES DE SERVICIOS ADICIONALES
     --------------------------------
-    {{ additional_services }} - Lista de servicios adicionales ofrecidos
-    
-    FUNCIONES Y FILTROS ÚTILES
+    {{ additional_services }} - Lista de servicios adicionales ofrecidos,
+FUNCIONES Y FILTROS ÚTILES
     ------------------------
     {{ value|floatformat:"2" }} - Formatear números con 2 decimales
     {{ date|date:"Y-m-d" }} - Formatear fechas
@@ -4355,8 +5261,6 @@
             el.textContent = index + 1;
         });
     </script>
-   
-
 
 <script>
     // Simulación de número de página (actualizar según necesidades de impresión)
@@ -4369,8 +5273,8 @@
 <script>
     document.getElementById('contactForm').addEventListener('submit', function(e) {
         e.preventDefault();
-        // Aquí iría la lógica para enviar el formulario
-        alert('¡Gracias por tu mensaje! Nos pondremos en contacto contigo pronto.');
+        // Aquí iría la lógica para enviar el formulario,
+alert('¡Gracias por tu mensaje! Nos pondremos en contacto contigo pronto.');
         this.reset();
     });
 
@@ -4378,8 +5282,8 @@
     const scheduleButtons = document.querySelectorAll('[data-schedule]');
     scheduleButtons.forEach(button => {
         button.addEventListener('click', function() {
-            // Abrir modal de calendario o redirigir a Calendly
-            window.open('https://calendly.com/huntred/30min', '_blank');
+            // Abrir modal de calendario o redirigir a Calendly,
+window.open('https://calendly.com/huntred/30min', '_blank');
         });
     });
 </script>
@@ -4674,12 +5578,14 @@
                 bottom: 0;
                 left: 0;
                 right: 0;
+                width: 100% !important;
                 background: white;
                 border-top: 1px solid #e5e7eb;
                 padding: 8px 15px;
                 font-size: 10px;
                 color: #6b7280;
                 z-index: 1000;
+                box-sizing: border-box;
             }
 
             .print-footer-content {
@@ -4770,8 +5676,8 @@
 
 <!-- Script para numeración de páginas -->
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
-  // Actualizar números de página - Versión mejorada
+    document.addEventListener('DOMContentLoaded', function() {
+  // Actualizar números de página - Versión mejorada,
 function updatePageNumbers() {
     try {
         const pages = document.querySelectorAll('.page-number');
@@ -4788,8 +5694,8 @@ function updatePageNumbers() {
   updatePageNumbers();
   window.addEventListener('afterprint', updatePageNumbers);
 
-  // Lógica de tabs
-  const tabButtons = document.querySelectorAll('.tab-button');
+  // Lógica de tabs,
+const tabButtons = document.querySelectorAll('.tab-button');
   const tabPanels = document.querySelectorAll('.tab-panel');
   tabButtons.forEach(btn => {
     btn.addEventListener('click', function (e) {
@@ -4804,44 +5710,43 @@ function updatePageNumbers() {
 });
 </script>
 
-
 <script>
-    // Actualizar números de página al cargar
-    document.addEventListener('DOMContentLoaded', function() {
+    // Actualizar números de página al cargar,
+document.addEventListener('DOMContentLoaded', function() {
         updatePageNumbers();
         
-        // Configurar el botón de guardar propuesta
-        document.getElementById('btnGuardarPropuesta')?.addEventListener('click', function() {
-            // Aquí iría la lógica para guardar la propuesta
-            alert('Función de guardar propuesta se ejecutará aquí');
+        // Configurar el botón de guardar propuesta,
+document.getElementById('btnGuardarPropuesta')?.addEventListener('click', function() {
+            // Aquí iría la lógica para guardar la propuesta,
+alert('Función de guardar propuesta se ejecutará aquí');
         });
         
-        // Script para búsqueda en la propuesta
-        document.getElementById('searchInput').addEventListener('input', function(e) {
+        // Script para búsqueda en la propuesta,
+document.getElementById('searchInput').addEventListener('input', function(e) {
             const searchTerm = e.target.value.toLowerCase();
             // Implementar lógica de búsqueda...
         });
 
-        // Actualizar número de página en el footer
-        document.addEventListener('DOMContentLoaded', function() {
-            // Establecer la fecha actual en el atributo data-date para impresión
-            const today = new Date();
+        // Actualizar número de página en el footer,
+document.addEventListener('DOMContentLoaded', function() {
+            // Establecer la fecha actual en el atributo data-date para impresión,
+const today = new Date();
             document.documentElement.setAttribute('data-date', today.toLocaleDateString('es-MX', { 
                 year: 'numeric', 
                 month: 'long', 
                 day: 'numeric' 
             }));
 
-            // Actualizar número de página en el footer
-            const updatePageNumbers = () => {
+            // Actualizar número de página en el footer,
+const updatePageNumbers = () => {
                 const pageNumbers = document.querySelectorAll('.page-number');
                 pageNumbers.forEach((el, index) => {
                     el.textContent = (index + 1);
                 });
             };
 
-            // Actualizar al cargar y al cambiar de página
-            updatePageNumbers();
+            // Actualizar al cargar y al cambiar de página,
+updatePageNumbers();
             window.addEventListener('afterprint', updatePageNumbers);
         });
     });
@@ -4941,13 +5846,11 @@ function updatePageNumbers() {
     </div>
 </div>
 
-
-
 <!-- Script robusto para tabs y link de edición -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Tabs
-    const tabButtons = document.querySelectorAll('.tab-button');
+    // Tabs,
+const tabButtons = document.querySelectorAll('.tab-button');
     const tabPanels = document.querySelectorAll('.tab-panel');
     tabButtons.forEach(btn => {
         btn.addEventListener('click', function(e) {
@@ -4959,8 +5862,8 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById(panelId).classList.remove('hidden');
         });
     });
-    // Link (Editar) en Resumen
-    const goToContacts = document.getElementById('go-to-contacts');
+    // Link (Editar) en Resumen,
+const goToContacts = document.getElementById('go-to-contacts');
     const tabContacts = document.getElementById('tab-contacts');
     if (goToContacts && tabContacts) {
         goToContacts.addEventListener('click', function(e) {
@@ -4976,16 +5879,17 @@ document.addEventListener('DOMContentLoaded', function() {
 </html><!-- Script de mejoras premium -->
 <script src="/static/js/proposal-enhancements.js"></script>
 <link rel="stylesheet" href="/static/css/proposal-premium.css">
+    <link rel="stylesheet" href="/static/css/digital-signature.css">
 
 <!-- Script de inicialización para la calculadora de ROI -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Inicializar la calculadora de ROI si existe
-    if (window.proposalEnhancements) {
+    // Inicializar la calculadora de ROI si existe,
+if (window.proposalEnhancements) {
         console.log('Inicializando calculadora de ROI...');
         
-        // Verificar que los elementos existan antes de inicializar
-        const salarySlider = document.getElementById('salarySlider');
+        // Verificar que los elementos existan antes de inicializar,
+const salarySlider = document.getElementById('salarySlider');
         const timeSlider = document.getElementById('timeSlider');
         const productivitySlider = document.getElementById('productivitySlider');
         
@@ -4998,8 +5902,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     slider.addEventListener('input', function() {
                         console.log('Slider movido:', this.id, this.value);
                         
-                        // Actualizar el valor mostrado
-                        const valueElement = document.getElementById(this.id.replace('Slider', 'Value'));
+                        // Actualizar el valor mostrado,
+const valueElement = document.getElementById(this.id.replace('Slider', 'Value'));
                         if (valueElement) {
                             if (this.id === 'salarySlider') {
                                 valueElement.textContent = `$${parseInt(this.value).toLocaleString()}`;
@@ -5010,8 +5914,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             }
                         }
                         
-                        // Actualizar cálculos
-                        if (window.proposalEnhancements && window.proposalEnhancements.updateROICalculation) {
+                        // Actualizar cálculos,
+if (window.proposalEnhancements && window.proposalEnhancements.updateROICalculation) {
                             window.proposalEnhancements.updateROICalculation();
                         }
                     });
@@ -5031,8 +5935,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
             
-            // Ejecutar cálculo inicial
-            if (window.proposalEnhancements && window.proposalEnhancements.updateROICalculation) {
+            // Ejecutar cálculo inicial,
+if (window.proposalEnhancements && window.proposalEnhancements.updateROICalculation) {
                 window.proposalEnhancements.updateROICalculation();
             }
             
@@ -5061,24 +5965,24 @@ document.addEventListener('DOMContentLoaded', function() {
         
         console.log('Cambiando a tab:', targetId);
         
-        // Remover clases activas de todos los tabs
-        tabButtons.forEach(tab => {
+        // Remover clases activas de todos los tabs,
+tabButtons.forEach(tab => {
             tab.classList.remove('tab-active', 'text-red-600');
             tab.setAttribute('aria-selected', 'false');
         });
         
-        // Ocultar todos los paneles
-        tabPanels.forEach(panel => {
+        // Ocultar todos los paneles,
+tabPanels.forEach(panel => {
             panel.classList.add('hidden');
             panel.classList.remove('active');
         });
         
-        // Activar el tab seleccionado
-        e.currentTarget.classList.add('tab-active', 'text-red-600');
+        // Activar el tab seleccionado,
+e.currentTarget.classList.add('tab-active', 'text-red-600');
         e.currentTarget.setAttribute('aria-selected', 'true');
         
-        // Mostrar el panel correspondiente
-        const targetPanel = document.getElementById(targetId);
+        // Mostrar el panel correspondiente,
+const targetPanel = document.getElementById(targetId);
         if (targetPanel) {
             targetPanel.classList.remove('hidden');
             targetPanel.classList.add('active');
@@ -5088,8 +5992,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Event listeners para tabs
-    tabButtons.forEach(tab => {
+    // Event listeners para tabs,
+tabButtons.forEach(tab => {
         tab.addEventListener('click', switchTab);
         tab.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' || e.key === ' ') {
@@ -5144,8 +6048,8 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Update services summary and ROI
-    function updateServicesSummary() {
+    // Update services summary and ROI,
+function updateServicesSummary() {
         const selectedCheckboxes = document.querySelectorAll('.service-checkbox:checked');
         let totalInvestment = 0;
         
@@ -5169,8 +6073,8 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
         }
 
-        // Calculate ROI if container exists
-        if (servicesRoiCalculation) {
+        // Calculate ROI if container exists,
+if (servicesRoiCalculation) {
             const avgSalary = {% if pricing.items.0.salary_parameters.max %}{{ pricing.items.0.salary_parameters.max|escapejs }}{% else %}50000{% endif %};
             const badHireCost = avgSalary * 5;
             const roiPercentage = totalInvestment > 0 ? ((badHireCost - totalInvestment) / totalInvestment * 100).toFixed(2) : 0;
@@ -5187,15 +6091,15 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
         }
         
-        // Update the hidden input with selected services
-        const servicesInput = document.getElementById('selectedServices');
+        // Update the hidden input with selected services,
+const servicesInput = document.getElementById('selectedServices');
         if (servicesInput) {
             servicesInput.value = JSON.stringify(Array.from(selectedServices));
         }
     }
 
-    // Update card visual state
-    function updateCardState(checkbox) {
+    // Update card visual state,
+function updateCardState(checkbox) {
         const card = checkbox.closest('.service-card');
         if (!card) return;
         
@@ -5217,8 +6121,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Event delegation for service checkboxes
-    if (servicesContainer) {
+    // Event delegation for service checkboxes,
+if (servicesContainer) {
         servicesContainer.addEventListener('change', (e) => {
             if (e.target.classList.contains('service-checkbox')) {
                 updateCardState(e.target);
@@ -5227,8 +6131,8 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Save services selection
-    if (saveServicesBtn) {
+    // Save services selection,
+if (saveServicesBtn) {
         saveServicesBtn.addEventListener('click', () => {
             const form = document.getElementById('servicesForm');
             if (!form) return;
@@ -5279,8 +6183,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ===== FORMULARIOS DE CONTACTOS =====
-    // Cancelar formulario de contactos
-    const cancelContactsForm = document.getElementById('cancelContactsForm');
+    // Cancelar formulario de contactos,
+const cancelContactsForm = document.getElementById('cancelContactsForm');
     if (cancelContactsForm) {
         cancelContactsForm.addEventListener('click', function() {
             const summaryTab = document.getElementById('tab-summary');
@@ -5288,8 +6192,8 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Botón de añadir invitados
-    const addInviteeBtn = document.getElementById('addInviteeBtn');
+    // Botón de añadir invitados,
+const addInviteeBtn = document.getElementById('addInviteeBtn');
     const extraInvitees = document.getElementById('extraInvitees');
     
     if (addInviteeBtn && extraInvitees) {
@@ -5318,8 +6222,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     slider.addEventListener('input', function() {
                         console.log('Slider movido:', this.id, this.value);
                         
-                        // Actualizar el valor mostrado
-                        const valueElement = document.getElementById(this.id.replace('Slider', 'Value'));
+                        // Actualizar el valor mostrado,
+const valueElement = document.getElementById(this.id.replace('Slider', 'Value'));
                         if (valueElement) {
                             if (this.id === 'salarySlider') {
                                 valueElement.textContent = `$${parseInt(this.value).toLocaleString()}`;
@@ -5330,8 +6234,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             }
                         }
                         
-                        // Actualizar cálculos
-                        updateROICalculation();
+                        // Actualizar cálculos,
+updateROICalculation();
                     });
                 }
             });
@@ -5347,8 +6251,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
             
-            // Ejecutar cálculo inicial
-            updateROICalculation();
+            // Ejecutar cálculo inicial,
+updateROICalculation();
             
             console.log('Calculadora de ROI inicializada correctamente');
         } else {
@@ -5356,8 +6260,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Función para actualizar cálculos de ROI
-    function updateROICalculation() {
+    // Función para actualizar cálculos de ROI,
+function updateROICalculation() {
         const salarySlider = document.getElementById('salarySlider');
         const timeSlider = document.getElementById('timeSlider');
         const productivitySlider = document.getElementById('productivitySlider');
@@ -5368,8 +6272,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const time = parseInt(timeSlider.value);
             const productivity = parseInt(productivitySlider.value);
             
-            // Cálculos de ROI
-            const badHireCost = salary * 5;
+            // Cálculos de ROI,
+const badHireCost = salary * 5;
             const timeValue = (salary / 365) * time;
             const productivityValue = (salary * productivity) / 100;
             const totalROI = badHireCost + timeValue + productivityValue;
@@ -5399,22 +6303,22 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ===== INICIALIZACIÓN =====
-    // Inicializar checkboxes de servicios
-    document.querySelectorAll('.service-checkbox').forEach(checkbox => {
+    // Inicializar checkboxes de servicios,
+document.querySelectorAll('.service-checkbox').forEach(checkbox => {
         if (selectedServices.has(checkbox.value)) {
             checkbox.checked = true;
             updateCardState(checkbox);
         }
     });
     
-    // Inicializar resumen de servicios
-    updateServicesSummary();
+    // Inicializar resumen de servicios,
+updateServicesSummary();
     
-    // Inicializar calculadora de ROI
-    initializeROICalculator();
+    // Inicializar calculadora de ROI,
+initializeROICalculator();
     
-    // Actualizar números de página
-    function updatePageNumbers() {
+    // Actualizar números de página,
+function updatePageNumbers() {
         const pageNumbers = document.querySelectorAll('.page-number');
         const totalPages = pageNumbers.length / 2;
         pageNumbers.forEach((el, index) => {
@@ -5431,7 +6335,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <!-- Scripts externos -->
 <script src="/static/js/proposal-enhancements.js"></script>
+<script src="/static/js/digital-signature.js"></script>
+<script src="/static/js/proposal-summary-modal.js"></script>
 <link rel="stylesheet" href="/static/css/proposal-premium.css">
+    <link rel="stylesheet" href="/static/css/digital-signature.css">
 
 </body>
 </html>

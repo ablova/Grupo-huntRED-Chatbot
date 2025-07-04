@@ -1,4 +1,4 @@
-# /home/pablo/app/utilidades/linkedin.py
+# /home/pablo/app/ats/utils/linkedin.py
 import logging
 import os
 import csv
@@ -19,7 +19,7 @@ from urllib.parse import urlparse, parse_qs, urljoin
 from enum import Enum, auto
 
 # Configuración de la API
-from app.ats.config.api_config import LINKEDIN_CONFIG
+from app.config.api_config import LINKEDIN_CONFIG
 
 # Monitoreo
 from app.ats.utils.monitoring.monitoring import (

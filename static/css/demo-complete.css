@@ -1,0 +1,366 @@
+/* huntRED® Demo Complete - Estilos Avanzados */
+
+:root {
+    --hunt-red: #dc2626;
+    --hunt-red-dark: #b91c1c;
+    --hunt-blue: #1f3544;
+    --hunt-blue-light: #374151;
+    --hunt-gold: #f59e0b;
+    --hunt-gray: #6b7280;
+    --hunt-gray-light: #f3f4f6;
+}
+
+/* Animaciones personalizadas */
+@keyframes float {
+    0%, 100% { 
+        transform: translateY(0px) rotate(0deg); 
+    }
+    50% { 
+        transform: translateY(-20px) rotate(5deg); 
+    }
+}
+
+@keyframes pulse-glow {
+    0%, 100% { 
+        box-shadow: 0 0 20px rgba(220, 38, 38, 0.3); 
+    }
+    50% { 
+        box-shadow: 0 0 40px rgba(220, 38, 38, 0.6); 
+    }
+}
+
+@keyframes slide-up {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Efectos de hover avanzados */
+.card-hover {
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.card-hover::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s;
+}
+
+.card-hover:hover::before {
+    left: 100%;
+}
+
+.card-hover:hover {
+    transform: translateY(-12px) scale(1.02);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+/* Gradientes personalizados */
+.hero-gradient {
+    background: linear-gradient(135deg, var(--hunt-blue) 0%, var(--hunt-blue-light) 50%, var(--hunt-red) 100%);
+    position: relative;
+}
+
+.hero-gradient::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="50" cy="50" r="1" fill="white" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+    opacity: 0.3;
+}
+
+.gradient-text {
+    background: linear-gradient(135deg, var(--hunt-red), var(--hunt-gold));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    position: relative;
+}
+
+.gradient-text::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(135deg, var(--hunt-red), var(--hunt-gold));
+    transform: scaleX(0);
+    transition: transform 0.3s ease;
+}
+
+.gradient-text:hover::after {
+    transform: scaleX(1);
+}
+
+/* Efectos de glassmorphism */
+.glass-effect {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+/* Botones con efectos avanzados */
+.btn-primary {
+    background: linear-gradient(135deg, var(--hunt-red), var(--hunt-red-dark));
+    border: none;
+    color: white;
+    padding: 12px 24px;
+    border-radius: 12px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-primary::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s;
+}
+
+.btn-primary:hover::before {
+    left: 100%;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(220, 38, 38, 0.3);
+}
+
+/* Elementos flotantes animados */
+.floating-element {
+    animation: float 6s ease-in-out infinite;
+    position: absolute;
+    border-radius: 50%;
+    opacity: 0.2;
+}
+
+.floating-element:nth-child(1) {
+    animation-delay: 0s;
+    background: var(--hunt-red);
+}
+
+.floating-element:nth-child(2) {
+    animation-delay: 2s;
+    background: var(--hunt-gold);
+}
+
+.floating-element:nth-child(3) {
+    animation-delay: 4s;
+    background: var(--hunt-blue);
+}
+
+/* Efectos de scroll reveal */
+.reveal-on-scroll {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: all 0.6s ease;
+}
+
+.reveal-on-scroll.revealed {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Estilos para las tarjetas de precios */
+.pricing-card {
+    position: relative;
+    overflow: hidden;
+    border-radius: 20px;
+    transition: all 0.4s ease;
+}
+
+.pricing-card.featured {
+    border: 2px solid var(--hunt-red);
+    box-shadow: 0 20px 40px rgba(220, 38, 38, 0.1);
+}
+
+.pricing-card.featured::before {
+    content: 'MEJOR PRECIO';
+    position: absolute;
+    top: 20px;
+    right: -30px;
+    background: var(--hunt-red);
+    color: white;
+    padding: 8px 40px;
+    font-size: 12px;
+    font-weight: bold;
+    transform: rotate(45deg);
+    z-index: 10;
+}
+
+/* Efectos para las integraciones */
+.integration-card {
+    position: relative;
+    overflow: hidden;
+}
+
+.integration-card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, transparent 0%, rgba(255, 255, 255, 0.1) 50%, transparent 100%);
+    transform: translateX(-100%);
+    transition: transform 0.6s ease;
+}
+
+.integration-card:hover::after {
+    transform: translateX(100%);
+}
+
+/* Estilos para los módulos */
+.module-card {
+    position: relative;
+    overflow: hidden;
+}
+
+.module-card::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(220, 38, 38, 0.1) 0%, transparent 70%);
+    transform: scale(0);
+    transition: transform 0.6s ease;
+}
+
+.module-card:hover::before {
+    transform: scale(1);
+}
+
+/* Efectos de texto */
+.text-glow {
+    text-shadow: 0 0 10px rgba(220, 38, 38, 0.5);
+}
+
+/* Responsive design mejorado */
+@media (max-width: 768px) {
+    .hero-gradient h1 {
+        font-size: 3rem;
+        line-height: 1.2;
+    }
+    
+    .pricing-card.featured::before {
+        font-size: 10px;
+        padding: 6px 30px;
+        right: -25px;
+        top: 15px;
+    }
+    
+    .floating-element {
+        display: none;
+    }
+}
+
+/* Efectos de carga */
+.loading-skeleton {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+/* Efectos de hover para navegación */
+.nav-link {
+    position: relative;
+    transition: color 0.3s ease;
+}
+
+.nav-link::after {
+    content: '';
+    position: absolute;
+    bottom: -5px;
+    left: 0;
+    width: 0;
+    height: 2px;
+    background: var(--hunt-red);
+    transition: width 0.3s ease;
+}
+
+.nav-link:hover::after {
+    width: 100%;
+}
+
+/* Efectos para estadísticas */
+.stat-card {
+    position: relative;
+    overflow: hidden;
+}
+
+.stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, rgba(220, 38, 38, 0.1) 0%, transparent 100%);
+    transform: translateX(-100%);
+    transition: transform 0.6s ease;
+}
+
+.stat-card:hover::before {
+    transform: translateX(0);
+}
+
+/* Efectos de scroll suave */
+html {
+    scroll-behavior: smooth;
+}
+
+/* Optimizaciones de rendimiento */
+.card-hover,
+.btn-primary,
+.integration-card,
+.module-card {
+    will-change: transform;
+}
+
+/* Efectos de focus para accesibilidad */
+.btn-primary:focus,
+.nav-link:focus {
+    outline: 2px solid var(--hunt-red);
+    outline-offset: 2px;
+}
+
+/* Estilos para dark mode (futuro) */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --hunt-gray-light: #1f2937;
+    }
+} 

@@ -1,0 +1,59 @@
+Nueva Propuesta Firmada - huntRED®
+==================================
+
+¡NUEVA PROPUESTA FIRMADA EXITOSAMENTE!
+
+{{ client_name }} ha firmado la propuesta #{{ proposal_id }} por un valor de ${{ total_amount|floatformat:2 }}.
+
+ESTADÍSTICAS RÁPIDAS:
+- Valor Total: ${{ total_amount|floatformat:0 }}
+- Servicios: {{ services|length }}
+- Contactos: {{ contacts|length }}
+- Fecha: {{ signed_date|date:"d/m" }}
+
+DETALLES DEL CLIENTE:
+- Cliente: {{ client_name }}
+- ID Propuesta: #{{ proposal_id }}
+- Fecha de Firma: {{ signed_date }}
+- Contactos: {{ contacts|join:", " }}
+
+SERVICIOS CONTRATADOS:
+{% for service in services %}
+- {{ service.name }} - ${{ service.price|floatformat:2 }}
+{% endfor %}
+
+ACCIONES REQUERIDAS:
+1. Asignar Consultor: Designar el consultor principal para este proyecto
+2. Programar Kick-off: Coordinar reunión inicial con el cliente
+3. Configurar AURA: Inicializar análisis predictivo para el perfil requerido
+4. Crear Proyecto: Configurar el proyecto en el sistema interno
+
+MÉTRICAS DE RENDIMIENTO:
+- Tiempo de Respuesta: {{ signed_date|timesince }} desde la creación
+- Valor Promedio: ${{ total_amount|floatformat:2 }} (comparar con métricas del mes)
+- Servicios Populares: {{ services|length }} módulos seleccionados
+
+INFORMACIÓN DE SEGURIDAD:
+- Firma digital validada biométricamente
+- IP registrada: {{ ip_address }}
+- Timestamp certificado: {{ signed_date }}
+- Documento respaldado en blockchain
+
+CONTACTOS DEL CLIENTE:
+{% for contact in contacts %}
+- Email: {{ contact }}
+{% endfor %}
+
+RECOMENDACIONES AURA:
+Basándonos en el perfil del cliente y los servicios contratados, AURA® recomienda:
+- Priorizar búsqueda en redes profesionales específicas del sector
+- Utilizar análisis predictivo de compatibilidad cultural
+- Aplicar filtros de retención y éxito laboral
+- Considerar candidatos pasivos con alta probabilidad de respuesta
+
+Ver Propuesta Completa: {{ pdf_url }}
+
+---
+Grupo huntRED® - Sistema de Notificaciones Automáticas
+Este email fue generado automáticamente por nuestro sistema de firma digital.
+Para más información, consulte el dashboard interno. 
