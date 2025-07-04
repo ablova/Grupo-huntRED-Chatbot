@@ -1,0 +1,1 @@
+# GhuntRED-v2 Settings Module

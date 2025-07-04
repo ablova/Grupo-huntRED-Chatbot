@@ -1,272 +1,291 @@
 # 🚀 GhuntRED-v2 - Latest Technology Stack
 # Ultra-optimized for performance and scalability
 
-version: '3.9'
+version: '3.8'
 
 services:
-  # PostgreSQL 16 - Latest with performance optimizations
-  db:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: ghuntred_v2
-      POSTGRES_USER: huntred
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=C --lc-ctype=C"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./deployment/postgres/postgresql.conf:/etc/postgresql/postgresql.conf
-      - ./deployment/postgres/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
-    ports:
-      - "5432:5432"
-    command: postgres -c config_file=/etc/postgresql/postgresql.conf
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U huntred -d ghuntred_v2"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # Redis 7.2 - Latest with persistence and clustering ready
-  redis:
-    image: redis:7.2-alpine
-    command: redis-server --appendonly yes --maxmemory 2gb --maxmemory-policy allkeys-lru
-    volumes:
-      - redis_data:/data
-      - ./deployment/redis/redis.conf:/etc/redis/redis.conf
-    ports:
-      - "6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-
-  # Backend - Django 5.0 + Python 3.12
-  backend:
+  # Main FastAPI Application
+  ghuntred-api:
     build: 
-      context: ./backend
+      context: .
       dockerfile: Dockerfile
-      target: development
-    volumes:
-      - ./backend:/app
-      - media_files:/app/media
-      - static_files:/app/static
+    container_name: ghuntred-api
     ports:
       - "8000:8000"
     environment:
-      - DJANGO_SETTINGS_MODULE=backend.config.settings.development
-      - DATABASE_URL=postgresql://huntred:${DB_PASSWORD}@db:5432/ghuntred_v2
+      - DATABASE_URL=postgresql://ghuntred:huntred2024@postgres:5432/ghuntred_v2
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/1
-      - CELERY_RESULT_BACKEND=redis://redis:6379/2
-      - PYTHONUNBUFFERED=1
-      - PYTHONDONTWRITEBYTECODE=1
-      - WEB_CONCURRENCY=4
+      - SECRET_KEY=ghuntred-super-secret-key-2024
+      - DEBUG=False
+      - WHATSAPP_VERIFY_TOKEN=ghuntred_whatsapp_verify_2024
+      - TELEGRAM_BOT_TOKEN=your_telegram_bot_token
+      - SMTP_HOST=smtp.gmail.com
+      - SMTP_PORT=587
+      - SMTP_USER=noreply@huntred.com
+      - SMTP_PASSWORD=your_email_password
     depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+      - postgres
+      - redis
+    volumes:
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+    networks:
+      - ghuntred-network
+    restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health/"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
 
-  # Celery Worker - Optimized for ML tasks
-  celery:
-    build: 
-      context: ./backend
-      dockerfile: Dockerfile
-      target: development
-    command: celery -A backend.config.celery worker -l info -E --concurrency=4 --prefetch-multiplier=1
-    volumes:
-      - ./backend:/app
-      - media_files:/app/media
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15
+    container_name: ghuntred-postgres
     environment:
-      - DJANGO_SETTINGS_MODULE=backend.config.settings.development
-      - DATABASE_URL=postgresql://huntred:${DB_PASSWORD}@db:5432/ghuntred_v2
+      - POSTGRES_DB=ghuntred_v2
+      - POSTGRES_USER=ghuntred
+      - POSTGRES_PASSWORD=huntred2024
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=es_MX.UTF-8 --lc-ctype=es_MX.UTF-8
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - ghuntred-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ghuntred -d ghuntred_v2"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis Cache & Message Broker
+  redis:
+    image: redis:7-alpine
+    container_name: ghuntred-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf
+    networks:
+      - ghuntred-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Celery Worker
+  celery-worker:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: ghuntred-celery-worker
+    command: celery -A src.tasks.celery_app worker --loglevel=info --concurrency=4 -Q default,payroll,scraping,messaging,notifications
+    environment:
+      - DATABASE_URL=postgresql://ghuntred:huntred2024@postgres:5432/ghuntred_v2
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/1
-      - CELERY_RESULT_BACKEND=redis://redis:6379/2
-      - PYTHONUNBUFFERED=1
-      - C_FORCE_ROOT=1
+      - SECRET_KEY=ghuntred-super-secret-key-2024
+      - DEBUG=False
     depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    deploy:
-      replicas: 2
+      - postgres
+      - redis
+    volumes:
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+    networks:
+      - ghuntred-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "celery", "-A", "src.tasks.celery_app", "inspect", "ping"]
+      interval: 60s
+      timeout: 30s
+      retries: 3
 
-  # Celery Beat - Scheduled tasks
+  # Celery Beat Scheduler
   celery-beat:
     build: 
-      context: ./backend
+      context: .
       dockerfile: Dockerfile
-      target: development
-    command: celery -A backend.config.celery beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
-    volumes:
-      - ./backend:/app
+    container_name: ghuntred-celery-beat
+    command: celery -A src.tasks.celery_app beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
     environment:
-      - DJANGO_SETTINGS_MODULE=backend.config.settings.development
-      - DATABASE_URL=postgresql://huntred:${DB_PASSWORD}@db:5432/ghuntred_v2
+      - DATABASE_URL=postgresql://ghuntred:huntred2024@postgres:5432/ghuntred_v2
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/1
-      - CELERY_RESULT_BACKEND=redis://redis:6379/2
-      - PYTHONUNBUFFERED=1
+      - SECRET_KEY=ghuntred-super-secret-key-2024
+      - DEBUG=False
     depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+      - postgres
+      - redis
+    volumes:
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+    networks:
+      - ghuntred-network
+    restart: unless-stopped
 
-  # Celery Flower - Task monitoring
+  # Flower - Celery Monitoring
   flower:
     build: 
-      context: ./backend
+      context: .
       dockerfile: Dockerfile
-      target: development
-    command: celery -A backend.config.celery flower --port=5555
+    container_name: ghuntred-flower
+    command: celery -A src.tasks.celery_app flower --port=5555
     ports:
       - "5555:5555"
     environment:
       - CELERY_BROKER_URL=redis://redis:6379/1
-      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - FLOWER_BASIC_AUTH=admin:huntred2024
     depends_on:
       - redis
+      - celery-worker
+    networks:
+      - ghuntred-network
+    restart: unless-stopped
 
-  # Frontend - React 18 + Vite + TypeScript
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile.dev
-      target: development
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-      - frontend_dist:/app/dist
-    ports:
-      - "3000:3000"
-      - "3001:3001"  # Storybook
-    environment:
-      - NODE_ENV=development
-      - VITE_API_URL=http://localhost:8000
-      - VITE_WS_URL=ws://localhost:8000
-      - VITE_APP_VERSION=${APP_VERSION:-dev}
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  # Nginx - Reverse proxy and static files
+  # Nginx Reverse Proxy
   nginx:
-    image: nginx:1.25-alpine
+    image: nginx:alpine
+    container_name: ghuntred-nginx
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      - ./deployment/nginx/nginx.conf:/etc/nginx/nginx.conf
-      - ./deployment/nginx/sites-available:/etc/nginx/sites-available
-      - static_files:/var/www/static
-      - media_files:/var/www/media
-      - frontend_dist:/var/www/frontend
-      - ./deployment/ssl:/etc/nginx/ssl
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/nginx/ssl
+      - ./static:/var/www/static
     depends_on:
-      - backend
-      - frontend
+      - ghuntred-api
+    networks:
+      - ghuntred-network
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/health"]
       interval: 30s
       timeout: 10s
       retries: 3
 
-  # Elasticsearch 8.x - For advanced search and ML analytics
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
-    environment:
-      - discovery.type=single-node
-      - ES_JAVA_OPTS=-Xms1g -Xmx1g
-      - xpack.security.enabled=false
-      - xpack.security.http.ssl.enabled=false
-    volumes:
-      - elasticsearch_data:/usr/share/elasticsearch/data
-    ports:
-      - "9200:9200"
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-
-  # MinIO - S3-compatible object storage for files and ML models
-  minio:
-    image: minio/minio:latest
-    command: server /data --console-address ":9001"
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    environment:
-      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-admin}
-      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-adminpassword}
-    volumes:
-      - minio_data:/data
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  # ML Model Server - TensorFlow Serving for production ML models
-  ml-server:
-    image: tensorflow/serving:2.14.0
-    ports:
-      - "8501:8501"  # REST API
-      - "8500:8500"  # gRPC API
-    volumes:
-      - ./backend/ml/models:/models
-    environment:
-      - MODEL_CONFIG_FILE=/models/models.config
-    command: --model_config_file=/models/models.config --model_config_file_poll_wait_seconds=60
-
-  # Monitoring - Prometheus + Grafana
+  # Prometheus Monitoring
   prometheus:
     image: prom/prometheus:latest
+    container_name: ghuntred-prometheus
     ports:
       - "9090:9090"
     volumes:
-      - ./deployment/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
       - '--web.console.libraries=/etc/prometheus/console_libraries'
       - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
       - '--web.enable-lifecycle'
+    networks:
+      - ghuntred-network
+    restart: unless-stopped
 
+  # Grafana Dashboard
   grafana:
     image: grafana/grafana:latest
+    container_name: ghuntred-grafana
     ports:
-      - "3030:3000"
+      - "3000:3000"
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=huntred2024
+      - GF_USERS_ALLOW_SIGN_UP=false
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./deployment/grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    depends_on:
+      - prometheus
+    networks:
+      - ghuntred-network
+    restart: unless-stopped
+
+  # ElasticSearch for Logging
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.10.0
+    container_name: ghuntred-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - xpack.security.enabled=false
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - ghuntred-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Kibana for Log Visualization
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.10.0
+    container_name: ghuntred-kibana
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - KIBANA_SYSTEM_PASSWORD=huntred2024
+    depends_on:
+      - elasticsearch
+    networks:
+      - ghuntred-network
+    restart: unless-stopped
+
+  # Backup Service
+  backup:
+    image: postgres:15
+    container_name: ghuntred-backup
+    environment:
+      - PGPASSWORD=huntred2024
+    volumes:
+      - ./backups:/backups
+      - ./scripts/backup.sh:/backup.sh
+    command: |
+      sh -c '
+        chmod +x /backup.sh
+        while true; do
+          sleep 86400  # Run daily
+          /backup.sh
+        done
+      '
+    depends_on:
+      - postgres
+    networks:
+      - ghuntred-network
+    restart: unless-stopped
 
 volumes:
   postgres_data:
+    driver: local
   redis_data:
-  elasticsearch_data:
-  minio_data:
+    driver: local
   prometheus_data:
+    driver: local
   grafana_data:
-  media_files:
-  static_files:
-  frontend_dist:
+    driver: local
+  elasticsearch_data:
+    driver: local
 
 networks:
-  default:
+  ghuntred-network:
     driver: bridge
     ipam:
       config:

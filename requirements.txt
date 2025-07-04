@@ -258,3 +258,200 @@ google-api-python-client
 google-auth 
 google-auth-httplib2 
 google-auth-oauthlib
+
+# Ghuntred-v2 - Grupo huntRED® HR Technology Platform
+# Complete dependencies for production deployment
+
+# Core Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+gunicorn==21.2.0
+
+# Database
+sqlalchemy==2.0.23
+alembic==1.12.1
+psycopg2-binary==2.9.9
+redis==5.0.1
+
+# Authentication & Security
+pyjwt==2.8.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.6
+cryptography==41.0.7
+
+# Validation & Serialization
+pydantic==2.5.0
+pydantic-settings==2.1.0
+email-validator==2.1.0
+
+# HTTP Requests
+httpx==0.25.2
+requests==2.31.0
+aiohttp==3.9.1
+
+# Task Queue
+celery==5.3.4
+flower==2.0.1
+
+# File Processing
+openpyxl==3.1.2
+pandas==2.1.4
+xlsxwriter==3.1.9
+python-docx==1.1.0
+PyPDF2==3.0.1
+
+# Image Processing
+Pillow==10.1.0
+
+# Date/Time
+python-dateutil==2.8.2
+pytz==2023.3
+
+# Environment
+python-dotenv==1.0.0
+
+# Telegram Bot API
+python-telegram-bot==20.7
+
+# Email
+aiosmtplib==3.0.1
+jinja2==3.1.2
+
+# Social Media APIs
+tweepy==4.14.0
+facebook-sdk==3.1.0
+
+# ML/AI Libraries
+scikit-learn==1.3.2
+numpy==1.25.2
+scipy==1.11.4
+nltk==3.8.1
+textblob==0.17.1
+
+# Web Scraping
+beautifulsoup4==4.12.2
+selenium==4.15.2
+scrapy==2.11.0
+
+# Geolocation
+geopy==2.4.1
+
+# PDF Generation
+reportlab==4.0.7
+
+# JSON Processing
+orjson==3.9.10
+
+# XML Processing
+lxml==4.9.3
+
+# Utilities
+click==8.1.7
+rich==13.7.0
+tqdm==4.66.1
+
+# Phone number validation
+phonenumbers==8.13.25
+
+# Development
+pytest==7.4.3
+pytest-asyncio==0.21.1
+black==23.11.0
+isort==5.12.0
+flake8==6.1.0
+
+# Type hints
+typing-extensions==4.8.0
+
+# FastAPI Core
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+
+# Database
+sqlalchemy==2.0.23
+psycopg2-binary==2.9.9
+alembic==1.12.1
+
+# Redis & Caching
+redis==5.0.1
+hiredis==2.2.3
+
+# Celery Task Queue
+celery==5.3.4
+flower==2.0.1
+
+# HTTP Requests
+httpx==0.25.2
+requests==2.31.0
+aiohttp==3.9.1
+
+# WhatsApp & Messaging
+twilio==8.10.3
+python-telegram-bot==20.7
+sendgrid==6.11.0
+
+# Data Processing
+pandas==2.1.4
+openpyxl==3.1.2
+xlsxwriter==3.1.9
+
+# Web Scraping
+beautifulsoup4==4.12.2
+selenium==4.16.0
+scrapy==2.11.0
+playwright==1.40.0
+
+# AI/ML
+openai==1.3.7
+langchain==0.0.350
+transformers==4.36.2
+torch==2.1.2
+scikit-learn==1.3.2
+spacy==3.7.2
+
+# Social Media APIs
+facebook-sdk==3.1.0
+tweepy==4.14.0
+linkedin-api==2.0.0
+instagram-basic-display==1.0.0
+
+# Data Validation
+pydantic==2.5.1
+email-validator==2.1.0
+
+# Security
+cryptography==41.0.8
+bcrypt==4.1.2
+python-dotenv==1.0.0
+
+# Utilities
+python-dateutil==2.8.2
+pytz==2023.3
+babel==2.14.0
+jinja2==3.1.2
+markupsafe==2.1.3
+
+# Development
+pytest==7.4.3
+pytest-asyncio==0.21.1
+black==23.11.0
+flake8==6.1.0
+mypy==1.7.1
+
+# Monitoring
+prometheus-client==0.19.0
+structlog==23.2.0
+
+# File Processing
+pillow==10.1.0
+python-magic==0.4.27
+
+# Geographic
+geopy==2.4.1
+
+# Configuration
+pyyaml==6.0.1
+toml==0.10.2
