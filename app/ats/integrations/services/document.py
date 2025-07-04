@@ -21,7 +21,6 @@ get_nlp_processor = ChatbotUtils.get_nlp_processor
 from app.ats.chatbot.components.metrics import chatbot_metrics
 from app.ats.chatbot.components.events import workflow_event_manager
 from app.ats.utils.parser import CVParser
-from app.ats.utils.linkedin import LinkedInScraper
 from app.models import (
     BusinessUnit, Person,
     Conversation, ChatMessage, Notification,
@@ -51,7 +50,7 @@ class EnhancedDocumentProcessor:
         # Inicializamos los procesadores
         self.parser = CVParser(business_unit_id)
         self.nlp_processor = get_nlp_processor()
-        self.linkedin_processor = LinkedInScraper()
+        self.linkedin_processor = None  # Se inicializará cuando sea necesario
         
         # Aseguramos que existe la carpeta de almacenamiento
         os.makedirs(self.storage_path, exist_ok=True)
@@ -174,6 +173,11 @@ class EnhancedDocumentProcessor:
         try:
             if not linkedin_url:
                 return None
+            
+            # Importar LinkedInScraper solo cuando sea necesario
+            if self.linkedin_processor is None:
+                from app.ats.utils.linkedin import LinkedInScraper
+                self.linkedin_processor = LinkedInScraper()
                 
             data = await self.linkedin_processor.scrape_profile(linkedin_url)
             await self._track_metrics("linkedin_enrichment", True, 0)
