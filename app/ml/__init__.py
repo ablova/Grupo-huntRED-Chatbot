@@ -3,373 +3,244 @@
 """
 🚀 Sistema de Machine Learning Revolucionario para Grupo huntRED®
 
-Este módulo implementa el sistema de ML más avanzado del mercado, incluyendo:
-- AURA: Motor de IA holística para compatibilidad energética
-- Analizadores especializados de personalidad, cultura y talento
-- Modelos predictivos de última generación
-- Sistema de onboarding inteligente
-- Monitoreo y optimización automática
-- Integración con múltiples fuentes de datos
+Módulo principal con importaciones optimizadas y sistema de carga lazy
+para mejor rendimiento y mantenibilidad.
 
-Características revolucionarias:
-✨ Análisis de compatibilidad energética y vibracional
-🎯 Personalización dinámica por usuario y contexto
-🧠 IA explicable y transparente
-🔒 Privacidad y seguridad de nivel empresarial
-📊 Analytics predictivos en tiempo real
-🌐 API público con rate limiting inteligente
-🏆 Sistema de gamification avanzado
-🤖 Generative AI para CVs y entrevistas
+Versión: 2.0.0 - Optimizada
 """
 
-# ============================================================================
-# CORE ML MODELS - Modelos base del sistema
-# ============================================================================
-from app.ml.core.models.base import (
-    BaseMLModel,
-    MatchmakingModel,
-    TransitionModel,
-    MarketAnalysisModel
-)
+import logging
+from typing import Optional, Dict, Any
+
+# Configurar logging básico
+logger = logging.getLogger(__name__)
 
 # ============================================================================
-# AURA - Motor de IA Holística Revolucionario
-# ============================================================================
-from app.ml.aura.aura import AuraEngine
-from app.ml.aura import (
-    # Core AURA
-    CompatibilityEngine,
-    RecommendationEngine,
-    EnergyAnalyzer,
-    VibrationalMatcher,
-    HolisticAssessor,
-    AuraMetrics,
-    AuraGraphBuilder,
-    AuraIntegrationLayer,
-    
-    # Personalización Avanzada
-    UserSegmenter,
-    ContextAnalyzer,
-    AdaptiveEngine,
-    
-    # Upskilling & Desarrollo
-    SkillGapAnalyzer,
-    CareerSimulator,
-    MarketAlerts,
-    
-    # Networking Inteligente
-    NetworkMatchmaker,
-    AutoIntroducer,
-    EventRecommender,
-    
-    # Analytics Ejecutivos
-    ExecutiveAnalytics,
-    PerformanceMetrics,
-    TrendAnalyzer,
-    
-    # Gamification Avanzado
-    AchievementSystem,
-    ImpactRanking,
-    SocialAchievements,
-    
-    # Generative AI
-    CVGenerator,
-    InterviewSimulator,
-    AutoSummarizer,
-    
-    # Organizational Analytics
-    OrganizationalAnalytics,
-    ReportingEngine,
-    NetworkAnalyzer,
-    BUInsights,
-    
-    # Security & Privacy
-    PrivacyPanel,
-    ExplainableAI,
-    
-    # Ecosystem
-    PublicAPI,
-    ModuleMarketplace,
-    module_marketplace,
-    
-    # Monitoring & Performance
-    AuraMonitor,
-    IntelligentCache,
-    AuraOrchestrator,
-    
-    # Conversational AI
-    AdvancedChatbot,
-    
-    # Predictive Analytics
-    SentimentAnalyzer,
-    MarketPredictor,
-    CareerPredictor,
-    
-    # Models
-    # GNNModels,  # Comentado temporalmente - requiere PyTorch
-    # GNNAnalyzer,  # Comentado temporalmente - requiere PyTorch
-    
-    # Connectors
-    LinkedInConnector,
-    iCloudConnector
-)
-
-# ============================================================================
-# ANALYZERS - Analizadores especializados
-# ============================================================================
-from app.ml.analyzers.personality_analyzer import PersonalityAnalyzer
-from app.ml.analyzers.cultural_analyzer import CulturalAnalyzer
-from app.ml.analyzers.professional_analyzer import ProfessionalAnalyzer
-from app.ml.analyzers.integrated_analyzer import IntegratedAnalyzer
-from app.ml.analyzers.talent_analyzer import TalentAnalyzer
-from app.ml.analyzers.salary_analyzer import SalaryAnalyzer
-
-# ============================================================================
-# CORE UTILITIES - Utilidades avanzadas
-# ============================================================================
-from app.ml.core.data_cleaning import DataCleaner
-from app.ml.core.async_processing import AsyncProcessor
-from app.ml.ml_config import MLConfig
-from app.ml.ml_opt import MLOptimizer
-
-# ============================================================================
-# SPECIALIZED PROCESSORS - Procesadores especializados
-# ============================================================================
-from app.ml.onboarding_processor import OnboardingProcessor
-from app.ml.base_analyzer import NotificationAnalyzer
-
-# ============================================================================
-# MONITORING & VALIDATION - Monitoreo y validación
-# ============================================================================
-from app.ml.monitoring import MLMonitor
-from app.ml.validation import MLValidator
-from app.ml.feedback import FeedbackProcessor
-
-# ============================================================================
-# DATA & TRAINING - Datos y entrenamiento
-# ============================================================================
-from app.ml.data import DataManager
-from app.ml.training import ModelTrainer
-from app.ml.metrics import MetricsCalculator
-
-# ============================================================================
-# REVOLUTIONARY FEATURES - Características revolucionarias
+# LAZY IMPORTS - Para mejor rendimiento de startup
 # ============================================================================
 
-class RevolutionaryMLSystem:
-    """
-    🚀 Sistema de ML Revolucionario que integra todos los componentes
-    para crear la experiencia más avanzada del mercado.
-    """
+def _lazy_import_aura():
+    """Importación lazy del motor AURA"""
+    try:
+        from app.ml.aura.aura import AuraEngine
+        return AuraEngine
+    except ImportError as e:
+        logger.warning(f"AURA Engine no disponible: {e}")
+        return None
+
+def _lazy_import_analyzers():
+    """Importación lazy de analizadores"""
+    analyzers = {}
+    try:
+        from app.ml.analyzers.personality_analyzer import PersonalityAnalyzer
+        from app.ml.analyzers.cultural_analyzer import CulturalAnalyzer
+        from app.ml.analyzers.professional_analyzer import ProfessionalAnalyzer
+        from app.ml.analyzers.integrated_analyzer import IntegratedAnalyzer
+        from app.ml.analyzers.talent_analyzer import TalentAnalyzer
+        from app.ml.analyzers.salary_analyzer import SalaryAnalyzer
+        
+        analyzers.update({
+            'PersonalityAnalyzer': PersonalityAnalyzer,
+            'CulturalAnalyzer': CulturalAnalyzer,
+            'ProfessionalAnalyzer': ProfessionalAnalyzer,
+            'IntegratedAnalyzer': IntegratedAnalyzer,
+            'TalentAnalyzer': TalentAnalyzer,
+            'SalaryAnalyzer': SalaryAnalyzer,
+        })
+    except ImportError as e:
+        logger.warning(f"Algunos analizadores no disponibles: {e}")
+    
+    return analyzers
+
+def _lazy_import_core():
+    """Importación lazy de componentes core"""
+    core = {}
+    try:
+        from app.ml.core.unified_config import get_config
+        from app.ml.core.exceptions import MLBaseException
+        from app.ml.core.validation import validate_input
+        
+        core.update({
+            'get_config': get_config,
+            'MLBaseException': MLBaseException,
+            'validate_input': validate_input,
+        })
+    except ImportError as e:
+        logger.warning(f"Componentes core no disponibles: {e}")
+    
+    return core
+
+def _lazy_import_processors():
+    """Importación lazy de procesadores"""
+    processors = {}
+    try:
+        from app.ml.onboarding_processor import OnboardingProcessor
+        from app.ml.sentiment_analyzer import SentimentAnalyzer
+        from app.ml.communication_optimizer import CommunicationOptimizer
+        
+        processors.update({
+            'OnboardingProcessor': OnboardingProcessor,
+            'SentimentAnalyzer': SentimentAnalyzer,
+            'CommunicationOptimizer': CommunicationOptimizer,
+        })
+    except ImportError as e:
+        logger.warning(f"Algunos procesadores no disponibles: {e}")
+    
+    return processors
+
+# ============================================================================
+# SYSTEM FACTORY - Para creación optimizada de componentes
+# ============================================================================
+
+class MLComponentFactory:
+    """Factory para crear componentes ML de forma optimizada"""
     
     def __init__(self):
-        self.aura_engine = AuraEngine()
-        self.personality_analyzer = PersonalityAnalyzer()
-        self.cultural_analyzer = CulturalAnalyzer()
-        self.professional_analyzer = ProfessionalAnalyzer()
-        self.integrated_analyzer = IntegratedAnalyzer()
-        self.talent_analyzer = TalentAnalyzer()
-        self.salary_analyzer = SalaryAnalyzer()
-        self.onboarding_processor = OnboardingProcessor()
-        self.notification_analyzer = NotificationAnalyzer()
-        
-        # Configuración revolucionaria
-        self.config = MLConfig()
-        self.optimizer = MLOptimizer()
-        self.monitor = MLMonitor()
-        self.validator = MLValidator()
-        
-        print("🚀 Sistema de ML Revolucionario inicializado")
-        print("✨ AURA Engine: Activado")
-        print("🎯 Analizadores: Cargados")
-        print("🧠 IA Explicable: Habilitada")
-        print("🔒 Seguridad: Nivel empresarial")
+        self._analyzers_cache = {}
+        self._processors_cache = {}
+        self._core_cache = {}
     
-    def analyze_candidate_holistically(self, candidate_data, company_data):
-        """
-        Análisis holístico revolucionario que combina:
-        - Compatibilidad energética (AURA)
-        - Análisis de personalidad
-        - Análisis cultural
-        - Análisis profesional
-        - Análisis de talento
-        """
-        results = {
-            'aura_analysis': self.aura_engine.analyze_compatibility(candidate_data, company_data),
-            'personality': self.personality_analyzer.analyze(candidate_data),
-            'cultural': self.cultural_analyzer.analyze(candidate_data, company_data),
-            'professional': self.professional_analyzer.analyze(candidate_data),
-            'talent': self.talent_analyzer.analyze(candidate_data),
-            'integrated': self.integrated_analyzer.analyze(candidate_data, company_data)
-        }
+    def get_analyzer(self, analyzer_type: str):
+        """Obtiene analizador con cache"""
+        if analyzer_type not in self._analyzers_cache:
+            analyzers = _lazy_import_analyzers()
+            if analyzer_type in analyzers:
+                self._analyzers_cache[analyzer_type] = analyzers[analyzer_type]()
+            else:
+                raise ValueError(f"Analizador {analyzer_type} no disponible")
         
-        # Calcular score holístico revolucionario
-        holistic_score = self._calculate_holistic_score(results)
-        results['holistic_score'] = holistic_score
-        results['recommendations'] = self._generate_revolutionary_recommendations(results)
-        
-        return results
+        return self._analyzers_cache[analyzer_type]
     
-    def _calculate_holistic_score(self, results):
-        """Cálculo de score holístico revolucionario"""
-        weights = {
-            'aura': 0.35,  # Compatibilidad energética es fundamental
-            'personality': 0.20,
-            'cultural': 0.20,
-            'professional': 0.15,
-            'talent': 0.10
-        }
+    def get_processor(self, processor_type: str):
+        """Obtiene procesador con cache"""
+        if processor_type not in self._processors_cache:
+            processors = _lazy_import_processors()
+            if processor_type in processors:
+                self._processors_cache[processor_type] = processors[processor_type]()
+            else:
+                raise ValueError(f"Procesador {processor_type} no disponible")
         
-        score = 0
-        for key, weight in weights.items():
-            if key in results and hasattr(results[key], 'get'):
-                score += results[key].get('score', 0) * weight
-        
-        return min(score, 1.0)  # Normalizar a 1.0
+        return self._processors_cache[processor_type]
     
-    def _generate_revolutionary_recommendations(self, results):
-        """Generación de recomendaciones revolucionarias"""
-        recommendations = []
-        
-        # Recomendaciones basadas en AURA
-        if results.get('aura_analysis', {}).get('compatibility_score', 0) > 0.8:
-            recommendations.append("🌟 Compatibilidad energética excepcional - Match perfecto")
-        
-        # Recomendaciones basadas en personalidad
-        personality_score = results.get('personality', {}).get('score', 0)
-        if personality_score > 0.7:
-            recommendations.append("🎭 Perfil de personalidad altamente compatible")
-        
-        # Recomendaciones culturales
-        cultural_score = results.get('cultural', {}).get('score', 0)
-        if cultural_score > 0.75:
-            recommendations.append("🏢 Excelente alineación cultural")
-        
-        return recommendations
+    def get_aura_engine(self):
+        """Obtiene motor AURA"""
+        AuraEngine = _lazy_import_aura()
+        if AuraEngine:
+            return AuraEngine()
+        else:
+            raise RuntimeError("AURA Engine no disponible")
 
 # ============================================================================
-# EXPORTS - Exportaciones del módulo
+# GLOBAL FACTORY INSTANCE
+# ============================================================================
+
+_factory: Optional[MLComponentFactory] = None
+
+def get_ml_factory() -> MLComponentFactory:
+    """Obtiene instancia global del factory (Singleton)"""
+    global _factory
+    if _factory is None:
+        _factory = MLComponentFactory()
+    return _factory
+
+# ============================================================================
+# CONVENIENCE FUNCTIONS - Para compatibilidad hacia atrás
+# ============================================================================
+
+def get_sentiment_analyzer():
+    """Obtiene analizador de sentimientos"""
+    return get_ml_factory().get_processor('SentimentAnalyzer')
+
+def get_onboarding_processor():
+    """Obtiene procesador de onboarding"""
+    return get_ml_factory().get_processor('OnboardingProcessor')
+
+def get_personality_analyzer():
+    """Obtiene analizador de personalidad"""
+    return get_ml_factory().get_analyzer('PersonalityAnalyzer')
+
+def get_aura_engine():
+    """Obtiene motor AURA"""
+    return get_ml_factory().get_aura_engine()
+
+# ============================================================================
+# SYSTEM STATUS
+# ============================================================================
+
+def get_system_status() -> Dict[str, Any]:
+    """Obtiene estado del sistema ML"""
+    status = {
+        'version': '2.0.0',
+        'status': 'OPTIMIZED',
+        'components': {
+            'aura': False,
+            'analyzers': False,
+            'processors': False,
+            'core': False
+        },
+        'performance': {
+            'lazy_loading': True,
+            'caching': True,
+            'factory_pattern': True
+        }
+    }
+    
+    # Verificar disponibilidad de componentes
+    try:
+        _lazy_import_aura()
+        status['components']['aura'] = True
+    except:
+        pass
+    
+    try:
+        _lazy_import_analyzers()
+        status['components']['analyzers'] = True
+    except:
+        pass
+    
+    try:
+        _lazy_import_processors()
+        status['components']['processors'] = True
+    except:
+        pass
+    
+    try:
+        _lazy_import_core()
+        status['components']['core'] = True
+    except:
+        pass
+    
+    return status
+
+# ============================================================================
+# EXPORTS OPTIMIZADOS
 # ============================================================================
 
 __all__ = [
-    # Core ML Models
-    'BaseMLModel',
-    'MatchmakingModel', 
-    'TransitionModel',
-    'MarketAnalysisModel',
-    # AURA - Motor Revolucionario
-    'AuraEngine',
-    'CompatibilityEngine',
-    'RecommendationEngine',
-    'EnergyAnalyzer',
-    'VibrationalMatcher',
-    'HolisticAssessor',
-    'AuraMetrics',
-    'AuraGraphBuilder',
-    'AuraIntegrationLayer',
-    'UserSegmenter',
-    'ContextAnalyzer',
-    'AdaptiveEngine',
-    'SkillGapAnalyzer',
-    'CareerSimulator',
-    'MarketAlerts',
-    'NetworkMatchmaker',
-    'AutoIntroducer',
-    'EventRecommender',
-    'ExecutiveAnalytics',
-    'PerformanceMetrics',
-    'TrendAnalyzer',
-    'AchievementSystem',
-    'ImpactRanking',
-    'SocialAchievements',
-    'CVGenerator',
-    'InterviewSimulator',
-    'AutoSummarizer',
-    'OrganizationalAnalytics',
-    'ReportingEngine',
-    'NetworkAnalyzer',
-    'BUInsights',
-    'PrivacyPanel',
-    'ExplainableAI',
-    'PublicAPI',
-    'module_marketplace',
-    'AuraMonitor',
-    'IntelligentCache',
-    'AuraOrchestrator',
-    'AdvancedChatbot',
-    'SentimentAnalyzer',
-    'MarketPredictor',
-    'CareerPredictor',
-    # Connectors
-    'LinkedInConnector',
-    'iCloudConnector',
-    # Analyzers
-    'PersonalityAnalyzer',
-    'CulturalAnalyzer',
-    'ProfessionalAnalyzer',
-    'IntegratedAnalyzer',
-    'TalentAnalyzer',
-    'SalaryAnalyzer',
-    # Utilities
-    'DataCleaner',
-    'AsyncProcessor',
-    'MLConfig',
-    'MLOptimizer',
-    # Specialized Processors
-    'OnboardingProcessor',
-    'NotificationAnalyzer',
-    # Monitoring & Validation
-    'MLMonitor',
-    'MLValidator',
-    'FeedbackProcessor',
-    # Data & Training
-    'DataManager',
-    'ModelTrainer',
-    'MetricsCalculator',
-    # Revolutionary System
-    'RevolutionaryMLSystem'
+    # Factory
+    'MLComponentFactory',
+    'get_ml_factory',
+    
+    # Convenience functions
+    'get_sentiment_analyzer',
+    'get_onboarding_processor', 
+    'get_personality_analyzer',
+    'get_aura_engine',
+    
+    # System
+    'get_system_status',
 ]
 
 # ============================================================================
-# VERSION & METADATA - Información del sistema
+# VERSION & METADATA
 # ============================================================================
 
 __version__ = '2.0.0'
 __author__ = 'Grupo huntRED® AI Team'
-__description__ = 'Sistema de Machine Learning Revolucionario con AURA'
-__keywords__ = ['machine learning', 'AI', 'AURA', 'compatibility', 'huntRED']
+__description__ = 'Sistema de ML Optimizado con Lazy Loading'
 
-# ============================================================================
-# SYSTEM STATUS - Estado del sistema revolucionario
-# ============================================================================
+logger.info(f"🚀 ML System {__version__} inicializado con lazy loading")
 
-def get_system_status():
-    """Obtiene el estado completo del sistema revolucionario"""
-    return {
-        'version': __version__,
-        'aura_status': 'ACTIVE',
-        'analyzers_status': 'ACTIVE',
-        'monitoring_status': 'ACTIVE',
-        'security_level': 'ENTERPRISE',
-        'features': [
-            'Holistic Compatibility Analysis',
-            'Energy & Vibrational Matching',
-            'Advanced Personalization',
-            'Explainable AI',
-            'Real-time Analytics',
-            'Gamification System',
-            'Generative AI',
-            'Organizational Insights',
-            'Privacy Controls',
-            'Public API',
-            'Module Marketplace'
-        ],
-        'total_modules': len(__all__),
-        'revolutionary_features': True
-    }
-
-# Inicializar sistema revolucionario
-revolutionary_system = RevolutionaryMLSystem()
-
-print("🚀 Sistema de ML Revolucionario cargado exitosamente!")
-print(f"📊 Estado: {get_system_status()}")
+# Mostrar estado del sistema al importar
+system_status = get_system_status()
+logger.info(f"📊 Componentes disponibles: {sum(system_status['components'].values())}/4")

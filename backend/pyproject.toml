@@ -1,0 +1,310 @@
+[tool.poetry]
+name = "ghuntred-v2-backend"
+version = "2.0.0"
+description = "GhuntRED v2 - Next Generation huntRED Platform Backend"
+authors = ["huntRED Team <dev@huntred.com>"]
+readme = "README.md"
+packages = [{include = "backend"}]
+
+[tool.poetry.dependencies]
+# Core Python
+python = "^3.12"
+
+# Django 5.0 and Extensions
+Django = "^5.0.0"
+django-extensions = "^3.2.3"
+django-environ = "^0.11.2"
+django-cors-headers = "^4.3.1"
+django-filter = "^23.5"
+django-crispy-forms = "^2.1"
+crispy-bootstrap5 = "^2024.2"
+django-compressor = "^4.4"
+django-storages = "^1.14.2"
+whitenoise = "^6.6.0"
+
+# Database and Caching
+psycopg = {extras = ["binary", "pool"], version = "^3.1.15"}
+redis = "^5.0.1"
+django-redis = "^5.4.0"
+django-cachalot = "^2.6.1"
+
+# API Framework
+djangorestframework = "^3.14.0"
+django-oauth-toolkit = "^1.7.1"
+djangorestframework-simplejwt = "^5.3.0"
+drf-spectacular = "^0.27.0"
+django-rest-knox = "^4.2.0"
+django-ninja = "^1.0.1"
+
+# Async Support
+channels = "^4.0.0"
+channels-redis = "^4.1.0"
+daphne = "^4.0.0"
+uvloop = "^0.19.0"
+
+# Task Queue
+celery = {extras = ["redis"], version = "^5.3.4"}
+django-celery-beat = "^2.5.0"
+django-celery-results = "^2.5.1"
+flower = "^2.0.1"
+
+# ML and AI Libraries (Latest Versions)
+# Core ML
+tensorflow = "^2.15.0"
+torch = "^2.1.2"
+transformers = "^4.36.2"
+scikit-learn = "^1.3.2"
+numpy = "^1.24.4"
+pandas = "^2.1.4"
+joblib = "^1.3.2"
+
+# OpenAI and AI APIs
+openai = "^1.6.1"
+anthropic = "^0.8.1"
+google-generativeai = "^0.3.2"
+
+# NLP and Text Processing
+spacy = "^3.7.2"
+nltk = "^3.8.1"
+textblob = "^0.17.1"
+langchain = "^0.1.0"
+sentence-transformers = "^2.2.2"
+
+# Computer Vision
+opencv-python = "^4.8.1.78"
+Pillow = "^10.1.0"
+
+# Data Science and Analytics
+scipy = "^1.11.4"
+matplotlib = "^3.8.2"
+seaborn = "^0.13.0"
+plotly = "^5.17.0"
+
+# Search and Indexing
+elasticsearch = "^8.11.0"
+elasticsearch-dsl = "^8.11.0"
+
+# Email Services
+sendgrid = "^6.10.0"
+django-anymail = {extras = ["sendgrid", "mailgun"], version = "^10.2"}
+django-mjml = "^4.2.1"
+
+# WhatsApp Integration
+requests = "^2.31.0"
+httpx = "^0.25.2"
+
+# Payment Gateways
+stripe = "^7.8.0"
+paypalrestsdk = "^1.13.3"
+mercadopago = "^2.2.1"
+
+# LinkedIn Integration
+python-linkedin-v2 = "^0.9.0"
+
+# File Storage and Processing
+boto3 = "^1.34.0"
+minio = "^7.2.0"
+python-magic = "^0.4.27"
+
+# Security and Authentication
+cryptography = "^41.0.8"
+argon2-cffi = "^23.1.0"
+django-guardian = "^2.4.0"
+django-two-factor-auth = "^1.16.0"
+qrcode = {extras = ["pil"], version = "^7.4.2"}
+
+# Monitoring and Logging
+sentry-sdk = {extras = ["django"], version = "^1.39.2"}
+structlog = "^23.2.0"
+django-silk = "^5.0.4"
+django-prometheus = "^2.3.1"
+
+# Validation and Serialization
+pydantic = "^2.5.2"
+marshmallow = "^3.20.2"
+cerberus = "^1.3.5"
+
+# Utilities
+python-decouple = "^3.8"
+python-dotenv = "^1.0.0"
+pytz = "^2023.3"
+dateutil = "^2.8.2"
+faker = "^21.0.0"
+factory-boy = "^3.3.0"
+
+# Web Scraping
+beautifulsoup4 = "^4.12.2"
+scrapy = "^2.11.0"
+selenium = "^4.16.0"
+playwright = "^1.40.0"
+
+# Image and Document Processing
+WeasyPrint = "^61.1"
+reportlab = "^4.0.7"
+PyPDF2 = "^3.0.1"
+
+# HTTP and API clients
+aiohttp = "^3.9.1"
+websockets = "^12.0"
+
+# Performance and Optimization
+gunicorn = {extras = ["gevent"], version = "^21.2.0"}
+gevent = "^23.9.1"
+greenlet = "^3.0.2"
+
+# Development and Testing (dev dependencies)
+[tool.poetry.group.dev.dependencies]
+# Testing
+pytest = "^7.4.3"
+pytest-django = "^4.7.0"
+pytest-cov = "^4.1.0"
+pytest-xdist = "^3.5.0"
+pytest-mock = "^3.12.0"
+factory-boy = "^3.3.0"
+freezegun = "^1.2.2"
+
+# Code Quality
+black = "^23.12.0"
+isort = "^5.13.2"
+flake8 = "^6.1.0"
+mypy = "^1.7.1"
+bandit = "^1.7.5"
+pre-commit = "^3.6.0"
+
+# Documentation
+sphinx = "^7.2.6"
+sphinx-rtd-theme = "^2.0.0"
+
+# Development Tools
+ipython = "^8.18.1"
+jupyter = "^1.0.0"
+django-debug-toolbar = "^4.2.0"
+django-querycount = "^0.8.3"
+
+# Performance Profiling
+py-spy = "^0.3.14"
+memory-profiler = "^0.61.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+manage = "backend.manage:main"
+
+# =============================================================================
+# BLACK CONFIGURATION
+# =============================================================================
+[tool.black]
+line-length = 88
+target-version = ['py312']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+  | migrations
+)/
+'''
+
+# =============================================================================
+# ISORT CONFIGURATION
+# =============================================================================
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 88
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+ensure_newline_before_comments = true
+skip_glob = ["*/migrations/*"]
+
+# =============================================================================
+# MYPY CONFIGURATION
+# =============================================================================
+[tool.mypy]
+python_version = "3.12"
+check_untyped_defs = true
+ignore_missing_imports = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unused_configs = true
+disallow_untyped_calls = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+
+[[tool.mypy.overrides]]
+module = "backend.*.migrations.*"
+ignore_errors = true
+
+# =============================================================================
+# PYTEST CONFIGURATION
+# =============================================================================
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "backend.config.settings.testing"
+addopts = "--tb=short --strict-markers --strict-config --cov=backend --cov-branch --cov-report=term-missing --cov-report=html --cov-report=xml"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+    "ml: marks tests as ML/AI related tests",
+    "aura: marks tests as AURA specific tests",
+    "genia: marks tests as GenIA specific tests",
+]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+# =============================================================================
+# COVERAGE CONFIGURATION
+# =============================================================================
+[tool.coverage.run]
+source = "backend"
+branch = true
+omit = [
+    "*/migrations/*",
+    "*/venv/*",
+    "*/tests/*",
+    "manage.py",
+    "*/settings/*",
+    "*/__pycache__/*",
+]
+
+[tool.coverage.report]
+precision = 2
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+# =============================================================================
+# BANDIT CONFIGURATION (Security)
+# =============================================================================
+[tool.bandit]
+exclude_dirs = ["tests", "migrations"]
+skips = ["B101", "B601"]
+
+# =============================================================================
+# DJANGO SETTINGS
+# =============================================================================
+[tool.django-stubs]
+django_settings_module = "backend.config.settings.development"
