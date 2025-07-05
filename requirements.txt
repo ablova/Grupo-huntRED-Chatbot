@@ -519,3 +519,40 @@ gunicorn==21.2.0
 Pillow==10.1.0
 jinja2==3.1.2
 email-validator==2.1.0
+
+# ====================================
+# MACHINE LEARNING & AI LIBRARIES
+# ====================================
+# Core ML libraries
+scikit-learn==1.3.2
+numpy==1.24.4
+pandas==2.1.3
+scipy==1.11.4
+joblib==1.3.2
+
+# NLP & Text Processing
+nltk==3.8.1
+textblob==0.17.1
+spacy==3.7.2
+transformers==4.35.2
+
+# Social Media APIs
+tweepy==4.14.0
+facebook-sdk==3.1.0
+linkedin-api==2.0.0
+
+# Additional ML tools
+matplotlib==3.8.2
+seaborn==0.13.0
+plotly==5.17.0
+
+# Deep Learning (optional)
+torch==2.1.1
+tensorflow==2.14.0
+
+# Time Series Analysis
+statsmodels==0.14.0
+
+# Model deployment
+mlflow==2.8.1
+streamlit==1.28.2
