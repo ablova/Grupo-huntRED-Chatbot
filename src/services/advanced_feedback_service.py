@@ -20,6 +20,9 @@ class FeedbackType(Enum):
     """Tipos de feedback"""
     CLIENT_INTERVIEW = "client_interview"        # Cliente sobre entrevista
     CANDIDATE_PROCESS = "candidate_process"      # Candidato sobre proceso
+    CONSULTANT_PERFORMANCE = "consultant_performance"  # Consultor sobre performance
+    SUPER_ADMIN_SYSTEM = "super_admin_system"    # Súper Admin sobre sistema
+    RECRUITER_CLIENT = "recruiter_client"        # Recruiter sobre cliente
     RECRUITER_PERFORMANCE = "recruiter_performance"
     SYSTEM_IMPROVEMENT = "system_improvement"
 
@@ -116,6 +119,24 @@ class AdvancedFeedbackService:
                 'reminder_hours': [48, 12],
                 'required_questions': 6,
                 'categories': ['process_clarity', 'communication_quality', 'interview_experience', 'recruiter_performance', 'improvements', 'overall_satisfaction']
+            },
+            FeedbackType.CONSULTANT_PERFORMANCE: {
+                'expiry_hours': 96,
+                'reminder_hours': [72, 24],
+                'required_questions': 8,
+                'categories': ['recruiter_evaluation', 'process_optimization', 'client_satisfaction', 'efficiency_metrics', 'improvement_recommendations', 'strategic_insights', 'team_performance', 'overall_assessment']
+            },
+            FeedbackType.SUPER_ADMIN_SYSTEM: {
+                'expiry_hours': 168,  # 1 semana
+                'reminder_hours': [120, 48],
+                'required_questions': 10,
+                'categories': ['system_performance', 'technical_optimization', 'user_experience', 'scalability', 'security', 'feature_requests', 'bug_reports', 'integration_issues', 'performance_metrics', 'strategic_roadmap']
+            },
+            FeedbackType.RECRUITER_CLIENT: {
+                'expiry_hours': 48,
+                'reminder_hours': [24, 6],
+                'required_questions': 6,
+                'categories': ['requirement_clarity', 'communication_quality', 'collaboration', 'responsiveness', 'feedback_quality', 'relationship_improvement']
             }
         }
         
@@ -266,9 +287,251 @@ class AdvancedFeedbackService:
             )
         ]
         
+        # Plantilla para Feedback de Consultor sobre Performance
+        consultant_performance_questions = [
+            FeedbackQuestion(
+                id="recruiter_evaluation",
+                question="¿Cómo evalúa el desempeño general del recruiter en este proceso?",
+                category="recruiter_evaluation",
+                type="scale",
+                required=True,
+                weight=0.15,
+                min_value=1,
+                max_value=10
+            ),
+            FeedbackQuestion(
+                id="process_optimization",
+                question="¿Qué tan eficiente fue el proceso de reclutamiento ejecutado?",
+                category="process_optimization",
+                type="scale",
+                required=True,
+                weight=0.15,
+                min_value=1,
+                max_value=10
+            ),
+            FeedbackQuestion(
+                id="client_satisfaction",
+                question="¿Cómo califica la satisfacción del cliente con el servicio brindado?",
+                category="client_satisfaction",
+                type="multiple_choice",
+                required=True,
+                weight=0.15,
+                options=["Muy satisfecho", "Satisfecho", "Neutral", "Insatisfecho", "Muy insatisfecho"]
+            ),
+            FeedbackQuestion(
+                id="efficiency_metrics",
+                question="¿Considera que se cumplieron los KPIs y métricas de eficiencia?",
+                category="efficiency_metrics",
+                type="multiple_choice",
+                required=True,
+                weight=0.12,
+                options=["Superó expectativas", "Cumplió completamente", "Cumplió parcialmente", "No cumplió", "Muy por debajo"]
+            ),
+            FeedbackQuestion(
+                id="improvement_recommendations",
+                question="¿Qué recomendaciones específicas tiene para mejorar el performance?",
+                category="improvement_recommendations",
+                type="text",
+                required=True,
+                weight=0.13,
+                placeholder="Proporcione recomendaciones específicas y accionables..."
+            ),
+            FeedbackQuestion(
+                id="strategic_insights",
+                question="¿Qué insights estratégicos puede compartir sobre el proceso?",
+                category="strategic_insights",
+                type="text",
+                required=False,
+                weight=0.10,
+                placeholder="Comparta insights valiosos para futuras mejoras..."
+            ),
+            FeedbackQuestion(
+                id="team_performance",
+                question="¿Cómo evalúa el trabajo en equipo y colaboración?",
+                category="team_performance",
+                type="scale",
+                required=True,
+                weight=0.10,
+                min_value=1,
+                max_value=10
+            ),
+            FeedbackQuestion(
+                id="overall_assessment",
+                question="Evaluación general del recruiter y recomendación futura",
+                category="overall_assessment",
+                type="multiple_choice",
+                required=True,
+                weight=0.10,
+                options=["Altamente recomendado", "Recomendado", "Aceptable", "Necesita mejoras", "No recomendado"]
+            )
+        ]
+        
+        # Plantilla para Feedback de Súper Admin sobre Sistema
+        super_admin_system_questions = [
+            FeedbackQuestion(
+                id="system_performance",
+                question="¿Cómo evalúa el rendimiento general del sistema?",
+                category="system_performance",
+                type="scale",
+                required=True,
+                weight=0.12,
+                min_value=1,
+                max_value=10
+            ),
+            FeedbackQuestion(
+                id="technical_optimization",
+                question="¿Qué optimizaciones técnicas considera prioritarias?",
+                category="technical_optimization",
+                type="text",
+                required=True,
+                weight=0.12,
+                placeholder="Describa las optimizaciones técnicas más importantes..."
+            ),
+            FeedbackQuestion(
+                id="user_experience",
+                question="¿Cómo califica la experiencia de usuario actual?",
+                category="user_experience",
+                type="scale",
+                required=True,
+                weight=0.11,
+                min_value=1,
+                max_value=10
+            ),
+            FeedbackQuestion(
+                id="scalability",
+                question="¿El sistema está preparado para el crecimiento esperado?",
+                category="scalability",
+                type="multiple_choice",
+                required=True,
+                weight=0.11,
+                options=["Completamente preparado", "Mayormente preparado", "Parcialmente preparado", "Poco preparado", "No preparado"]
+            ),
+            FeedbackQuestion(
+                id="security",
+                question="¿Cómo evalúa los aspectos de seguridad del sistema?",
+                category="security",
+                type="scale",
+                required=True,
+                weight=0.11,
+                min_value=1,
+                max_value=10
+            ),
+            FeedbackQuestion(
+                id="feature_requests",
+                question="¿Qué nuevas funcionalidades considera más importantes?",
+                category="feature_requests",
+                type="text",
+                required=False,
+                weight=0.10,
+                placeholder="Liste las funcionalidades más importantes a desarrollar..."
+            ),
+            FeedbackQuestion(
+                id="bug_reports",
+                question="¿Hay bugs o problemas críticos que requieran atención inmediata?",
+                category="bug_reports",
+                type="text",
+                required=False,
+                weight=0.09,
+                placeholder="Describa cualquier bug crítico encontrado..."
+            ),
+            FeedbackQuestion(
+                id="integration_issues",
+                question="¿Cómo funcionan las integraciones con sistemas externos?",
+                category="integration_issues",
+                type="multiple_choice",
+                required=True,
+                weight=0.08,
+                options=["Funcionan perfectamente", "Funcionan bien", "Algunos problemas", "Problemas frecuentes", "Problemas críticos"]
+            ),
+            FeedbackQuestion(
+                id="performance_metrics",
+                question="¿Los KPIs y métricas del sistema son satisfactorios?",
+                category="performance_metrics",
+                type="scale",
+                required=True,
+                weight=0.08,
+                min_value=1,
+                max_value=10
+            ),
+            FeedbackQuestion(
+                id="strategic_roadmap",
+                question="¿Qué dirección estratégica recomienda para el roadmap?",
+                category="strategic_roadmap",
+                type="text",
+                required=True,
+                weight=0.08,
+                placeholder="Proporcione su visión estratégica para el desarrollo futuro..."
+            )
+        ]
+        
+        # Plantilla para Feedback de Recruiter sobre Cliente
+        recruiter_client_questions = [
+            FeedbackQuestion(
+                id="requirement_clarity",
+                question="¿Qué tan claros fueron los requisitos del cliente desde el inicio?",
+                category="requirement_clarity",
+                type="scale",
+                required=True,
+                weight=0.20,
+                min_value=1,
+                max_value=10
+            ),
+            FeedbackQuestion(
+                id="communication_quality",
+                question="¿Cómo califica la calidad de comunicación con el cliente?",
+                category="communication_quality",
+                type="scale",
+                required=True,
+                weight=0.20,
+                min_value=1,
+                max_value=10
+            ),
+            FeedbackQuestion(
+                id="collaboration",
+                question="¿Cómo fue la colaboración durante el proceso de selección?",
+                category="collaboration",
+                type="multiple_choice",
+                required=True,
+                weight=0.18,
+                options=["Excelente", "Muy buena", "Buena", "Regular", "Mala"]
+            ),
+            FeedbackQuestion(
+                id="responsiveness",
+                question="¿Qué tan responsivo fue el cliente durante el proceso?",
+                category="responsiveness",
+                type="scale",
+                required=True,
+                weight=0.16,
+                min_value=1,
+                max_value=10
+            ),
+            FeedbackQuestion(
+                id="feedback_quality",
+                question="¿La calidad del feedback del cliente fue constructiva?",
+                category="feedback_quality",
+                type="scale",
+                required=True,
+                weight=0.16,
+                min_value=1,
+                max_value=10
+            ),
+            FeedbackQuestion(
+                id="relationship_improvement",
+                question="¿Qué sugiere para mejorar la relación con este cliente?",
+                category="relationship_improvement",
+                type="text",
+                required=False,
+                weight=0.10,
+                placeholder="Comparta sugerencias para optimizar la relación cliente-recruiter..."
+            )
+        ]
+        
         # Registrar plantillas
         self.feedback_templates[FeedbackType.CLIENT_INTERVIEW] = client_interview_questions
         self.feedback_templates[FeedbackType.CANDIDATE_PROCESS] = candidate_process_questions
+        self.feedback_templates[FeedbackType.CONSULTANT_PERFORMANCE] = consultant_performance_questions
+        self.feedback_templates[FeedbackType.SUPER_ADMIN_SYSTEM] = super_admin_system_questions
+        self.feedback_templates[FeedbackType.RECRUITER_CLIENT] = recruiter_client_questions
         
         logger.info(f"✅ {len(self.feedback_templates)} plantillas de feedback cargadas")
     
@@ -442,6 +705,197 @@ class AdvancedFeedbackService:
             logger.error(f"❌ Error solicitando feedback de candidato: {e}")
             raise
     
+    async def request_consultant_performance_feedback(self,
+                                                    process_id: str,
+                                                    consultant_id: str,
+                                                    recruiter_id: str,
+                                                    performance_period: Dict[str, Any],
+                                                    priority: FeedbackPriority = FeedbackPriority.MEDIUM) -> str:
+        """
+        Solicita feedback del consultor sobre performance del recruiter
+        """
+        try:
+            logger.info(f"💬 Solicitando feedback de consultor para proceso {process_id}")
+            
+            # Crear contexto del performance
+            context = {
+                'process_id': process_id,
+                'consultant_id': consultant_id,
+                'recruiter_id': recruiter_id,
+                'recruiter_name': performance_period.get('recruiter_name'),
+                'period_start': performance_period.get('start_date'),
+                'period_end': performance_period.get('end_date'),
+                'processes_handled': performance_period.get('processes_count', 0),
+                'clients_served': performance_period.get('clients_count', 0),
+                'success_rate': performance_period.get('success_rate', 0),
+                'avg_time_to_fill': performance_period.get('avg_time_to_fill', 0),
+                'client_satisfaction_avg': performance_period.get('client_satisfaction', 0)
+            }
+            
+            # Obtener plantilla de preguntas
+            questions = self.feedback_templates[FeedbackType.CONSULTANT_PERFORMANCE].copy()
+            
+            # Personalizar preguntas con contexto
+            for question in questions:
+                question.question = self._personalize_question(question.question, context)
+            
+            # Crear solicitud de feedback
+            feedback_request = FeedbackRequest(
+                id=str(uuid.uuid4()),
+                feedback_type=FeedbackType.CONSULTANT_PERFORMANCE,
+                stage=FeedbackStage.FINAL_PROCESS,
+                requester_id='system',
+                respondent_id=consultant_id,
+                respondent_type='consultant',
+                context=context,
+                questions=questions,
+                status=FeedbackStatus.PENDING,
+                priority=priority,
+                expires_at=datetime.now() + timedelta(hours=self.feedback_config[FeedbackType.CONSULTANT_PERFORMANCE]['expiry_hours'])
+            )
+            
+            # Registrar solicitud
+            self.feedback_requests[feedback_request.id] = feedback_request
+            
+            # Enviar solicitud
+            await self._send_feedback_request(feedback_request)
+            
+            # Programar recordatorios
+            await self._schedule_reminders(feedback_request)
+            
+            logger.info(f"✅ Feedback de consultor solicitado - ID: {feedback_request.id}")
+            return feedback_request.id
+            
+        except Exception as e:
+            logger.error(f"❌ Error solicitando feedback de consultor: {e}")
+            raise
+    
+    async def request_super_admin_system_feedback(self,
+                                                 system_period: Dict[str, Any],
+                                                 super_admin_id: str,
+                                                 priority: FeedbackPriority = FeedbackPriority.HIGH) -> str:
+        """
+        Solicita feedback del súper administrador sobre el sistema
+        """
+        try:
+            logger.info(f"💬 Solicitando feedback de súper admin para sistema")
+            
+            # Crear contexto del sistema
+            context = {
+                'super_admin_id': super_admin_id,
+                'period_start': system_period.get('start_date'),
+                'period_end': system_period.get('end_date'),
+                'total_users': system_period.get('total_users', 0),
+                'active_processes': system_period.get('active_processes', 0),
+                'system_uptime': system_period.get('uptime_percentage', 0),
+                'performance_score': system_period.get('performance_score', 0),
+                'user_satisfaction': system_period.get('user_satisfaction', 0),
+                'feature_requests': system_period.get('feature_requests_count', 0),
+                'bug_reports': system_period.get('bug_reports_count', 0),
+                'support_tickets': system_period.get('support_tickets_count', 0)
+            }
+            
+            # Obtener plantilla de preguntas
+            questions = self.feedback_templates[FeedbackType.SUPER_ADMIN_SYSTEM].copy()
+            
+            # Personalizar preguntas con contexto
+            for question in questions:
+                question.question = self._personalize_question(question.question, context)
+            
+            # Crear solicitud de feedback
+            feedback_request = FeedbackRequest(
+                id=str(uuid.uuid4()),
+                feedback_type=FeedbackType.SUPER_ADMIN_SYSTEM,
+                stage=FeedbackStage.FINAL_PROCESS,
+                requester_id='system',
+                respondent_id=super_admin_id,
+                respondent_type='super_admin',
+                context=context,
+                questions=questions,
+                status=FeedbackStatus.PENDING,
+                priority=priority,
+                expires_at=datetime.now() + timedelta(hours=self.feedback_config[FeedbackType.SUPER_ADMIN_SYSTEM]['expiry_hours'])
+            )
+            
+            # Registrar solicitud
+            self.feedback_requests[feedback_request.id] = feedback_request
+            
+            # Enviar solicitud
+            await self._send_feedback_request(feedback_request)
+            
+            # Programar recordatorios
+            await self._schedule_reminders(feedback_request)
+            
+            logger.info(f"✅ Feedback de súper admin solicitado - ID: {feedback_request.id}")
+            return feedback_request.id
+            
+        except Exception as e:
+            logger.error(f"❌ Error solicitando feedback de súper admin: {e}")
+            raise
+    
+    async def request_recruiter_client_feedback(self,
+                                              client_id: str,
+                                              recruiter_id: str,
+                                              collaboration_period: Dict[str, Any],
+                                              priority: FeedbackPriority = FeedbackPriority.MEDIUM) -> str:
+        """
+        Solicita feedback del recruiter sobre el cliente
+        """
+        try:
+            logger.info(f"💬 Solicitando feedback de recruiter sobre cliente {client_id}")
+            
+            # Crear contexto de la colaboración
+            context = {
+                'client_id': client_id,
+                'recruiter_id': recruiter_id,
+                'client_name': collaboration_period.get('client_name'),
+                'recruiter_name': collaboration_period.get('recruiter_name'),
+                'collaboration_start': collaboration_period.get('start_date'),
+                'collaboration_end': collaboration_period.get('end_date'),
+                'processes_together': collaboration_period.get('processes_count', 0),
+                'successful_placements': collaboration_period.get('successful_placements', 0),
+                'avg_response_time': collaboration_period.get('avg_response_time', 0),
+                'communication_frequency': collaboration_period.get('communication_frequency', 'regular')
+            }
+            
+            # Obtener plantilla de preguntas
+            questions = self.feedback_templates[FeedbackType.RECRUITER_CLIENT].copy()
+            
+            # Personalizar preguntas con contexto
+            for question in questions:
+                question.question = self._personalize_question(question.question, context)
+            
+            # Crear solicitud de feedback
+            feedback_request = FeedbackRequest(
+                id=str(uuid.uuid4()),
+                feedback_type=FeedbackType.RECRUITER_CLIENT,
+                stage=FeedbackStage.FINAL_PROCESS,
+                requester_id='system',
+                respondent_id=recruiter_id,
+                respondent_type='recruiter',
+                context=context,
+                questions=questions,
+                status=FeedbackStatus.PENDING,
+                priority=priority,
+                expires_at=datetime.now() + timedelta(hours=self.feedback_config[FeedbackType.RECRUITER_CLIENT]['expiry_hours'])
+            )
+            
+            # Registrar solicitud
+            self.feedback_requests[feedback_request.id] = feedback_request
+            
+            # Enviar solicitud
+            await self._send_feedback_request(feedback_request)
+            
+            # Programar recordatorios
+            await self._schedule_reminders(feedback_request)
+            
+            logger.info(f"✅ Feedback de recruiter sobre cliente solicitado - ID: {feedback_request.id}")
+            return feedback_request.id
+            
+        except Exception as e:
+            logger.error(f"❌ Error solicitando feedback de recruiter sobre cliente: {e}")
+            raise
+    
     def _personalize_question(self, question: str, context: Dict[str, Any]) -> str:
         """Personaliza preguntas con datos del contexto"""
         personalized = question
@@ -451,7 +905,15 @@ class AdvancedFeedbackService:
             '{candidate_name}': context.get('candidate_name', 'el candidato'),
             '{job_title}': context.get('job_title', 'la posición'),
             '{company_name}': context.get('company_name', 'la empresa'),
-            '{recruiter_name}': context.get('recruiter_name', 'el recruiter')
+            '{recruiter_name}': context.get('recruiter_name', 'el recruiter'),
+            '{client_name}': context.get('client_name', 'el cliente'),
+            '{consultant_name}': context.get('consultant_name', 'el consultor'),
+            '{processes_count}': str(context.get('processes_handled', context.get('processes_count', 0))),
+            '{success_rate}': f"{context.get('success_rate', 0):.1f}%",
+            '{period_days}': str(context.get('period_days', 'N/A')),
+            '{system_uptime}': f"{context.get('system_uptime', 0):.1f}%",
+            '{total_users}': str(context.get('total_users', 0)),
+            '{collaboration_duration}': str(context.get('collaboration_duration', 'N/A'))
         }
         
         for placeholder, value in replacements.items():

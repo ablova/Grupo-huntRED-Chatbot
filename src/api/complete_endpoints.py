@@ -18,6 +18,7 @@ from ..services.employee_service import EmployeeService
 from ..services.real_payroll_service import RealPayrollService
 from ..services.attendance_service import AttendanceService
 from ..services.reports_service import ReportsService
+from ..services.advanced_feedback_service import AdvancedFeedbackService, FeedbackType, FeedbackPriority
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +46,16 @@ class PayrollCalculateRequest(BaseModel):
     loan_deductions: float = 0
     advance_deductions: float = 0
     other_deductions: float = 0
+
+class FeedbackRequest(BaseModel):
+    feedback_type: str
+    context: Dict[str, Any]
+    priority: str = "medium"
+
+class FeedbackSubmissionRequest(BaseModel):
+    feedback_request_id: str
+    responses: Dict[str, Any]
+    respondent_notes: Optional[str] = None
 
 # Authentication Endpoints
 @router.post("/auth/login", response_model=Dict[str, Any])
@@ -569,4 +580,275 @@ async def get_system_status(
         
     except Exception as e:
         logger.error(f"System status error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Feedback Endpoints
+@router.post("/feedback/client-interview", response_model=Dict[str, Any])
+async def request_client_interview_feedback(
+    interview_id: str = Form(...),
+    client_id: str = Form(...),
+    candidate_id: str = Form(...),
+    job_id: str = Form(...),
+    interview_details: str = Form(...),  # JSON string
+    current_employee: Employee = Depends(auth_service.require_role([UserRole.SUPERVISOR, UserRole.HR_ADMIN, UserRole.SUPER_ADMIN])),
+    db: Session = Depends(get_db)
+):
+    """Request feedback from client about interview"""
+    try:
+        feedback_service = AdvancedFeedbackService()
+        await feedback_service.initialize_service()
+        
+        import json
+        interview_data = json.loads(interview_details)
+        interview_data['recruiter_id'] = current_employee.id
+        
+        feedback_id = await feedback_service.request_client_interview_feedback(
+            interview_id=interview_id,
+            client_id=client_id,
+            candidate_id=candidate_id,
+            job_id=job_id,
+            interview_details=interview_data,
+            priority=FeedbackPriority.HIGH
+        )
+        
+        return {
+            "success": True,
+            "feedback_id": feedback_id,
+            "message": "Feedback request sent to client"
+        }
+        
+    except Exception as e:
+        logger.error(f"Client interview feedback request error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/feedback/candidate-process", response_model=Dict[str, Any])
+async def request_candidate_process_feedback(
+    process_id: str = Form(...),
+    candidate_id: str = Form(...),
+    job_id: str = Form(...),
+    stage: str = Form(...),
+    process_details: str = Form(...),  # JSON string
+    current_employee: Employee = Depends(auth_service.require_role([UserRole.SUPERVISOR, UserRole.HR_ADMIN, UserRole.SUPER_ADMIN])),
+    db: Session = Depends(get_db)
+):
+    """Request feedback from candidate about process"""
+    try:
+        feedback_service = AdvancedFeedbackService()
+        await feedback_service.initialize_service()
+        
+        import json
+        from ..services.advanced_feedback_service import FeedbackStage
+        
+        process_data = json.loads(process_details)
+        process_data['recruiter_id'] = current_employee.id
+        
+        # Map stage string to enum
+        stage_mapping = {
+            'post_interview': FeedbackStage.POST_INTERVIEW,
+            'post_technical': FeedbackStage.POST_TECHNICAL,
+            'post_rejection': FeedbackStage.POST_REJECTION,
+            'post_offer': FeedbackStage.POST_OFFER,
+            'mid_process': FeedbackStage.MID_PROCESS,
+            'final_process': FeedbackStage.FINAL_PROCESS
+        }
+        
+        feedback_stage = stage_mapping.get(stage, FeedbackStage.MID_PROCESS)
+        
+        feedback_id = await feedback_service.request_candidate_process_feedback(
+            process_id=process_id,
+            candidate_id=candidate_id,
+            job_id=job_id,
+            stage=feedback_stage,
+            process_details=process_data,
+            priority=FeedbackPriority.MEDIUM
+        )
+        
+        return {
+            "success": True,
+            "feedback_id": feedback_id,
+            "message": "Feedback request sent to candidate"
+        }
+        
+    except Exception as e:
+        logger.error(f"Candidate process feedback request error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/feedback/consultant-performance", response_model=Dict[str, Any])
+async def request_consultant_performance_feedback(
+    process_id: str = Form(...),
+    consultant_id: str = Form(...),
+    recruiter_id: str = Form(...),
+    performance_period: str = Form(...),  # JSON string
+    current_employee: Employee = Depends(auth_service.require_role([UserRole.HR_ADMIN, UserRole.SUPER_ADMIN])),
+    db: Session = Depends(get_db)
+):
+    """Request feedback from consultant about recruiter performance"""
+    try:
+        feedback_service = AdvancedFeedbackService()
+        await feedback_service.initialize_service()
+        
+        import json
+        performance_data = json.loads(performance_period)
+        
+        feedback_id = await feedback_service.request_consultant_performance_feedback(
+            process_id=process_id,
+            consultant_id=consultant_id,
+            recruiter_id=recruiter_id,
+            performance_period=performance_data,
+            priority=FeedbackPriority.MEDIUM
+        )
+        
+        return {
+            "success": True,
+            "feedback_id": feedback_id,
+            "message": "Feedback request sent to consultant"
+        }
+        
+    except Exception as e:
+        logger.error(f"Consultant performance feedback request error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/feedback/super-admin-system", response_model=Dict[str, Any])
+async def request_super_admin_system_feedback(
+    system_period: str = Form(...),  # JSON string
+    current_employee: Employee = Depends(auth_service.require_role([UserRole.SUPER_ADMIN])),
+    db: Session = Depends(get_db)
+):
+    """Request feedback from super admin about system"""
+    try:
+        feedback_service = AdvancedFeedbackService()
+        await feedback_service.initialize_service()
+        
+        import json
+        system_data = json.loads(system_period)
+        
+        feedback_id = await feedback_service.request_super_admin_system_feedback(
+            system_period=system_data,
+            super_admin_id=current_employee.id,
+            priority=FeedbackPriority.HIGH
+        )
+        
+        return {
+            "success": True,
+            "feedback_id": feedback_id,
+            "message": "System feedback request created"
+        }
+        
+    except Exception as e:
+        logger.error(f"Super admin system feedback request error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/feedback/recruiter-client", response_model=Dict[str, Any])
+async def request_recruiter_client_feedback(
+    client_id: str = Form(...),
+    collaboration_period: str = Form(...),  # JSON string
+    current_employee: Employee = Depends(auth_service.require_role([UserRole.SUPERVISOR, UserRole.HR_ADMIN, UserRole.SUPER_ADMIN])),
+    db: Session = Depends(get_db)
+):
+    """Request feedback from recruiter about client"""
+    try:
+        feedback_service = AdvancedFeedbackService()
+        await feedback_service.initialize_service()
+        
+        import json
+        collaboration_data = json.loads(collaboration_period)
+        
+        feedback_id = await feedback_service.request_recruiter_client_feedback(
+            client_id=client_id,
+            recruiter_id=current_employee.id,
+            collaboration_period=collaboration_data,
+            priority=FeedbackPriority.MEDIUM
+        )
+        
+        return {
+            "success": True,
+            "feedback_id": feedback_id,
+            "message": "Feedback request sent to recruiter"
+        }
+        
+    except Exception as e:
+        logger.error(f"Recruiter client feedback request error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/feedback/submit", response_model=Dict[str, Any])
+async def submit_feedback(
+    request: FeedbackSubmissionRequest,
+    current_employee: Employee = Depends(auth_service.get_current_employee),
+    db: Session = Depends(get_db)
+):
+    """Submit feedback responses"""
+    try:
+        feedback_service = AdvancedFeedbackService()
+        await feedback_service.initialize_service()
+        
+        result = await feedback_service.submit_feedback(
+            feedback_request_id=request.feedback_request_id,
+            responses=request.responses,
+            respondent_notes=request.respondent_notes
+        )
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Feedback submission error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/feedback/summary/{feedback_id}", response_model=Dict[str, Any])
+async def get_feedback_summary(
+    feedback_id: str,
+    current_employee: Employee = Depends(auth_service.require_role([UserRole.SUPERVISOR, UserRole.HR_ADMIN, UserRole.SUPER_ADMIN])),
+    db: Session = Depends(get_db)
+):
+    """Get feedback summary and analysis"""
+    try:
+        feedback_service = AdvancedFeedbackService()
+        await feedback_service.initialize_service()
+        
+        summary = await feedback_service.get_feedback_summary(feedback_id)
+        
+        return summary
+        
+    except Exception as e:
+        logger.error(f"Feedback summary error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/feedback/analytics", response_model=Dict[str, Any])
+async def get_feedback_analytics(
+    start_date: str = Query(...),
+    end_date: str = Query(...),
+    feedback_type: Optional[str] = Query(None),
+    current_employee: Employee = Depends(auth_service.require_role([UserRole.HR_ADMIN, UserRole.SUPER_ADMIN])),
+    db: Session = Depends(get_db)
+):
+    """Get feedback analytics and trends"""
+    try:
+        feedback_service = AdvancedFeedbackService()
+        await feedback_service.initialize_service()
+        
+        from datetime import datetime
+        
+        # Map feedback type string to enum if provided
+        feedback_type_enum = None
+        if feedback_type:
+            type_mapping = {
+                'client_interview': FeedbackType.CLIENT_INTERVIEW,
+                'candidate_process': FeedbackType.CANDIDATE_PROCESS,
+                'consultant_performance': FeedbackType.CONSULTANT_PERFORMANCE,
+                'super_admin_system': FeedbackType.SUPER_ADMIN_SYSTEM,
+                'recruiter_client': FeedbackType.RECRUITER_CLIENT
+            }
+            feedback_type_enum = type_mapping.get(feedback_type)
+        
+        analytics = await feedback_service.get_feedback_analytics(
+            date_range=(
+                datetime.fromisoformat(start_date),
+                datetime.fromisoformat(end_date)
+            ),
+            feedback_type=feedback_type_enum
+        )
+        
+        return analytics
+        
+    except Exception as e:
+        logger.error(f"Feedback analytics error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
