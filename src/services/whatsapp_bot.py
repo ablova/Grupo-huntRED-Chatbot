@@ -21,6 +21,7 @@ from ..config.settings import get_settings
 from ..models.base import UserRole, MessageChannel, MessagePriority
 from ..services.payroll_engine import PayrollEngine
 from ..services.sociallink_engine import SocialLinkEngine
+from ..services.advanced_feedback_service import AdvancedFeedbackService, FeedbackType
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
@@ -40,6 +41,8 @@ class ConversationState(Enum):
     PAYROLL_MANAGEMENT = "payroll_management"
     EMPLOYEE_LOOKUP = "employee_lookup"
     GEOLOCATION_REQUIRED = "geolocation_required"
+    FEEDBACK_RESPONSE = "feedback_response"
+    FEEDBACK_QUICK_RATING = "feedback_quick_rating"
 
 
 @dataclass
@@ -128,7 +131,8 @@ class MessageTemplates:
             "💰 *recibo* - Ver mi último recibo",
             "💳 *saldo* - Consultar mi saldo",
             "🏖️ *vacaciones* - Días de vacaciones",
-            "📅 *horario* - Mi horario de trabajo"
+            "📅 *horario* - Mi horario de trabajo",
+            "📝 *feedback* - Responder feedback pendiente"
         ]
         
         if role in [UserRole.SUPERVISOR, UserRole.HR_ADMIN, UserRole.SUPER_ADMIN]:
@@ -276,6 +280,191 @@ class MessageTemplates:
         }
         
         return BotMessage(text=messages.get(error_type, messages["system_error"]))
+    
+    @staticmethod
+    def feedback_notification(feedback_type: str, context: Dict[str, Any]) -> BotMessage:
+        """Generate feedback notification message"""
+        
+        if feedback_type == "client_interview":
+            candidate_name = context.get("candidate_name", "el candidato")
+            job_title = context.get("job_title", "la posición")
+            
+            return BotMessage(
+                text=f"📝 *FEEDBACK SOLICITADO*\n\n"
+                     f"Se solicita tu feedback sobre la entrevista:\n\n"
+                     f"👤 Candidato: {candidate_name}\n"
+                     f"💼 Posición: {job_title}\n\n"
+                     f"*Responde rápidamente:*",
+                quick_replies=[
+                    "⭐ Excelente (9-10)",
+                    "👍 Bueno (7-8)", 
+                    "👌 Regular (5-6)",
+                    "👎 Malo (1-4)",
+                    "📝 Feedback detallado"
+                ]
+            )
+        
+        elif feedback_type == "candidate_process":
+            job_title = context.get("job_title", "la posición")
+            company_name = context.get("company_name", "la empresa")
+            
+            return BotMessage(
+                text=f"📝 *FEEDBACK SOLICITADO*\n\n"
+                     f"¿Cómo fue tu experiencia en el proceso?\n\n"
+                     f"💼 Posición: {job_title}\n"
+                     f"🏢 Empresa: {company_name}\n\n"
+                     f"*Responde rápidamente:*",
+                quick_replies=[
+                    "😊 Muy satisfecho",
+                    "🙂 Satisfecho",
+                    "😐 Neutral",
+                    "😞 Insatisfecho",
+                    "📝 Feedback detallado"
+                ]
+            )
+        
+        elif feedback_type == "consultant_performance":
+            recruiter_name = context.get("recruiter_name", "el recruiter")
+            
+            return BotMessage(
+                text=f"📝 *EVALUACIÓN DE PERFORMANCE*\n\n"
+                     f"Evalúa el desempeño de:\n"
+                     f"👨‍💼 {recruiter_name}\n\n"
+                     f"*Responde rápidamente:*",
+                quick_replies=[
+                    "🌟 Excelente",
+                    "👍 Muy bueno",
+                    "👌 Bueno",
+                    "👎 Necesita mejorar",
+                    "📝 Evaluación detallada"
+                ]
+            )
+        
+        elif feedback_type == "super_admin_system":
+            return BotMessage(
+                text=f"📝 *EVALUACIÓN DEL SISTEMA*\n\n"
+                     f"Evalúa el rendimiento general del sistema:\n\n"
+                     f"*Responde rápidamente:*",
+                quick_replies=[
+                    "🚀 Excelente",
+                    "✅ Muy bueno",
+                    "👌 Bueno",
+                    "⚠️ Necesita mejoras",
+                    "📝 Evaluación detallada"
+                ]
+            )
+        
+        elif feedback_type == "recruiter_client":
+            client_name = context.get("client_name", "el cliente")
+            
+            return BotMessage(
+                text=f"📝 *FEEDBACK SOBRE CLIENTE*\n\n"
+                     f"¿Cómo fue la colaboración con:\n"
+                     f"🏢 {client_name}\n\n"
+                     f"*Responde rápidamente:*",
+                quick_replies=[
+                    "🤝 Excelente",
+                    "👍 Muy buena",
+                    "👌 Buena",
+                    "👎 Regular",
+                    "📝 Feedback detallado"
+                ]
+            )
+        
+        return BotMessage(text="📝 Se ha solicitado tu feedback. Por favor responde.")
+    
+    @staticmethod
+    def feedback_quick_response_form(feedback_type: str, quick_rating: str) -> BotMessage:
+        """Generate quick response form based on rating"""
+        
+        if feedback_type == "client_interview":
+            if quick_rating in ["⭐ Excelente (9-10)", "👍 Bueno (7-8)"]:
+                return BotMessage(
+                    text=f"✅ *Calificación: {quick_rating}*\n\n"
+                         f"*Responde rápidamente:*\n\n"
+                         f"1️⃣ ¿Principales fortalezas del candidato?",
+                    quick_replies=[
+                        "💻 Técnicamente sólido",
+                        "🗣️ Excelente comunicación",
+                        "🎯 Experiencia relevante",
+                        "🤝 Buen fit cultural",
+                        "📝 Escribir respuesta"
+                    ]
+                )
+            else:
+                return BotMessage(
+                    text=f"⚠️ *Calificación: {quick_rating}*\n\n"
+                         f"*Responde rápidamente:*\n\n"
+                         f"1️⃣ ¿Principales áreas de preocupación?",
+                    quick_replies=[
+                        "💻 Habilidades técnicas",
+                        "🗣️ Comunicación",
+                        "📚 Falta experiencia",
+                        "🤝 No fit cultural",
+                        "📝 Escribir respuesta"
+                    ]
+                )
+        
+        elif feedback_type == "candidate_process":
+            return BotMessage(
+                text=f"✅ *Experiencia: {quick_rating}*\n\n"
+                     f"*¿Qué mejorarías del proceso?*",
+                quick_replies=[
+                    "⏰ Tiempos de respuesta",
+                    "📞 Comunicación",
+                    "📋 Claridad del proceso",
+                    "🤝 Trato del recruiter",
+                    "📝 Escribir sugerencia"
+                ]
+            )
+        
+        return BotMessage(
+            text=f"✅ *Calificación registrada: {quick_rating}*\n\n"
+                 f"¿Deseas agregar comentarios adicionales?",
+            quick_replies=[
+                "✅ Enviar así",
+                "📝 Agregar comentarios",
+                "🔙 Menú principal"
+            ]
+        )
+    
+    @staticmethod
+    def feedback_completion_success(feedback_type: str) -> BotMessage:
+        """Feedback completion confirmation"""
+        type_names = {
+            "client_interview": "entrevista",
+            "candidate_process": "proceso",
+            "consultant_performance": "performance",
+            "super_admin_system": "sistema",
+            "recruiter_client": "colaboración"
+        }
+        
+        type_name = type_names.get(feedback_type, "feedback")
+        
+        return BotMessage(
+            text=f"✅ *FEEDBACK ENVIADO*\n\n"
+                 f"Gracias por tu feedback sobre {type_name}.\n\n"
+                 f"Tu respuesta ha sido registrada y será analizada para mejorar nuestros servicios.\n\n"
+                 f"🎯 *Próximos pasos automáticos generados*",
+            buttons=[
+                {"id": "menu", "title": "🔙 Menú Principal"},
+                {"id": "feedback_history", "title": "📜 Historial"}
+            ]
+        )
+    
+    @staticmethod
+    def pending_feedback_reminder(pending_count: int) -> BotMessage:
+        """Reminder for pending feedback"""
+        return BotMessage(
+            text=f"📝 *RECORDATORIO*\n\n"
+                 f"Tienes {pending_count} feedback(s) pendiente(s) de responder.\n\n"
+                 f"¿Deseas responderlos ahora?",
+            buttons=[
+                {"id": "respond_feedback", "title": "📝 Responder Ahora"},
+                {"id": "remind_later", "title": "⏰ Recordar Después"},
+                {"id": "menu", "title": "🔙 Menú"}
+            ]
+        )
 
 
 class WhatsAppBotEngine:
@@ -286,6 +475,7 @@ class WhatsAppBotEngine:
         self.payroll_engine = PayrollEngine()
         self.social_engine = SocialLinkEngine()
         self.geolocation_validator = GeolocationValidator()
+        self.feedback_service = AdvancedFeedbackService()
         
         # Initialize Twilio client
         self.twilio_client = TwilioClient(
@@ -463,9 +653,27 @@ class WhatsAppBotEngine:
         elif message_lower == "reportes" and session.role.value in ["hr_admin", "super_admin"]:
             return await self._handle_advanced_reports(session)
         
+        # Feedback commands
+        elif message_lower in ["feedback", "responder_feedback", "respond_feedback"]:
+            return await self._handle_feedback_command(session)
+        
+        elif message_lower in ["feedback_pendientes", "pending_feedback"]:
+            return await self._handle_pending_feedback(session)
+        
         # Button responses
         elif message_lower.startswith("payslip_"):
             return await self._handle_payslip_action(session, message_lower)
+        
+        # Feedback quick responses
+        elif session.state == ConversationState.FEEDBACK_RESPONSE:
+            return await self._handle_feedback_response(session, message)
+        
+        elif session.state == ConversationState.FEEDBACK_QUICK_RATING:
+            return await self._handle_feedback_quick_rating(session, message)
+        
+        # Check for feedback quick replies
+        elif any(keyword in message for keyword in ["⭐", "👍", "👌", "👎", "😊", "🙂", "😐", "😞", "🌟", "🚀", "✅", "⚠️", "🤝"]):
+            return await self._handle_feedback_quick_reply(session, message)
         
         else:
             return MessageTemplates.error_message("invalid_command")
@@ -781,3 +989,311 @@ class WhatsAppBotEngine:
             del self.sessions[phone]
         
         logger.info(f"Cleaned up {len(expired_sessions)} expired sessions")
+    
+    async def _handle_feedback_command(self, session: UserSession) -> BotMessage:
+        """Handle feedback command - show pending feedback"""
+        try:
+            await self.feedback_service.initialize_service()
+            
+            # Get pending feedback for user
+            pending_feedback = await self._get_pending_feedback_for_user(session)
+            
+            if not pending_feedback:
+                return BotMessage(
+                    text="✅ *NO HAY FEEDBACK PENDIENTE*\n\n"
+                         "No tienes solicitudes de feedback pendientes en este momento.\n\n"
+                         "¡Gracias por mantener tus evaluaciones al día! 👍",
+                    buttons=[
+                        {"id": "menu", "title": "🔙 Menú Principal"}
+                    ]
+                )
+            
+            # Show first pending feedback
+            first_feedback = pending_feedback[0]
+            session.context["current_feedback"] = first_feedback
+            session.state = ConversationState.FEEDBACK_RESPONSE
+            
+            return MessageTemplates.feedback_notification(
+                first_feedback["type"], 
+                first_feedback["context"]
+            )
+            
+        except Exception as e:
+            logger.error(f"Error handling feedback command: {e}")
+            return MessageTemplates.error_message("system_error")
+    
+    async def _handle_pending_feedback(self, session: UserSession) -> BotMessage:
+        """Show list of pending feedback"""
+        try:
+            pending_feedback = await self._get_pending_feedback_for_user(session)
+            
+            if not pending_feedback:
+                return BotMessage(
+                    text="✅ No tienes feedback pendiente.",
+                    buttons=[{"id": "menu", "title": "🔙 Menú"}]
+                )
+            
+            text = f"📝 *FEEDBACK PENDIENTE*\n\n"
+            text += f"Tienes {len(pending_feedback)} solicitud(es) pendiente(s):\n\n"
+            
+            for i, feedback in enumerate(pending_feedback[:5], 1):
+                type_name = self._get_feedback_type_name(feedback["type"])
+                text += f"{i}️⃣ {type_name}\n"
+            
+            if len(pending_feedback) > 5:
+                text += f"... y {len(pending_feedback) - 5} más"
+            
+            return BotMessage(
+                text=text,
+                buttons=[
+                    {"id": "respond_feedback", "title": "📝 Responder Ahora"},
+                    {"id": "menu", "title": "🔙 Menú"}
+                ]
+            )
+            
+        except Exception as e:
+            logger.error(f"Error getting pending feedback: {e}")
+            return MessageTemplates.error_message("system_error")
+    
+    async def _handle_feedback_response(self, session: UserSession, message: str) -> BotMessage:
+        """Handle feedback response"""
+        current_feedback = session.context.get("current_feedback")
+        if not current_feedback:
+            session.state = ConversationState.IDLE
+            return MessageTemplates.error_message("system_error")
+        
+        # Store the response
+        if "responses" not in session.context:
+            session.context["responses"] = {}
+        
+        session.context["responses"]["main_response"] = message
+        
+        # Move to completion
+        return await self._complete_feedback_submission(session)
+    
+    async def _handle_feedback_quick_reply(self, session: UserSession, message: str) -> BotMessage:
+        """Handle quick reply feedback responses"""
+        current_feedback = session.context.get("current_feedback")
+        if not current_feedback:
+            # Check if this is a new feedback notification response
+            return await self._handle_potential_feedback_start(session, message)
+        
+        feedback_type = current_feedback["type"]
+        
+        # Convert quick reply to structured response
+        quick_response = self._convert_quick_reply_to_response(message, feedback_type)
+        
+        if "responses" not in session.context:
+            session.context["responses"] = {}
+        
+        session.context["responses"].update(quick_response)
+        
+        # Check if we need more information
+        if message == "📝 Feedback detallado" or message == "📝 Evaluación detallada":
+            session.state = ConversationState.FEEDBACK_RESPONSE
+            return BotMessage(
+                text="📝 *FEEDBACK DETALLADO*\n\n"
+                     "Por favor, escribe tu feedback detallado:"
+            )
+        
+        # Show quick follow-up form
+        session.state = ConversationState.FEEDBACK_QUICK_RATING
+        return MessageTemplates.feedback_quick_response_form(feedback_type, message)
+    
+    async def _handle_feedback_quick_rating(self, session: UserSession, message: str) -> BotMessage:
+        """Handle quick rating follow-up responses"""
+        current_feedback = session.context.get("current_feedback")
+        if not current_feedback:
+            session.state = ConversationState.IDLE
+            return MessageTemplates.error_message("system_error")
+        
+        if message == "✅ Enviar así":
+            return await self._complete_feedback_submission(session)
+        
+        elif message == "📝 Agregar comentarios":
+            session.state = ConversationState.FEEDBACK_RESPONSE
+            return BotMessage(
+                text="📝 *COMENTARIOS ADICIONALES*\n\n"
+                     "Escribe tus comentarios adicionales:"
+            )
+        
+        elif message == "🔙 Menú principal":
+            session.state = ConversationState.IDLE
+            return MessageTemplates.main_menu(session.role)
+        
+        else:
+            # Store additional response
+            if "responses" not in session.context:
+                session.context["responses"] = {}
+            
+            # Convert quick reply to structured response
+            feedback_type = current_feedback["type"]
+            additional_response = self._convert_quick_reply_to_response(message, feedback_type)
+            session.context["responses"].update(additional_response)
+            
+            return await self._complete_feedback_submission(session)
+    
+    async def _complete_feedback_submission(self, session: UserSession) -> BotMessage:
+        """Complete and submit feedback"""
+        try:
+            current_feedback = session.context.get("current_feedback")
+            responses = session.context.get("responses", {})
+            
+            if not current_feedback:
+                return MessageTemplates.error_message("system_error")
+            
+            # Submit feedback to service
+            result = await self.feedback_service.submit_feedback(
+                feedback_request_id=current_feedback["id"],
+                responses=responses,
+                respondent_notes=responses.get("main_response", "")
+            )
+            
+            if result["success"]:
+                # Clear feedback context
+                session.context.pop("current_feedback", None)
+                session.context.pop("responses", None)
+                session.state = ConversationState.IDLE
+                
+                return MessageTemplates.feedback_completion_success(current_feedback["type"])
+            else:
+                return MessageTemplates.error_message("system_error")
+                
+        except Exception as e:
+            logger.error(f"Error completing feedback submission: {e}")
+            return MessageTemplates.error_message("system_error")
+    
+    async def _get_pending_feedback_for_user(self, session: UserSession) -> List[Dict[str, Any]]:
+        """Get pending feedback requests for user"""
+        # Mock implementation - would query actual feedback service
+        user_id = session.employee_data.get("id")
+        user_role = session.role.value
+        
+        # Simulate pending feedback based on role
+        pending_feedback = []
+        
+        if user_role in ["hr_admin", "super_admin"]:
+            pending_feedback.append({
+                "id": "FB_SYSTEM_001",
+                "type": "super_admin_system",
+                "context": {
+                    "period_start": "2024-11-01",
+                    "period_end": "2024-12-15"
+                }
+            })
+        
+        if user_role in ["supervisor", "hr_admin", "super_admin"]:
+            pending_feedback.append({
+                "id": "FB_CONSULTANT_001", 
+                "type": "consultant_performance",
+                "context": {
+                    "recruiter_name": "María González",
+                    "period_start": "2024-11-01"
+                }
+            })
+        
+        # Simulate client feedback
+        pending_feedback.append({
+            "id": "FB_CLIENT_001",
+            "type": "client_interview", 
+            "context": {
+                "candidate_name": "Juan Pérez",
+                "job_title": "Senior Developer"
+            }
+        })
+        
+        return pending_feedback
+    
+    def _get_feedback_type_name(self, feedback_type: str) -> str:
+        """Get human-readable feedback type name"""
+        type_names = {
+            "client_interview": "📝 Feedback de Entrevista",
+            "candidate_process": "📝 Feedback de Proceso", 
+            "consultant_performance": "📝 Evaluación de Performance",
+            "super_admin_system": "📝 Evaluación de Sistema",
+            "recruiter_client": "📝 Feedback de Cliente"
+        }
+        return type_names.get(feedback_type, "📝 Feedback")
+    
+    def _convert_quick_reply_to_response(self, message: str, feedback_type: str) -> Dict[str, Any]:
+        """Convert quick reply to structured response"""
+        
+        if feedback_type == "client_interview":
+            if "⭐ Excelente" in message:
+                return {"technical_fit": 9, "cultural_fit": 9, "overall_rating": "excellent"}
+            elif "👍 Bueno" in message:
+                return {"technical_fit": 7, "cultural_fit": 7, "overall_rating": "good"}
+            elif "👌 Regular" in message:
+                return {"technical_fit": 5, "cultural_fit": 5, "overall_rating": "regular"}
+            elif "👎 Malo" in message:
+                return {"technical_fit": 3, "cultural_fit": 3, "overall_rating": "poor"}
+            elif "💻 Técnicamente sólido" in message:
+                return {"strengths_observed": "Técnicamente sólido"}
+            elif "🗣️ Excelente comunicación" in message:
+                return {"strengths_observed": "Excelente comunicación"}
+            elif "🎯 Experiencia relevante" in message:
+                return {"strengths_observed": "Experiencia relevante"}
+            elif "🤝 Buen fit cultural" in message:
+                return {"strengths_observed": "Buen fit cultural"}
+        
+        elif feedback_type == "candidate_process":
+            if "😊 Muy satisfecho" in message:
+                return {"overall_satisfaction": 9, "process_clarity": 9}
+            elif "🙂 Satisfecho" in message:
+                return {"overall_satisfaction": 7, "process_clarity": 7}
+            elif "😐 Neutral" in message:
+                return {"overall_satisfaction": 5, "process_clarity": 5}
+            elif "😞 Insatisfecho" in message:
+                return {"overall_satisfaction": 3, "process_clarity": 3}
+            elif "⏰ Tiempos de respuesta" in message:
+                return {"improvement_suggestions": "Mejorar tiempos de respuesta"}
+            elif "📞 Comunicación" in message:
+                return {"improvement_suggestions": "Mejorar comunicación"}
+        
+        elif feedback_type == "consultant_performance":
+            if "🌟 Excelente" in message:
+                return {"recruiter_evaluation": 9, "overall_assessment": "Altamente recomendado"}
+            elif "👍 Muy bueno" in message:
+                return {"recruiter_evaluation": 8, "overall_assessment": "Recomendado"}
+            elif "👌 Bueno" in message:
+                return {"recruiter_evaluation": 6, "overall_assessment": "Aceptable"}
+            elif "👎 Necesita mejorar" in message:
+                return {"recruiter_evaluation": 4, "overall_assessment": "Necesita mejoras"}
+        
+        return {"quick_response": message}
+    
+    async def _handle_potential_feedback_start(self, session: UserSession, message: str) -> BotMessage:
+        """Handle potential start of feedback from notification"""
+        # Check if user has pending feedback and this looks like a response
+        pending_feedback = await self._get_pending_feedback_for_user(session)
+        
+        if pending_feedback and any(keyword in message for keyword in ["⭐", "👍", "👌", "👎", "😊", "🙂", "😐", "😞"]):
+            # Start feedback process with first pending
+            first_feedback = pending_feedback[0]
+            session.context["current_feedback"] = first_feedback
+            session.state = ConversationState.FEEDBACK_RESPONSE
+            
+            return await self._handle_feedback_quick_reply(session, message)
+        
+        return MessageTemplates.error_message("invalid_command")
+    
+    async def send_feedback_notification(self, phone_number: str, company_id: str, 
+                                       feedback_type: str, context: Dict[str, Any]):
+        """Send feedback notification to user"""
+        try:
+            message = MessageTemplates.feedback_notification(feedback_type, context)
+            await self._send_message(phone_number, message, company_id)
+            logger.info(f"Feedback notification sent to {phone_number}")
+            
+        except Exception as e:
+            logger.error(f"Error sending feedback notification: {e}")
+    
+    async def send_feedback_reminder(self, phone_number: str, company_id: str, pending_count: int):
+        """Send feedback reminder to user"""
+        try:
+            message = MessageTemplates.pending_feedback_reminder(pending_count)
+            await self._send_message(phone_number, message, company_id)
+            logger.info(f"Feedback reminder sent to {phone_number}")
+            
+        except Exception as e:
+            logger.error(f"Error sending feedback reminder: {e}")
