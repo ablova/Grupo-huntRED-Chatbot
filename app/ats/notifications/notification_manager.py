@@ -7,13 +7,8 @@ from datetime import datetime
 import logging
 from enum import Enum
 
-from app.ats.models import Person, Job, Match, BusinessUnit
-from app.ats.integrations.notifications.channels import (
-    EmailChannel,
-    WhatsAppChannel,
-    TelegramChannel,
-    SMSChannel
-)
+from app.models import Person, BusinessUnit, Vacante
+from app.ats.integrations.notifications.channels import get_channel_class
 
 logger = logging.getLogger(__name__)
 
@@ -33,18 +28,19 @@ class NotificationManager:
     """Gestor de notificaciones para el ciclo de reclutamiento."""
     
     def __init__(self):
-        self.channels = {
-            'email': EmailChannel(),
-            'whatsapp': WhatsAppChannel(),
-            'telegram': TelegramChannel(),
-            'sms': SMSChannel()
-        }
+        self.channels = {}
+        # Inicializar canales disponibles dinámicamente
+        channel_names = ['whatsapp', 'telegram', 'sms', 'slack']
+        for channel_name in channel_names:
+            channel_class = get_channel_class(channel_name)
+            if channel_class:
+                self.channels[channel_name] = channel_class()
         
     async def notify_process_update(
         self,
         stage: ProcessStage,
         candidate: Person,
-        job: Job,
+        job: Vacante,
         business_unit: BusinessUnit,
         metadata: Optional[Dict] = None
     ):
@@ -84,7 +80,7 @@ class NotificationManager:
         self,
         stage: ProcessStage,
         candidate: Person,
-        job: Job,
+        job: Vacante,
         metadata: Optional[Dict]
     ):
         """Notifica al candidato según la etapa del proceso."""
@@ -139,27 +135,29 @@ class NotificationManager:
         template_data = templates.get(stage)
         if template_data:
             for channel in template_data['channels']:
-                await self.channels[channel].send(
-                    recipient=candidate,
-                    subject=template_data['subject'],
-                    template=template_data['template'],
-                    context={
-                        'candidate': candidate,
-                        'job': job,
-                        'metadata': metadata
-                    }
-                )
+                if channel in self.channels:
+                    await self.channels[channel].send(
+                        recipient=candidate,
+                        subject=template_data['subject'],
+                        template=template_data['template'],
+                        context={
+                            'candidate': candidate,
+                            'job': job,
+                            'metadata': metadata
+                        }
+                    )
                 
     async def _notify_consultant(
         self,
         stage: ProcessStage,
         candidate: Person,
-        job: Job,
+        job: Vacante,
         business_unit: BusinessUnit,
         metadata: Optional[Dict]
     ):
         """Notifica al consultor asignado."""
-        consultant = job.assigned_consultant
+        # Para Vacante, usamos el responsable de la vacante
+        consultant = getattr(job, 'responsible', None)
         if not consultant:
             return
             
@@ -203,8 +201,8 @@ class NotificationManager:
         }
         
         template_data = templates.get(stage)
-        if template_data:
-            await self.channels['email'].send(
+        if template_data and 'whatsapp' in self.channels:
+            await self.channels['whatsapp'].send(
                 recipient=consultant,
                 subject=template_data['subject'],
                 template=template_data['template'],
@@ -220,7 +218,7 @@ class NotificationManager:
         self,
         stage: ProcessStage,
         candidate: Person,
-        job: Job,
+        job: Vacante,
         business_unit: BusinessUnit,
         metadata: Optional[Dict]
     ):
@@ -289,7 +287,7 @@ class NotificationManager:
     async def _notify_references(
         self,
         candidate: Person,
-        job: Job,
+        job: Vacante,
         metadata: Optional[Dict]
     ):
         """Notifica a las referencias del candidato."""
@@ -311,7 +309,7 @@ class NotificationManager:
         self,
         stage: ProcessStage,
         candidate: Person,
-        job: Job,
+        job: Vacante,
         business_unit: BusinessUnit,
         metadata: Optional[Dict]
     ):
@@ -333,7 +331,7 @@ class NotificationManager:
         self,
         stage: ProcessStage,
         candidate: Person,
-        job: Job,
+        job: Vacante,
         error_message: str
     ):
         """Notifica errores al equipo interno."""
@@ -347,4 +345,151 @@ class NotificationManager:
                 'job': job,
                 'error': error_message
             }
-        ) 
+        )
+
+class SkillFeedbackNotificationManager:
+    """Gestor especializado para notificaciones de feedback de habilidades."""
+    
+    def __init__(self, business_unit: BusinessUnit):
+        self.business_unit = business_unit
+        self.channels = {}
+        # Inicializar canales disponibles dinámicamente
+        channel_names = ['whatsapp', 'telegram', 'sms', 'slack']
+        for channel_name in channel_names:
+            channel_class = get_channel_class(channel_name)
+            if channel_class:
+                self.channels[channel_name] = channel_class()
+        
+    async def notify_feedback_required(
+        self,
+        recipient: Person,
+        vacante: Vacante,
+        candidate: Person,
+        skills: list,
+        deadline: datetime
+    ):
+        """
+        Notifica que se requiere feedback de habilidades.
+        """
+        try:
+            context = {
+                'recipient': recipient,
+                'vacante': vacante,
+                'candidate': candidate,
+                'skills': skills,
+                'deadline': deadline,
+                'business_unit': self.business_unit
+            }
+            
+            # Notificar por WhatsApp (reemplazando email temporalmente)
+            if 'whatsapp' in self.channels:
+                await self.channels['whatsapp'].send(
+                    recipient=recipient,
+                    subject=f'Feedback requerido: {candidate.nombre} - {vacante.titulo}',
+                    template='feedback/feedback_required.html',
+                    context=context
+                )
+            
+            # Notificar por WhatsApp si está disponible
+            if recipient.telefono:
+                await self.channels['whatsapp'].send(
+                    recipient=recipient,
+                    subject='Feedback de habilidades requerido',
+                    template='feedback/feedback_required_whatsapp.html',
+                    context=context
+                )
+                
+        except Exception as e:
+            logger.error(f"Error notificando feedback requerido: {str(e)}")
+            
+    async def notify_feedback_completed(
+        self,
+        recipient: Person,
+        vacante: Vacante,
+        candidate: Person,
+        feedback_data: dict
+    ):
+        """
+        Notifica que se completó el feedback de habilidades.
+        """
+        try:
+            context = {
+                'recipient': recipient,
+                'vacante': vacante,
+                'candidate': candidate,
+                'feedback_data': feedback_data,
+                'business_unit': self.business_unit
+            }
+            
+            # Notificar por WhatsApp (reemplazando email temporalmente)
+            if 'whatsapp' in self.channels:
+                await self.channels['whatsapp'].send(
+                    recipient=recipient,
+                    subject=f'Feedback completado: {candidate.nombre} - {vacante.titulo}',
+                    template='feedback/feedback_completed.html',
+                    context=context
+                )
+            
+        except Exception as e:
+            logger.error(f"Error notificando feedback completado: {str(e)}")
+            
+    async def notify_critical_skills_alert(
+        self,
+        recipient: Person,
+        vacante: Vacante,
+        candidate: Person,
+        critical_skills: list,
+        development_time: str
+    ):
+        """
+        Notifica alerta de habilidades críticas detectadas.
+        """
+        try:
+            context = {
+                'recipient': recipient,
+                'vacante': vacante,
+                'candidate': candidate,
+                'critical_skills': critical_skills,
+                'development_time': development_time,
+                'business_unit': self.business_unit
+            }
+            
+            # Notificar por WhatsApp con alta prioridad (reemplazando email temporalmente)
+            if 'whatsapp' in self.channels:
+                await self.channels['whatsapp'].send(
+                    recipient=recipient,
+                    subject=f'🚨 Habilidades críticas detectadas: {candidate.nombre}',
+                    template='feedback/critical_skills_alert.html',
+                    context=context
+                )
+            
+            # Notificar por WhatsApp si está disponible
+            if recipient.telefono:
+                await self.channels['whatsapp'].send(
+                    recipient=recipient,
+                    subject='🚨 Habilidades críticas detectadas',
+                    template='feedback/critical_skills_alert_whatsapp.html',
+                    context=context
+                )
+                
+        except Exception as e:
+            logger.error(f"Error notificando alerta de habilidades críticas: {str(e)}")
+            
+    async def schedule_notification(
+        self,
+        notification_type: str,
+        recipient: Person,
+        scheduled_time: datetime,
+        vacante: Vacante = None,
+        context: dict = None
+    ):
+        """
+        Programa una notificación para un momento específico.
+        """
+        try:
+            # Aquí se integraría con un sistema de tareas programadas
+            # Por ahora, solo registramos la programación
+            logger.info(f"Notification scheduled for {scheduled_time}: {notification_type} to {recipient.nombre}")
+            
+        except Exception as e:
+            logger.error(f"Error scheduling notification: {str(e)}") 

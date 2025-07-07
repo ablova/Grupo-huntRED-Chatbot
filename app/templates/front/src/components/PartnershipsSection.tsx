@@ -14,28 +14,28 @@ const PartnershipsSection = () => {
     {
       category: "Tecnología & APIs",
       partners: [
-        { name: "BlackTrust", logo: "/api/placeholder/120/60?text=BlackTrust" },
-        { name: "Incode", logo: "/api/placeholder/120/60?text=Incode" },
-        { name: "Tabiya Technologies", logo: "/api/placeholder/120/60?text=Tabiya" },
-        { name: "Aomni", logo: "/api/placeholder/120/60?text=Aomni" },
-        { name: "Meta", logo: "/api/placeholder/120/60?text=Meta" }
+        { name: "BlackTrust", logo: "/assets/logos/blacktrust.png" },
+        { name: "Incode", logo: "/assets/logos/incode.png" },
+        { name: "Tabiya Technologies", logo: "/assets/logos/tabiya.png" },
+        { name: "Aomni", logo: "/assets/logos/aomni.png" },
+        { name: "Meta", logo: "/assets/logos/meta.png" }
       ]
     },
     {
       category: "Instituciones Educativas",
       partners: [
-        { name: "UVM", logo: "/api/placeholder/120/60?text=UVM" },
-        { name: "UNITEC", logo: "/api/placeholder/120/60?text=UNITEC" },
-        { name: "Universidad Insurgentes", logo: "/api/placeholder/120/60?text=U.Insurgentes" },
-        { name: "Aliat", logo: "/api/placeholder/120/60?text=Aliat" },
-        { name: "Funed", logo: "/api/placeholder/120/60?text=Funed" }
+        { name: "UVM", logo: "/assets/logos/uvm.png" },
+        { name: "UNITEC", logo: "/assets/logos/unitec.png" },
+        { name: "Universidad Insurgentes", logo: "/assets/logos/uinsurgentes.png" },
+        { name: "Aliat", logo: "/assets/logos/aliat.png" },
+        { name: "Funed", logo: "/assets/logos/funed.png" }
       ]
     },
     {
       category: "Fundaciones",
       partners: [
-        { name: "Fundación Televisa", logo: "/api/placeholder/120/60?text=F.Televisa" },
-        { name: "Fundación Bécalos", logo: "/api/placeholder/120/60?text=F.Bécalos" }
+        { name: "Fundación Televisa", logo: "/assets/logos/fundacion-televisa.png" },
+        { name: "Fundación Bécalos", logo: "/assets/logos/fundacion-becalos.png" }
       ]
     }
   ];

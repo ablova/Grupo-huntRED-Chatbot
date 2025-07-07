@@ -36,11 +36,12 @@ from app.ats.chatbot.components.rate_limiter import RateLimiter
 
 # Importaciones de servicios
 from app.ats.integrations.services import MessageService
-from app.ats.integrations.services.gamification import gamification_service
+# TODO: Implementar gamification_service
+# from app.ats.integrations.services.gamification import gamification_service
 from app.ats.integrations.services.document import CVParser
 
 # Importaciones de NLP
-from app.ats.chatbot.nlp.nlp.processors import NLPProcessor
+from app.ats.chatbot.nlp.nlp import NLPProcessor
 
 # Importaciones de middleware
 from app.ats.chatbot.middleware.message_retry import MessageRetry
@@ -65,8 +66,8 @@ from app.ats.chatbot.workflow.business_units.sexsi.sexsi import (
 )
 
 from app.ats.chatbot.flow import FeedbackFlowManager
-from app.ats.chatbot.intents import IntentDetector
-from app.ats.notifications.managers import SkillFeedbackNotificationManager
+from app.ats.chatbot.components.intent_detector import IntentDetector
+from app.ats.notifications.notification_manager import SkillFeedbackNotificationManager
 from app.ats.onboarding.managers import OnboardingManager
 
 logger = logging.getLogger('chatbot')
@@ -159,8 +160,10 @@ class ChatBotHandler:
         self.response_generator = ResponseGenerator()
         self.state_manager = ChatStateManager()
         self.message_service = MessageService()
-        from app.ats.integrations.services.gamification import gamification_service
-        self.gamification_service = gamification_service
+        # TODO: Implementar gamification_service
+        # from app.ats.integrations.services.gamification import gamification_service
+        # self.gamification_service = gamification_service
+        self.gamification_service = None
         self.cv_parser = CVParser()
         
         # Inicializar el gestor de workflows

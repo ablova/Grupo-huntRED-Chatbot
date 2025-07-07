@@ -1,4 +1,4 @@
-import React from 'react';
+// React se importa automáticamente con JSX
 import { ThemeProvider } from '@/components/ThemeProvider';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -59,6 +59,10 @@ import MetaverseSection from '@/components/MetaverseSection';
 import QuantumLabSection from '@/components/QuantumLabSection';
 import PartnershipsSection from '@/components/PartnershipsSection';
 import PaymentSystemSection from '@/components/PaymentSystemSection';
+import PayrollManagementSection from '@/components/PayrollManagementSection';
+import PayrollCalculator from '@/components/PayrollCalculator';
+import BusinessUnitCalculator from '@/components/BusinessUnitCalculator';
+import AICustomizationSection from '@/components/AICustomizationSection';
 import ClientsSection from '@/components/ClientsSection';
 
 const Index = () => {
@@ -124,6 +128,10 @@ const Index = () => {
           <QuantumLabSection />
           <PartnershipsSection />
           <PaymentSystemSection />
+          <PayrollManagementSection />
+          <PayrollCalculator />
+          <BusinessUnitCalculator />
+          <AICustomizationSection />
           <ClientsSection />
         </main>
         

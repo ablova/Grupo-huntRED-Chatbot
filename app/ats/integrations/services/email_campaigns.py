@@ -12,9 +12,7 @@ from django.conf import settings
 from django.utils import timezone
 from asgiref.sync import sync_to_async
 
-from app.models import Person, BusinessUnit, Company
-from app.ats.pricing.models import DiscountCoupon
-from app.ats.gamification.models import Badge, UserBadge
+from app.models import Person, BusinessUnit, Company, DiscountCoupon
 from app.ats.integrations.notifications.core.service import NotificationService
 
 logger = logging.getLogger(__name__)
@@ -116,7 +114,8 @@ class EmailCampaignService:
             coupon = await self._generate_upsell_coupon(recipient, f"{assessment_type}_upsell")
             
             # Obtener bundle recomendado
-            recommended_bundle = await self._get_recommended_bundle(assessment_type)
+            # TODO: recommended_bundle = await self._get_recommended_bundle(assessment_type)
+            recommended_bundle = None
             
             context = {
                 'recipient_name': recipient.nombre,
@@ -146,54 +145,17 @@ class EmailCampaignService:
             logger.error(f"Error sending assessment upsell email: {str(e)}", exc_info=True)
             return {'email': False}
     
-    async def send_gamification_email(
-        self, 
-        recipient: Person, 
-        badge: Badge,
-        achievement_type: str
-    ) -> Dict[str, bool]:
-        """
-        Envía email de gamificación con badge y CTA para siguiente nivel.
-        
-        Args:
-            recipient: Persona que ganó el badge
-            badge: Badge ganado
-            achievement_type: Tipo de logro
-        """
-        try:
-            # Obtener siguiente badge disponible
-            next_badge = await self._get_next_badge(recipient, badge)
-            
-            # Generar cupón de celebración
-            celebration_coupon = await self._generate_upsell_coupon(recipient, "badge_achievement")
-            
-            context = {
-                'recipient_name': recipient.nombre,
-                'badge_name': badge.name,
-                'badge_description': badge.description,
-                'badge_icon': badge.icon_url,
-                'achievement_type': achievement_type,
-                'next_badge': next_badge.name if next_badge else None,
-                'next_badge_description': next_badge.description if next_badge else None,
-                'celebration_coupon': celebration_coupon.code if celebration_coupon else None,
-                'celebration_discount': celebration_coupon.discount_percentage if celebration_coupon else 10,
-                'cta_text': self._get_personalized_cta(recipient, "badge_achievement"),
-                'business_unit': self.business_unit.name,
-                'total_badges': await self._get_user_badge_count(recipient)
-            }
-            
-            return await self.notification_service.send_notification(
-                recipient=recipient,
-                template_name='emails/badge_achievement.html',
-                context=context,
-                notification_type='badge_achievement',
-                business_unit=self.business_unit,
-                channels=['email']
-            )
-            
-        except Exception as e:
-            logger.error(f"Error sending gamification email: {str(e)}", exc_info=True)
-            return {'email': False}
+    # TODO: Implementar cuando se complete el módulo de gamificación
+    # async def send_gamification_email(
+    #     self, 
+    #     recipient: Person, 
+    #     badge: Badge,
+    #     achievement_type: str
+    # ) -> Dict[str, bool]:
+    #     """
+    #     Envía email de gamificación con badge y CTA para siguiente nivel.
+    #     """
+    #     pass
     
     async def send_onboarding_sequence_email(
         self, 
@@ -280,84 +242,23 @@ class EmailCampaignService:
             logger.error(f"Error generating upsell coupon: {str(e)}")
             return None
     
-    async def _get_recommended_bundle(self, assessment_type: str) -> Optional[Bundle]:
-        """Obtiene el bundle recomendado para el tipo de evaluación."""
-        try:
-            # Lógica para recomendar bundle basado en assessment_type
-            bundle_mapping = {
-                'cultural_fit': 'Cultural Excellence Bundle',
-                'professional_dna': 'Professional Development Bundle',
-                'personality': 'Personality Insights Bundle'
-            }
-            
-            bundle_name = bundle_mapping.get(assessment_type)
-            if bundle_name:
-                return await sync_to_async(Bundle.objects.filter(
-                    name=bundle_name,
-                    business_unit=self.business_unit,
-                    is_active=True
-                ).first)()
-            
-            return None
-            
-        except Exception as e:
-            logger.error(f"Error getting recommended bundle: {str(e)}")
-            return None
+    # TODO: Implementar cuando se complete el módulo de bundles
+    # async def _get_recommended_bundle(self, assessment_type: str) -> Optional[Bundle]:
+    #     """Obtiene el bundle recomendado para el tipo de evaluación."""
+    #     return None
     
-    async def _get_user_badges(self, recipient: Person) -> List[Dict[str, Any]]:
-        """Obtiene los badges del usuario."""
-        try:
-            user_badges = await sync_to_async(list)(
-                UserBadge.objects.filter(
-                    user=recipient,
-                    is_active=True
-                ).select_related('badge')
-            )
-            
-            return [
-                {
-                    'name': ub.badge.name,
-                    'description': ub.badge.description,
-                    'icon': ub.badge.icon_url,
-                    'earned_date': ub.earned_date.strftime('%d/%m/%Y')
-                }
-                for ub in user_badges
-            ]
-            
-        except Exception as e:
-            logger.error(f"Error getting user badges: {str(e)}")
-            return []
+    # TODO: Implementar cuando se complete el módulo de gamificación
+    # async def _get_user_badges(self, recipient: Person) -> List[Dict[str, Any]]:
+    #     """Obtiene los badges del usuario."""
+    #     return []
     
-    async def _get_next_badge(self, recipient: Person, current_badge: Badge) -> Optional[Badge]:
-        """Obtiene el siguiente badge disponible para el usuario."""
-        try:
-            # Lógica para determinar siguiente badge
-            earned_badges = await sync_to_async(list)(
-                UserBadge.objects.filter(user=recipient).values_list('badge_id', flat=True)
-            )
-            
-            next_badge = await sync_to_async(Badge.objects.filter(
-                business_unit=self.business_unit,
-                is_active=True,
-                order__gt=current_badge.order
-            ).exclude(id__in=earned_badges).first)()
-            
-            return next_badge
-            
-        except Exception as e:
-            logger.error(f"Error getting next badge: {str(e)}")
-            return None
+    # async def _get_next_badge(self, recipient: Person, current_badge: Badge) -> Optional[Badge]:
+    #     """Obtiene el siguiente badge disponible para el usuario."""
+    #     return None
     
-    async def _get_user_badge_count(self, recipient: Person) -> int:
-        """Obtiene el número total de badges del usuario."""
-        try:
-            return await sync_to_async(UserBadge.objects.filter(
-                user=recipient,
-                is_active=True
-            ).count)()
-        except Exception as e:
-            logger.error(f"Error getting badge count: {str(e)}")
-            return 0
+    # async def _get_user_badge_count(self, recipient: Person) -> int:
+    #     """Obtiene el número total de badges del usuario."""
+    #     return 0
     
     def _get_personalized_cta(self, recipient: Person, context: str) -> str:
         """Genera un CTA personalizado basado en el contexto."""

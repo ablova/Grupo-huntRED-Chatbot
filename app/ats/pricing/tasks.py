@@ -169,7 +169,7 @@ def sync_wordpress_opportunities():
     Se ejecuta automáticamente cada 2 horas.
     """
     try:
-        from app.ats.pricing.models import Oportunidad
+        from app.ats.models import Oportunidad
         
         logger.info("Iniciando sincronización de oportunidades con WordPress")
         
@@ -228,7 +228,7 @@ def cleanup_old_payment_transactions():
     Se ejecuta automáticamente cada semana.
     """
     try:
-        from app.ats.pricing.models import PaymentTransaction
+        from app.ats.models import PaymentTransaction
         
         logger.info("Iniciando limpieza de transacciones antiguas")
         
@@ -263,7 +263,7 @@ def generate_payment_reports():
     Se ejecuta automáticamente cada día a las 11:00 PM.
     """
     try:
-        from app.ats.pricing.models import PaymentTransaction
+        from app.ats.models import PaymentTransaction
         from django.db.models import Sum, Count
         from datetime import datetime, timedelta
         

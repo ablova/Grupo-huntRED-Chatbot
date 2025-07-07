@@ -10,7 +10,7 @@ from enum import Enum
 from dataclasses import dataclass
 
 from app.models import BusinessUnit, Person
-from app.ats.pricing.models import ExternalService, ExternalServiceInvoice
+from app.ats.models import ExternalService, ExternalServiceInvoice
 from app.ats.pricing.models.payments import ScheduledPayment, PaymentTransaction
 
 logger = logging.getLogger(__name__)

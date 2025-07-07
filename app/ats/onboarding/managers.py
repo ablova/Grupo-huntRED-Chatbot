@@ -4,7 +4,7 @@ from datetime import timedelta
 import logging
 
 from app.models import Person, BusinessUnit, Vacante, OnboardingProcess
-from app.ats.notifications.managers import NotificationManager
+from app.ats.notifications.notification_manager import NotificationManager
 
 logger = logging.getLogger(__name__)
 

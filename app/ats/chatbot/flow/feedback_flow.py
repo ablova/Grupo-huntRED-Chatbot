@@ -6,13 +6,15 @@ import logging
 
 from app.models import Person, BusinessUnit, Vacante
 from app.ats.feedback.feedback_models import SkillFeedback
-from app.ats.notifications.managers import SkillFeedbackNotificationManager
+from app.ats.notifications.notification_manager import SkillFeedbackNotificationManager
 from app.ats.chatbot.flow.conversational_flow import ConversationalFlowManager
-from app.ats.notifications.specific_notifications import (
-    user_notifier, placement_notifier, payment_notifier,
-    process_notifier, metrics_notifier, event_notifier,
-    alert_notifier
-)
+# TODO: Implementar notificadores específicos
+# from app.ats.notifications.specific_notifications import (
+#     placement_notifier, payment_notifier,
+#     process_notifier, metrics_notifier, event_notifier,
+#     alert_notifier
+# )
+from app.ats.integrations.notifications.user_notifications import get_user_notifier
 
 logger = logging.getLogger(__name__)
 
@@ -27,10 +29,11 @@ class FeedbackFlowManager(ConversationalFlowManager):
         self.notification_manager = SkillFeedbackNotificationManager(business_unit)
         
         # Inicializar notificadores específicos
-        self.user_notifier = user_notifier(business_unit)
-        self.process_notifier = process_notifier(business_unit)
-        self.event_notifier = event_notifier(business_unit)
-        self.alert_notifier = alert_notifier(business_unit)
+        self.user_notifier = get_user_notifier()
+        # TODO: Implementar notificadores específicos
+        # self.process_notifier = process_notifier(business_unit)
+        # self.event_notifier = event_notifier(business_unit)
+        # self.alert_notifier = alert_notifier(business_unit)
         
     async def handle_feedback_request(self, person: Person, vacante: Vacante, candidate: Person) -> Dict[str, Any]:
         """
@@ -68,24 +71,25 @@ class FeedbackFlowManager(ConversationalFlowManager):
             # Programar recordatorios
             await self._schedule_reminders(person, vacante, candidate, feedback)
             
-            # Notificar inicio del proceso de feedback
-            await self.process_notifier.notify_process_start(
-                recipient=person,
-                process_type='feedback_request',
-                process_id=str(feedback.id)
-            )
-            
-            # Notificar evento del sistema
-            await self.event_notifier.notify_system_event(
-                recipient=person,
-                event_name='feedback_requested',
-                event_type='feedback_event',
-                event_data={
-                    'feedback_id': feedback.id,
-                    'vacante_id': vacante.id,
-                    'candidate_id': candidate.id
-                }
-            )
+            # TODO: Implementar notificadores específicos
+            # # Notificar inicio del proceso de feedback
+            # await self.process_notifier.notify_process_start(
+            #     recipient=person,
+            #     process_type='feedback_request',
+            #     process_id=str(feedback.id)
+            # )
+            # 
+            # # Notificar evento del sistema
+            # await self.event_notifier.notify_system_event(
+            #     recipient=person,
+            #     event_name='feedback_requested',
+            #     event_type='feedback_event',
+            #     event_data={
+            #         'feedback_id': feedback.id,
+            #         'vacante_id': vacante.id,
+            #         'candidate_id': candidate.id
+            #     }
+            # )
             
             return {
                 'success': True,
@@ -152,34 +156,35 @@ class FeedbackFlowManager(ConversationalFlowManager):
                 feedback_data=feedback_data
             )
             
-            # Notificar finalización del proceso
-            await self.process_notifier.notify_process_start(
-                recipient=person,
-                process_type='feedback_completed',
-                process_id=str(feedback.id)
-            )
-            
-            # Notificar evento del sistema
-            await self.event_notifier.notify_system_event(
-                recipient=person,
-                event_name='feedback_completed',
-                event_type='feedback_event',
-                event_data={
-                    'feedback_id': feedback.id,
-                    'vacante_id': vacante.id,
-                    'candidate_id': candidate.id,
-                    'feedback_data': feedback_data
-                }
-            )
-            
-            # Si hay habilidades críticas, enviar alerta
-            if feedback_data.get('critical_skills'):
-                await self.alert_notifier.notify_system_alert(
-                    recipient=person,
-                    alert_type='critical_skills',
-                    alert_message=f"Habilidades críticas detectadas para {candidate.name}",
-                    severity='high'
-                )
+            # TODO: Implementar notificadores específicos
+            # # Notificar finalización del proceso
+            # await self.process_notifier.notify_process_start(
+            #     recipient=person,
+            #     process_type='feedback_completed',
+            #     process_id=str(feedback.id)
+            # )
+            # 
+            # # Notificar evento del sistema
+            # await self.event_notifier.notify_system_event(
+            #     recipient=person,
+            #     event_name='feedback_completed',
+            #     event_type='feedback_event',
+            #     event_data={
+            #             'feedback_id': feedback.id,
+            #             'vacante_id': vacante.id,
+            #             'candidate_id': candidate.id,
+            #             'feedback_data': feedback_data
+            #         }
+            # )
+            # 
+            # # Si hay habilidades críticas, enviar alerta
+            # if feedback_data.get('critical_skills'):
+            #     await self.alert_notifier.notify_system_alert(
+            #         recipient=person,
+            #         alert_type='critical_skills',
+            #         alert_message=f"Habilidades críticas detectadas para {candidate.name}",
+            #         severity='high'
+            #     )
             
             return {
                 'success': True,

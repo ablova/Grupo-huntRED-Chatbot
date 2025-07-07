@@ -8,6 +8,7 @@ from datetime import datetime
 from app.models import BusinessUnit
 from app.ats.integrations.notifications.core.base_service import BaseNotificationService
 from app.ats.integrations.notifications.core.config import NotificationType
+from app.ats.utils.migration_handler import get_safe_notifier
 
 logger = logging.getLogger('notifications')
 
@@ -152,4 +153,24 @@ class UserNotificationService(BaseNotificationService):
         )
 
 # Instancia global del servicio de notificaciones de usuario
-user_notifier = UserNotificationService(BusinessUnit.objects.first()) 
+# Usa MigrationHandler para evitar consultas a la base de datos durante migraciones
+def get_user_notifier():
+    """Getter seguro que funciona durante migraciones."""
+    try:
+        from app.models import BusinessUnit
+        bu = BusinessUnit.objects.first()
+        return get_safe_notifier(UserNotificationService, bu)
+    except Exception as e:
+        logger.warning(f"Failed to get user notifier: {e}. Using dummy notifier.")
+        from app.ats.utils.migration_handler import DummyNotificationService
+        return DummyNotificationService()
+
+# Variable global para compatibilidad
+user_notifier = None
+
+def _get_user_notifier_global():
+    """Getter global que cachea la instancia."""
+    global user_notifier
+    if user_notifier is None:
+        user_notifier = get_user_notifier()
+    return user_notifier 

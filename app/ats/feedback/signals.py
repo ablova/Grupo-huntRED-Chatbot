@@ -13,7 +13,7 @@ import asyncio
 from django.db.models.signals import post_save, post_init
 from django.dispatch import receiver
 
-from app.ats.pricing.models import Proposal
+from app.ats.models import Proposal
 from app.models import Opportunity, ServiceContract, ServiceMilestone
 from app.ats.feedback.feedback_modelsfeedback_models import ServiceFeedback, OngoingServiceFeedback, CompletedServiceFeedback
 from app.ats.feedback.feedback_modelsongoing_tracker import get_ongoing_service_tracker

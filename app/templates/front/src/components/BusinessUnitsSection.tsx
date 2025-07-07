@@ -1,7 +1,8 @@
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Building, Users, Briefcase, Zap, Target } from 'lucide-react';
+import { ArrowRight, Building, Users, Briefcase, Zap, Target, Calculator, Bot, Brain, LineChart } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const BusinessUnitsSection = () => {
 // Pyramid structure for business units
@@ -10,6 +11,12 @@ const BusinessUnitsSection = () => {
       name: "huntRED® Executive",
       tagline: "Liderazgo C-Level y Dirección Estratégica",
       description: "Búsqueda ejecutiva de más alto nivel para transformar organizaciones con modelo AI optimizado",
+      aiTools: {
+        chatbot: "Strategic Leadership Bot - Optimizado para evaluación de competencias ejecutivas y toma de decisiones estratégicas",
+        ml: "Executive ML - Ponderación centrada en impacto de liderazgo y visión estratégica",
+        career: "C-Suite Career Path - Trayectoria personalizada para roles ejecutivos",
+        cv: "Executive Resume Generator - Formato premium para perfiles directivos"      
+      },
       color: "bg-orange-500",
       accent: "text-orange-600",
       bg: "bg-orange-500/10 border-orange-500/30",
@@ -22,6 +29,12 @@ const BusinessUnitsSection = () => {
       name: "huntRED®",
       tagline: "Gerencial y Alta Especialización",
       description: "Reclutamiento especializado para posiciones gerenciales con modelo porcentaje optimizado",
+      aiTools: {
+        chatbot: "Management Talent Bot - Especializado en evaluación de habilidades gerenciales y competencias específicas",
+        ml: "Specialized ML - Ponderación balanceada entre experiencia técnica y habilidades de gestión",
+        career: "Management Career Path - Proyección de crecimiento para roles especializados",
+        cv: "Specialized Resume Generator - Énfasis en logros medibles y competencias clave"
+      },
       color: "bg-red-600",
       accent: "text-red-600",
       bg: "bg-red-500/10 border-red-500/30",
@@ -34,6 +47,12 @@ const BusinessUnitsSection = () => {
       name: "huntU®",
       tagline: "Talento Joven y Profesionales Junior",
       description: "Conectamos el futuro del talento universitario con modelo fijo especializado",
+      aiTools: {
+        chatbot: "University Talent Bot - Enfocado en potencial, adaptabilidad y mentalidad de crecimiento",
+        ml: "Early Career ML - Ponderación centrada en aptitudes, habilidades blandas y proyección",
+        career: "Junior Career Path - Rutas de desarrollo para profesionales en inicio de carrera",
+        cv: "Graduate Resume Generator - Resalta educación, proyectos y habilidades transferibles"
+      },
       color: "bg-emerald-500",
       accent: "text-emerald-600",
       bg: "bg-emerald-500/10 border-emerald-500/30",
@@ -46,6 +65,12 @@ const BusinessUnitsSection = () => {
       name: "amigro®",
       tagline: "Reclutamiento Masivo y Operativo",
       description: "Soluciones eficientes para perfiles técnicos migrantes con modelo fijo de volumen",
+      aiTools: {
+        chatbot: "Volume Recruitment Bot - Optimizado para preselección rápida y verificación de habilidades técnicas",
+        ml: "Technical ML - Ponderación enfocada en certificaciones, habilidades técnicas y disponibilidad",
+        career: "Technical Career Path - Desarrollo de trayectoria para roles operativos",
+        cv: "Technical Resume Generator - Formato simplificado con énfasis en experiencia práctica"
+      },
       color: "bg-primary",
       accent: "text-primary",
       bg: "bg-primary/10 border-primary/30",
@@ -59,7 +84,7 @@ const BusinessUnitsSection = () => {
   const specializedUnits = [
     {
       name: "huntRED® Experience",
-      tagline: "Talento Senior +50",
+      tagline: "Talento Senior +55",
       description: "Experiencia laboral avanzada y mentoring",
       icon: "🌟",
       color: "bg-violet-500"
@@ -154,6 +179,51 @@ const BusinessUnitsSection = () => {
               </p>
               
               <div className="grid md:grid-cols-3 gap-6 mt-8">
+                <div className="space-y-4 mt-4">
+                  <Tabs defaultValue="ai" className="w-full">
+                    <TabsList className="grid grid-cols-2 h-8 text-xs">
+                      <TabsTrigger value="ai"><Bot className="h-3 w-3 mr-1" /> Chatbots & ML</TabsTrigger>
+                      <TabsTrigger value="calculator"><Calculator className="h-3 w-3 mr-1" /> Calculadora</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="ai" className="space-y-3 pt-2 text-xs">
+                      <div className="space-y-1.5">
+                        <div className="flex items-start gap-1.5">
+                          <Bot className="h-3 w-3 mt-0.5 shrink-0" />
+                          <p className="text-xs text-muted-foreground">{pyramidUnits[0].aiTools.chatbot}</p>
+                        </div>
+                        <div className="flex items-start gap-1.5">
+                          <Brain className="h-3 w-3 mt-0.5 shrink-0" />
+                          <p className="text-xs text-muted-foreground">{pyramidUnits[0].aiTools.ml}</p>
+                        </div>
+                        <div className="flex items-start gap-1.5">
+                          <LineChart className="h-3 w-3 mt-0.5 shrink-0" />
+                          <p className="text-xs text-muted-foreground">{pyramidUnits[0].aiTools.career}</p>
+                        </div>
+                      </div>
+                      <Button variant="outline" size="sm" className="w-full h-7 text-xs">
+                        Ver demostración <ArrowRight className="h-3 w-3 ml-1" />
+                      </Button>
+                    </TabsContent>
+                    <TabsContent value="calculator" className="space-y-3 pt-2">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="text-center p-1 bg-primary/5 rounded-md">
+                          <div className="text-xs font-medium">Tiempo promedio</div>
+                          <div className="text-sm font-bold">{pyramidUnits[0].level * 8} días</div>
+                        </div>
+                        <div className="text-center p-1 bg-primary/5 rounded-md">
+                          <div className="text-xs font-medium">Ahorro</div>
+                          <div className="text-sm font-bold">+{60 - pyramidUnits[0].level * 10}%</div>
+                        </div>
+                      </div>
+                      <Button variant="outline" size="sm" className="w-full h-7 text-xs">
+                        ROI Personalizado <Calculator className="h-3 w-3 ml-1" />
+                      </Button>
+                    </TabsContent>
+                  </Tabs>
+                  <Button variant="link" className={pyramidUnits[0].accent} size="sm">
+                    Descubrir soluciones <ArrowRight className="h-3 w-3 ml-1" />
+                  </Button>
+                </div>
                 <div className="text-center space-y-2">
                   <div className="text-2xl">🎯</div>
                   <div className="font-semibold">Especialización</div>

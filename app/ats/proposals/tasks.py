@@ -3,7 +3,7 @@ from django.core.mail import EmailMessage
 from django.conf import settings
 import os
 from app.models import Proposal
-from app.ats.utils.notification_handler import NotificationHandler
+# TODO: Implementar notificación al equipo correctamente
 
 @shared_task
 def send_proposal_email(proposal_id):
@@ -37,14 +37,7 @@ def send_proposal_email(proposal_id):
     # Enviar el email
     email.send()
     
-    # Notificar al equipo
-    notification_handler = NotificationHandler()
-    message = f"Propuesta enviada a {proposal.company.name}"
-    notification_handler.send_notification(
-        recipient='pablo@huntred.com',
-        message=message,
-        subject='Propuesta Enviada'
-    )
+    # TODO: Notificar al equipo cuando la propuesta sea enviada
 
 @shared_task
 def generate_monthly_report():
@@ -66,11 +59,4 @@ def generate_monthly_report():
         total_value=Sum('pricing_total')
     )
     
-    # Notificar al equipo
-    notification_handler = NotificationHandler()
-    message = f"Reporte Mensual de Propuestas:\n\nTotal de Propuestas: {proposals['total_count']}\nValor Total: ${proposals['total_value']:.2f}"
-    notification_handler.send_notification(
-        recipient='pablo@huntred.com',
-        message=message,
-        subject='Reporte Mensual de Propuestas'
-    )
+    # TODO: Notificar al equipo con el reporte mensual de propuestas

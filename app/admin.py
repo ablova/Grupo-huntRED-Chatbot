@@ -43,7 +43,7 @@ from app.models import (
     Worker, IntentPattern, StateTransition, IntentTransition, 
     WorkflowStage, BusinessUnit, BusinessUnitMembership, MessageLog
 )
-from app.ats.chatbot.components.chat_state_manager import ContextCondition
+# ContextCondition is defined in app.models, not in chat_state_manager
 
 # Admin Mixins
 from app.ats.admin.mixins import EnhancedAdminMixin, BulkActionsMixin, DateRangeFilter, StatusFilter

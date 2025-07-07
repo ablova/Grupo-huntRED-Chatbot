@@ -45,25 +45,31 @@ from app.ats.onboarding.client_feedback_tasks import (
 )
 
 # Tareas de Entrevistas
-from app.ats.interviews.tasks import (
-    schedule_interview,
-    send_interview_reminder,
-    process_interview_feedback
-)
+# TODO: Implementar módulo de entrevistas
+# from app.ats.interviews.tasks import (
+#     schedule_interview,
+#     send_interview_reminder,
+#     process_interview_feedback
+# )
 
 # Tareas de Ofertas
-from app.ats.offers.tasks import (
-    send_offer_notification,
-    process_offer_response,
-    generate_offer_letter
-)
+# TODO: Implementar módulo de ofertas
+# from app.ats.offers.tasks import (
+#     send_offer_notification,
+#     process_offer_response,
+#     generate_offer_letter
+# )
 
 # Tareas de Onboarding
 from app.ats.onboarding.tasks import (
     start_onboarding_process,
     send_welcome_email,
     schedule_onboarding_tasks,
-    process_onboarding_documents
+    process_onboarding_documents,
+    send_check_in_reminder,
+    send_satisfaction_survey_reminder,
+    generate_client_satisfaction_report,
+    schedule_follow_up_sequence
 )
 
 __all__ = [
@@ -91,18 +97,22 @@ __all__ = [
     'analyze_client_feedback_trends_task',
     
     # Tareas de Entrevistas
-    'schedule_interview',
-    'send_interview_reminder',
-    'process_interview_feedback',
+    # 'schedule_interview',
+    # 'send_interview_reminder',
+    # 'process_interview_feedback',
     
     # Tareas de Ofertas
-    'send_offer_notification',
-    'process_offer_response',
-    'generate_offer_letter',
+    # 'send_offer_notification',
+    # 'process_offer_response',
+    # 'generate_offer_letter',
     
     # Tareas de Onboarding
     'start_onboarding_process',
     'send_welcome_email',
     'schedule_onboarding_tasks',
-    'process_onboarding_documents'
+    'process_onboarding_documents',
+    'send_check_in_reminder',
+    'send_satisfaction_survey_reminder',
+    'generate_client_satisfaction_report',
+    'schedule_follow_up_sequence'
 ] 

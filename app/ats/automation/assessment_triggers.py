@@ -12,8 +12,7 @@ from asgiref.sync import sync_to_async
 from app.models import Person, BusinessUnit, Company
 from app.ats.chatbot.workflow.assessments.nom35.models import AssessmentNOM35
 from app.ats.integrations.services.email_campaigns import EmailCampaignService
-from app.ats.gamification.models import Badge, UserBadge
-from app.ats.pricing.models import DiscountCoupon
+from app.ats.models import Badge, UserBadge, DiscountCoupon
 from app.ats.integrations.notifications.core.service import NotificationService
 
 logger = logging.getLogger(__name__)

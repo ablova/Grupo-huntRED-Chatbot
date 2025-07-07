@@ -137,3 +137,5 @@ PAYMENT_STATUSES = [
 __version__ = '2.0.0'
 __author__ = 'huntRED Team'
 __description__ = 'Módulo de pricing unificado con facturación electrónica y pagos programados'
+
+__all__ = ['Bundle', 'PricingService']

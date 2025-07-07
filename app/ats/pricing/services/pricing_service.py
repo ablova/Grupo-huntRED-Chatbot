@@ -2,7 +2,7 @@ from typing import Dict, Any, List
 from decimal import Decimal
 import logging
 from django.utils import timezone
-from app.ats.pricing.models import PricingStrategy, DiscountRule, ReferralFee
+from app.ats.models import PricingStrategy, DiscountRule, ReferralFee
 from app.models import BusinessUnit, PremiumAddon
 from app.ats.market.services.market_monitor import MarketMonitor
 

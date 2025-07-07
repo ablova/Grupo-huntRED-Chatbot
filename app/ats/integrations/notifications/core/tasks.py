@@ -21,10 +21,11 @@ from app.ats.notifications.managershandlers import (
     AppNotificationHandler, SlackNotificationHandler
 )
 from app.ats.notifications.specific_notifications import (
-    user_notifier, placement_notifier, payment_notifier,
+    placement_notifier, payment_notifier,
     process_notifier, metrics_notifier, event_notifier,
     alert_notifier
 )
+from app.ats.integrations.notifications.user_notifications import get_user_notifier
 
 logger = logging.getLogger('notifications')
 
@@ -318,7 +319,7 @@ def send_user_notification(
         person = Person.objects.get(id=person_id)
         
         # Creamos el notificador
-        notifier = user_notifier(business_unit)
+        notifier = get_user_notifier()
         
         # Enviamos la notificación según el tipo
         if notification_type == 'registration':

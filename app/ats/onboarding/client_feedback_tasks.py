@@ -13,7 +13,6 @@ from celery import shared_task
 from django.utils import timezone
 from django.db.models import Q
 
-from app.models import ClientFeedback, ClientFeedbackSchedule
 from app.ats.onboarding.client_feedback_controller import ClientFeedbackController
 
 logger = logging.getLogger(__name__)
@@ -82,10 +81,8 @@ def generate_client_feedback_reports_task(self):
         
         for bu in business_units:
             # Verificar si hay encuestas para esta BU
-            feedback_count = ClientFeedback.objects.filter(
-                business_unit=bu,
-                status='COMPLETED'
-            ).count()
+            # TODO: Contar feedbacks de clientes cuando el modelo esté disponible
+            feedback_count = 0
             
             if feedback_count == 0:
                 continue

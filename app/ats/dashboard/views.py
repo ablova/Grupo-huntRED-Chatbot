@@ -2,7 +2,7 @@ from django.shortcuts import render
 from django.db.models import Sum, Count, Avg
 from django.utils import timezone
 from datetime import timedelta
-from app.ats.pricing.models import ServiceCalculation, Payment
+from app.ats.models import ServiceCalculation, Payment
 from app.ats.referrals.models import Referral
 from app.ats.proposals.models import Proposal
 from django.views.generic import TemplateView

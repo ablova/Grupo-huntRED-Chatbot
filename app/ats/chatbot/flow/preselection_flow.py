@@ -9,10 +9,11 @@ from app.models import Person, BusinessUnit, Vacante
 from app.ats.chatbot.models.preselection import CandidatePreselection
 from app.ats.chatbot.flow.conversational_flow import ConversationalFlowManager
 from app.ats.notifications.specific_notifications import (
-    process_notifier, event_notifier, alert_notifier, user_notifier,
+    process_notifier, event_notifier, alert_notifier,
     placement_notifier, payment_notifier, metrics_notifier
 )
 from app.ats.chatbot.notifications.telegram_notifications import TelegramNotifier
+from app.ats.integrations.notifications.user_notifications import get_user_notifier
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +30,7 @@ class PreselectionFlowManager(ConversationalFlowManager):
         self.process_notifier = process_notifier(business_unit)
         self.event_notifier = event_notifier(business_unit)
         self.alert_notifier = alert_notifier(business_unit)
-        self.user_notifier = user_notifier(business_unit)
+        self.user_notifier = get_user_notifier()
         self.telegram_notifier = TelegramNotifier(business_unit.id)
 
     async def start_preselection(self, vacancy: Vacante, mp: Person) -> Dict[str, Any]:

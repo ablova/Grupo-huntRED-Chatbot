@@ -8,7 +8,7 @@ from django.utils import timezone
 from django.db import transaction
 from datetime import datetime, timedelta
 
-from app.ats.pricing.models import ScheduledPayment, ScheduledPaymentExecution, BankAccount
+from app.ats.models import ScheduledPayment, ScheduledPaymentExecution, BankAccount
 from app.models import PaymentTransaction  # Importar desde app.models
 from app.ats.pricing.gateways import StripeGateway, PayPalGateway, ConektaGateway
 

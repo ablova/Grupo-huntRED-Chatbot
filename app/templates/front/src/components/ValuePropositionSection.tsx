@@ -36,7 +36,7 @@ const ValuePropositionSection: React.FC = () => {
         "Soporte completo en español",
         "Cumplimiento normativo local",
         "Integración con sistemas HR latinos",
-        "Precios en pesos mexicanos",
+        "Administración de nómina adaptada",
         "Equipo local de soporte"
       ],
       color: "text-blue-600",
@@ -76,7 +76,7 @@ const ValuePropositionSection: React.FC = () => {
       description: "El único modelo de precios que se adapta a su presupuesto y necesidades, basado en el valor real del servicio.",
       benefits: [
         "Precio basado en salario del puesto",
-        "Sin costos ocultos",
+        "Administración de nómina optimizada",
         "Escalabilidad automática",
         "ROI predecible",
         "Mejor valor del mercado"
@@ -114,14 +114,13 @@ const ValuePropositionSection: React.FC = () => {
             Propuesta de Valor Única
           </Badge>
           <h2 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6">
-            ¿Por qué huntRED® es
-            <span className="bg-gradient-to-r from-red-600 to-red-800 bg-clip-text text-transparent">
-              {' '}diferente?
+            ¿Por qué la Plataforma de Talento de Grupo hunt<span className="bg-gradient-to-r from-red-600 to-red-800 bg-clip-text text-transparent">
+              {' '}RED® es superior?
             </span>
           </h2>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            No somos solo otra plataforma de reclutamiento. Somos la solución 
-            diseñada específicamente para transformar el talento en Latinoamérica.
+            Módulos exclusivos y tecnología propietaria que posicionan nuestra plataforma como la mejor opción para empresas latinoamericanas.
+            diseñada específicamente para transformar el talento en Latinoamérica, con procesos personalizados y tecnología de vanguardia.
           </p>
         </div>
 
@@ -198,11 +197,10 @@ const ValuePropositionSection: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-center">
             <div>
               <h3 className="text-2xl font-bold mb-4">
-                Líder en Mercado Latino
+                Módulos Exclusivos del Ecosistema
               </h3>
-              <p className="text-red-100 leading-relaxed">
-                huntRED® es la plataforma más elegida por empresas latinoamericanas 
-                que buscan transformar su reclutamiento con tecnología de vanguardia.
+              <p className="text-lg text-gray-600 mb-8">
+                Nuestra plataforma integra módulos especializados que trabajan en sinergia para revolucionar la gestión del talento con inteligencia artificial y automatización avanzada en todas nuestras unidades de negocio.
               </p>
             </div>
             
@@ -260,7 +258,7 @@ const ValuePropositionSection: React.FC = () => {
                 </div>
                 <p className="text-gray-600 mb-4 italic">
                   "El precio dinámico y la integración nativa con nuestros sistemas 
-                  HR nos permitieron ahorrar 40% en costos de reclutamiento."
+                  HR y nómina nos permitieron ahorrar 40% en costos operativos."
                 </p>
                 <div className="flex items-center">
                   <div className="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center text-white font-bold mr-3">
@@ -280,10 +278,10 @@ const ValuePropositionSection: React.FC = () => {
         <div className="text-center">
           <div className="bg-white rounded-2xl p-8 shadow-2xl border border-gray-100 max-w-4xl mx-auto">
             <h3 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4">
-              ¿Listo para experimentar la diferencia huntRED®?
+              ¿Listo para experimentar la diferencia de la Plataforma de Talento de Grupo huntRED®?
             </h3>
             <p className="text-gray-600 mb-6 text-lg">
-              Descubra por qué 700+ empresas eligieron huntRED® para transformar su reclutamiento
+              Descubra por qué más de 350 empresas confían en nuestra plataforma completa de soluciones de talento y administración de nómina
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button className="bg-red-600 hover:bg-red-700 px-8 py-3 text-lg font-semibold">

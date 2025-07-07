@@ -4,7 +4,7 @@ from django.utils import timezone
 from datetime import timedelta
 from django.db.models import Sum, Count
 from app.models import Company, Proposal
-from app.ats.pricing.models import DiscountCoupon, PricingCalculation
+from app.ats.models import DiscountCoupon, PricingCalculation
 
 class RewardsService:
     def __init__(self):

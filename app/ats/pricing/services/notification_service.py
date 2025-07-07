@@ -8,7 +8,7 @@ from datetime import datetime
 from django.utils import timezone
 
 from app.models import Person, BusinessUnit
-from app.ats.pricing.models import PaymentTransaction, ScheduledPayment, ExternalServiceInvoice
+from app.ats.models import PaymentTransaction, ScheduledPayment, ExternalServiceInvoice
 
 logger = logging.getLogger(__name__)
 

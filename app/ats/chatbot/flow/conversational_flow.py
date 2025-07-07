@@ -5,11 +5,13 @@ from app.models import IntentPattern, StateTransition, IntentTransition, Context
 import logging
 from app.ats.utils.visualization import FlowVisualization as BaseFlowVisualization
 import re
-from app.ats.notifications.specific_notifications import (
-    user_notifier, placement_notifier, payment_notifier,
-    process_notifier, metrics_notifier, event_notifier,
-    alert_notifier
-)
+from app.ats.integrations.notifications.placement_notifications import placement_notifier
+from app.ats.integrations.notifications.payment_notifications import payment_notifier
+from app.ats.integrations.notifications.process_notifications import process_notifier
+from app.ats.integrations.notifications.metrics_notifications import metrics_notifier
+from app.ats.integrations.notifications.event_notifications import event_notifier
+from app.ats.integrations.notifications.alert_notifications import alert_notifier
+from app.ats.integrations.notifications.user_notifications import get_user_notifier
 
 logger = logging.getLogger(__name__)
 
@@ -60,13 +62,13 @@ class ConversationalFlowManager:
         self.response_generator = ResponseGenerator(business_unit)
         
         # Inicializar notificadores específicos
-        self.user_notifier = user_notifier(business_unit)
-        self.placement_notifier = placement_notifier(business_unit)
-        self.payment_notifier = payment_notifier(business_unit)
-        self.process_notifier = process_notifier(business_unit)
-        self.metrics_notifier = metrics_notifier(business_unit)
-        self.event_notifier = event_notifier(business_unit)
-        self.alert_notifier = alert_notifier(business_unit)
+        self.user_notifier = get_user_notifier()
+        self.placement_notifier = placement_notifier
+        self.payment_notifier = payment_notifier
+        self.process_notifier = process_notifier
+        self.metrics_notifier = metrics_notifier
+        self.event_notifier = event_notifier
+        self.alert_notifier = alert_notifier
 
     async def process_message(self, person: Person, message: str) -> dict:
         """
@@ -290,7 +292,7 @@ class ConversationalFlowManager:
             'required_context': [cond.name for cond in 
                                ContextCondition.objects.filter(
                                    business_unit=self.business_unit
-                               )]
+                               )]   
         }
 
 class FlowVisualization(BaseFlowVisualization):

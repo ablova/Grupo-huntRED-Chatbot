@@ -4637,6 +4637,30 @@ class IntentTransition(models.Model):
     def __str__(self):
         return f"{self.intent_pattern} - {self.estado_origen} -> {self.estado_destino}"
 
+class ContextCondition(models.Model):
+    """Condiciones de contexto para el flujo conversacional."""
+    name = models.CharField(max_length=100, help_text="Nombre de la condición")
+    intent = models.CharField(max_length=50, help_text="Intent asociado a esta condición")
+    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE, related_name='context_conditions')
+    type = models.CharField(
+        max_length=32,
+        help_text="Tipo de condición: boolean, numeric, string, choice, date, json, expression, o personalizado."
+    )
+    value = models.TextField(help_text="Valor esperado para la condición (puede ser texto, número, JSON, expresión, etc.)")
+    description = models.TextField(blank=True, help_text="Descripción de la condición")
+    is_active = models.BooleanField(default=True, help_text="¿La condición está activa?")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Condición de Contexto"
+        verbose_name_plural = "Condiciones de Contexto"
+        unique_together = ['name', 'intent', 'business_unit']
+        ordering = ['name']
+
+    def __str__(self):
+        return f"{self.name} ({self.intent}) - {self.business_unit.name}"
+
 class MessageLog(models.Model):
     """Registro de mensajes enviados."""
     MESSAGE_TYPES = [
@@ -6347,3 +6371,335 @@ class OffLimitsRestriction(models.Model):
 
     def __str__(self):
         return f"OffLimits: {self.company} ({self.business_unit}, {self.service_type}) desde {self.start_date} hasta {self.end_date}"
+
+# Constantes para feedback de clientes
+CLIENT_FEEDBACK_PERIODS = [30, 90, 180, 365]  # Días para encuestas periódicas
+
+class ClientFeedback(models.Model):
+    """
+    Modelo para encuestas de satisfacción de clientes.
+    Permite medir la satisfacción del cliente con los servicios proporcionados.
+    """
+    
+    STATUS_CHOICES = [
+        ('PENDING', 'Pendiente'),
+        ('SENT', 'Enviada'),
+        ('COMPLETED', 'Completada'),
+        ('EXPIRED', 'Expirada'),
+        ('CANCELLED', 'Cancelada')
+    ]
+    
+    # Relaciones principales
+    empresa = models.ForeignKey(
+        'Company',
+        on_delete=models.CASCADE,
+        related_name='client_feedbacks',
+        help_text="Empresa cliente"
+    )
+    
+    business_unit = models.ForeignKey(
+        'BusinessUnit',
+        on_delete=models.CASCADE,
+        related_name='client_feedbacks',
+        help_text="Unidad de negocio responsable"
+    )
+    
+    respondent = models.ForeignKey(
+        'Person',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='client_feedback_responses',
+        help_text="Persona que responde la encuesta"
+    )
+    
+    consultant = models.ForeignKey(
+        'Person',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='client_feedback_consultations',
+        help_text="Consultor responsable del servicio"
+    )
+    
+    # Configuración de la encuesta
+    period_days = models.IntegerField(
+        default=30,
+        help_text="Período en días desde el inicio del servicio"
+    )
+    
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='PENDING',
+        help_text="Estado de la encuesta"
+    )
+    
+    # Datos de envío
+    token = models.CharField(
+        max_length=500,
+        blank=True,
+        null=True,
+        help_text="Token de seguridad para la encuesta"
+    )
+    
+    sent_date = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Fecha de envío de la encuesta"
+    )
+    
+    completed_date = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Fecha de completado de la encuesta"
+    )
+    
+    # Respuestas de la encuesta
+    overall_satisfaction = models.IntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(10)],
+        help_text="Satisfacción general (1-10)"
+    )
+    
+    service_quality = models.IntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(10)],
+        help_text="Calidad del servicio (1-10)"
+    )
+    
+    communication = models.IntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(10)],
+        help_text="Comunicación (1-10)"
+    )
+    
+    value_for_money = models.IntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(10)],
+        help_text="Relación calidad-precio (1-10)"
+    )
+    
+    would_recommend = models.BooleanField(
+        null=True,
+        blank=True,
+        help_text="¿Recomendaría nuestros servicios?"
+    )
+    
+    # Comentarios
+    positive_comments = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Aspectos positivos del servicio"
+    )
+    
+    improvement_suggestions = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Sugerencias de mejora"
+    )
+    
+    additional_comments = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Comentarios adicionales"
+    )
+    
+    # Métricas calculadas
+    satisfaction_score = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="Puntuación promedio de satisfacción"
+    )
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Feedback de Cliente"
+        verbose_name_plural = "Feedbacks de Clientes"
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['empresa', 'business_unit']),
+            models.Index(fields=['status']),
+            models.Index(fields=['sent_date']),
+            models.Index(fields=['completed_date']),
+        ]
+    
+    def __str__(self):
+        return f"Feedback de {self.empresa.name} - {self.get_status_display()}"
+    
+    def calculate_satisfaction_score(self):
+        """Calcula la puntuación promedio de satisfacción."""
+        scores = []
+        if self.overall_satisfaction:
+            scores.append(self.overall_satisfaction)
+        if self.service_quality:
+            scores.append(self.service_quality)
+        if self.communication:
+            scores.append(self.communication)
+        if self.value_for_money:
+            scores.append(self.value_for_money)
+        
+        if scores:
+            self.satisfaction_score = sum(scores) / len(scores)
+            self.save(update_fields=['satisfaction_score'])
+        
+        return self.satisfaction_score
+    
+    def mark_as_sent(self):
+        """Marca la encuesta como enviada."""
+        self.status = 'SENT'
+        self.sent_date = timezone.now()
+        self.save(update_fields=['status', 'sent_date'])
+    
+    def mark_as_completed(self):
+        """Marca la encuesta como completada."""
+        self.status = 'COMPLETED'
+        self.completed_date = timezone.now()
+        self.calculate_satisfaction_score()
+        self.save(update_fields=['status', 'completed_date', 'satisfaction_score'])
+    
+    def is_expired(self):
+        """Verifica si la encuesta ha expirado (30 días desde el envío)."""
+        if not self.sent_date:
+            return False
+        return timezone.now() > self.sent_date + timedelta(days=30)
+    
+    def get_satisfaction_level(self):
+        """Obtiene el nivel de satisfacción basado en la puntuación."""
+        if not self.satisfaction_score:
+            return None
+        
+        if self.satisfaction_score >= 9:
+            return 'excellent'
+        elif self.satisfaction_score >= 7:
+            return 'good'
+        elif self.satisfaction_score >= 5:
+            return 'fair'
+        else:
+            return 'poor'
+
+
+class ClientFeedbackSchedule(models.Model):
+    """
+    Modelo para programar encuestas de satisfacción de clientes.
+    Permite configurar encuestas periódicas para cada cliente.
+    """
+    
+    # Relaciones
+    empresa = models.ForeignKey(
+        'Company',
+        on_delete=models.CASCADE,
+        related_name='feedback_schedules',
+        help_text="Empresa cliente"
+    )
+    
+    business_unit = models.ForeignKey(
+        'BusinessUnit',
+        on_delete=models.CASCADE,
+        related_name='feedback_schedules',
+        help_text="Unidad de negocio responsable"
+    )
+    
+    # Configuración de la programación
+    start_date = models.DateTimeField(
+        help_text="Fecha de inicio de la relación de servicio"
+    )
+    
+    next_feedback_date = models.DateTimeField(
+        help_text="Próxima fecha para enviar encuesta"
+    )
+    
+    period_days = models.IntegerField(
+        default=30,
+        help_text="Período en días entre encuestas"
+    )
+    
+    current_period_index = models.IntegerField(
+        default=0,
+        help_text="Índice del período actual en CLIENT_FEEDBACK_PERIODS"
+    )
+    
+    is_active = models.BooleanField(
+        default=True,
+        help_text="¿La programación está activa?"
+    )
+    
+    # Configuración adicional
+    auto_send = models.BooleanField(
+        default=True,
+        help_text="¿Enviar encuestas automáticamente?"
+    )
+    
+    reminder_enabled = models.BooleanField(
+        default=True,
+        help_text="¿Habilitar recordatorios?"
+    )
+    
+    reminder_days = models.IntegerField(
+        default=7,
+        help_text="Días antes de enviar recordatorio"
+    )
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Programación de Feedback de Cliente"
+        verbose_name_plural = "Programaciones de Feedback de Clientes"
+        unique_together = ['empresa', 'business_unit']
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['empresa', 'business_unit']),
+            models.Index(fields=['next_feedback_date']),
+            models.Index(fields=['is_active']),
+        ]
+    
+    def __str__(self):
+        return f"Programación de feedback para {self.empresa.name} - {self.business_unit.name}"
+    
+    def advance_to_next_period(self):
+        """Avanza al siguiente período de feedback."""
+        self.current_period_index += 1
+        
+        # Si hemos completado todos los períodos, volver al primero
+        if self.current_period_index >= len(CLIENT_FEEDBACK_PERIODS):
+            self.current_period_index = 0
+        
+        # Calcular la próxima fecha
+        self.period_days = CLIENT_FEEDBACK_PERIODS[self.current_period_index]
+        self.next_feedback_date = timezone.now() + timedelta(days=self.period_days)
+        
+        self.save(update_fields=[
+            'current_period_index', 
+            'period_days', 
+            'next_feedback_date'
+        ])
+    
+    def is_due_for_feedback(self):
+        """Verifica si es momento de enviar una encuesta."""
+        return timezone.now() >= self.next_feedback_date
+    
+    def get_days_until_next_feedback(self):
+        """Obtiene los días hasta la próxima encuesta."""
+        if self.next_feedback_date:
+            delta = self.next_feedback_date - timezone.now()
+            return max(0, delta.days)
+        return 0
+    
+    def deactivate(self):
+        """Desactiva la programación."""
+        self.is_active = False
+        self.save(update_fields=['is_active'])
+    
+    def reactivate(self):
+        """Reactiva la programación."""
+        self.is_active = True
+        self.save(update_fields=['is_active'])

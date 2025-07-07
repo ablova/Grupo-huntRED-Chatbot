@@ -12,7 +12,7 @@ from django.utils import timezone
 from django.core.mail import EmailMessage
 from django.db import transaction
 
-from app.ats.pricing.models import Oportunidad, Empleador, SincronizacionError, SincronizacionLog
+from app.ats.models import Oportunidad, Empleador, SincronizacionError, SincronizacionLog
 from app.models import ConfiguracionBU, BusinessUnit, User, PricingBaseline, Addons, Coupons, PaymentMilestones
 
 logger = logging.getLogger('wordpress_sync')

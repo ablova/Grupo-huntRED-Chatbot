@@ -10,7 +10,7 @@ import json
 import uuid
 
 from app.models import Invoice, Order, BusinessUnit
-from app.ats.pricing.models import PaymentGateway, PaymentTransaction, BankAccount
+from app.ats.models import PaymentGateway, PaymentTransaction, BankAccount
 from app.ats.pricing.services.electronic_billing_service import ElectronicBillingService
 
 

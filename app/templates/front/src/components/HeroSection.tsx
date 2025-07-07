@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { ArrowRight, Calendar, Brain, Target, Sparkles, TrendingUp, Users, Globe } from 'lucide-react';
+import { ArrowRight, Calendar, Brain, Target, Sparkles, TrendingUp, Users, Globe, Briefcase, Clock, Landmark, Receipt } from 'lucide-react';
 
 const HeroSection = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -21,6 +20,22 @@ const HeroSection = () => {
         { value: "30%", label: "Aumento contrataciones internas" },
         { value: "50%", label: "Más eficiente en gastos" },
         { value: "11h", label: "Ahorradas por reclutador/semana" }
+      ]
+    },
+    {
+      title: "Administración de Nómina Inteligente",
+      subtitle: "Optimice recursos y elimine errores con nuestra plataforma integral de nómina automatizada",
+      description: "Nuestra solución de Administración de Nómina integra canales de mensajería, cálculos precisos según normativas regionales, dispersión automática y gestión de ausencias para una operación sin fricciones.",
+      cta: "Explorar Solución",
+      ctaSecondary: "Calcular Ahorro",
+      image: "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80",
+      icon: Landmark,
+      color: "from-blue-600 to-blue-800",
+      stats: [
+        { value: "40%", label: "Reducción en errores" },
+        { value: "85%", label: "Automatización procesos" },
+        { value: "5h", label: "Ahorro semanal por colaborador" },
+        { value: "99.9%", label: "Precisión en cálculos" }
       ]
     },
     {
@@ -67,45 +82,45 @@ const HeroSection = () => {
   const IconComponent = slides[currentSlide].icon;
 
   return (
-    <section id="hero" className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-br from-gray-900 via-gray-800 to-red-900">
-      {/* Background Pattern */}
-      <div className="absolute inset-0 bg-hero-pattern opacity-10" />
+    <section id="hero" className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-br from-gray-950 via-gray-900 to-red-950">
+      {/* Background Elements */}
+      <div className="absolute inset-0 bg-[url('/img/grid-pattern.svg')] bg-center opacity-5" />
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-gray-950" />
+      
+      {/* Animated Gradient Orbs */}
+      <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-red-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '10s' }} />
+      <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-blue-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '15s', animationDelay: '2s' }} />
+      <div className="absolute top-1/2 right-1/3 w-40 h-40 bg-purple-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '12s', animationDelay: '1s' }} />
       
       {/* Floating Elements */}
-      <div className="absolute top-20 left-10 w-20 h-20 bg-red-500/20 rounded-full animate-float" />
-      <div className="absolute top-40 right-20 w-16 h-16 bg-purple-500/20 rounded-full animate-float" style={{ animationDelay: '2s' }} />
-      <div className="absolute bottom-40 left-20 w-12 h-12 bg-green-500/20 rounded-full animate-float" style={{ animationDelay: '4s' }} />
+      <div className="absolute top-20 left-10 w-24 h-24 bg-gradient-to-br from-red-500/30 to-orange-500/30 rounded-full animate-float backdrop-blur-sm border border-white/10" />
+      <div className="absolute top-40 right-20 w-20 h-20 bg-gradient-to-br from-indigo-500/30 to-purple-500/30 rounded-full animate-float backdrop-blur-sm border border-white/10" style={{ animationDelay: '2s' }} />
+      <div className="absolute bottom-40 left-20 w-16 h-16 bg-gradient-to-br from-blue-500/30 to-cyan-500/30 rounded-full animate-float backdrop-blur-sm border border-white/10" style={{ animationDelay: '4s' }} />
 
-      <div className="container mx-auto px-4 lg:px-8 pt-16 relative z-10">
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
+      <div className="container mx-auto px-6 py-12 relative z-10">
+        <div className="grid md:grid-cols-2 gap-16 items-center">
+          
           {/* Content */}
-          <div className="space-y-8 animate-fade-in-up text-white">
-            <div className="space-y-6">
-              {/* Badge */}
-              <Badge variant="secondary" className="bg-red-100 text-red-700 hover:bg-red-200 border-0">
-                <IconComponent className="h-4 w-4 mr-2" />
-                GRUPO HUNTRED® - LÍDER EN LATINOAMÉRICA
-              </Badge>
-              
-              <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold leading-tight">
-                {slides[currentSlide].title.split(' ').map((word, index) => (
-                  <span 
-                    key={index} 
-                    className={index >= 2 ? `bg-gradient-to-r ${slides[currentSlide].color} bg-clip-text text-transparent` : 'text-white'}
-                  >
-                    {word}{' '}
-                  </span>
-                ))}
-              </h1>
-              
-              <p className="text-xl md:text-2xl text-gray-200 leading-relaxed">
-                {slides[currentSlide].subtitle}
-              </p>
-              
-              <p className="text-lg text-gray-300 max-w-2xl leading-relaxed">
-                {slides[currentSlide].description}
-              </p>
+          <div className="animate-slide-in-left">
+            {/* Current Business Unit Badge */}
+            <div className="inline-flex items-center gap-2 mb-6 py-2 px-4 bg-white/10 backdrop-blur-sm rounded-full border border-white/20 shadow-lg shadow-red-500/5">
+              <div className="w-6 h-6 rounded-full bg-gradient-to-r from-red-500 to-red-600 flex items-center justify-center">
+                <IconComponent className="w-3 h-3 text-white" />
+              </div>
+              <span className="text-sm font-medium text-white">Grupo huntRED</span>
             </div>
+            
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 mb-4 leading-tight tracking-tight">
+              {slides[currentSlide].title}
+            </h1>
+            
+            <p className="text-xl text-gray-300 mb-6 leading-relaxed font-medium">
+              {slides[currentSlide].subtitle}
+            </p>
+            
+            <p className="text-gray-400 mb-8 max-w-2xl leading-relaxed">
+              {slides[currentSlide].description}
+            </p>
 
             <div className="flex flex-col sm:flex-row gap-4">
               <Button size="lg" className={`bg-gradient-to-r ${slides[currentSlide].color} hover:opacity-90 transition-all duration-300 text-white border-0 shadow-lg`}>
@@ -125,17 +140,19 @@ const HeroSection = () => {
                   key={index}
                   onClick={() => setCurrentSlide(index)}
                   className={`w-4 h-4 rounded-full transition-all duration-300 ${
-                    index === currentSlide ? 'bg-red-500 scale-125' : 'bg-gray-400/50 hover:bg-gray-400'
+                    index === currentSlide 
+                      ? `bg-gradient-to-r ${slides[index].color} scale-125 shadow-lg` 
+                      : 'bg-gray-400/50 hover:bg-gray-300/60'
                   }`}
                 />
               ))}
             </div>
 
             {/* Quick Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pt-8">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pt-10">
               {slides[currentSlide].stats.map((stat, index) => (
-                <div key={index} className="text-center p-4 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20">
-                  <div className={`text-2xl md:text-3xl font-bold bg-gradient-to-r ${slides[currentSlide].color} bg-clip-text text-transparent mb-1`}>
+                <div key={index} className="text-center p-5 bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 shadow-lg hover:shadow-xl hover:bg-white/10 transition-all duration-300 group">
+                  <div className={`text-2xl md:text-3xl font-bold bg-gradient-to-r ${slides[currentSlide].color} bg-clip-text text-transparent mb-2 group-hover:scale-105 transition-transform duration-300`}>
                     {stat.value}
                   </div>
                   <div className="text-sm text-gray-300 leading-tight">
@@ -148,19 +165,20 @@ const HeroSection = () => {
 
           {/* Visual */}
           <div className="relative animate-slide-in-right">
-            <div className="relative w-full h-[600px] rounded-2xl overflow-hidden glass border border-white/20">
+            <div className="relative w-full h-[600px] rounded-3xl overflow-hidden border border-white/20 shadow-2xl shadow-red-500/10 transition-all duration-300 hover:shadow-red-500/20">
               <img
                 src={slides[currentSlide].image}
                 alt="huntRED® AI Technology"
                 className="w-full h-full object-cover transition-transform duration-1000 hover:scale-105"
               />
               <div className={`absolute inset-0 bg-gradient-to-r ${slides[currentSlide].color} opacity-30`} />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
               
               {/* Tech Overlay */}
-              <div className="absolute top-6 left-6 glass rounded-xl p-4 border border-white/20">
+              <div className="absolute top-6 left-6 glass rounded-xl p-4 border border-white/20 shadow-lg backdrop-blur-md">
                 <div className="flex items-center space-x-3">
                   <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse" />
-                  <span className="text-sm font-medium text-white">AURA AI Active</span>
+                  <span className="text-sm font-medium text-white">{currentSlide === 1 ? 'Nómina Automatizada' : 'AURA AI Active'}</span>
                 </div>
               </div>
               

@@ -12,14 +12,14 @@ import { TrendingUp, Users, Award } from 'lucide-react';
 
 const ClientsSection = () => {
   const clients = [
-    { name: "Santander", logo: "/api/placeholder/120/60?text=Santander", sector: "Financiero" },
-    { name: "Incode", logo: "/api/placeholder/120/60?text=Incode", sector: "Tecnología" },
-    { name: "Termiz", logo: "/api/placeholder/120/60?text=Termiz", sector: "Energía" },
-    { name: "Bray", logo: "/api/placeholder/120/60?text=Bray", sector: "Industrial" },
-    { name: "Quaker State", logo: "/api/placeholder/120/60?text=QuakerState", sector: "Automotriz" },
-    { name: "Interproteccion", logo: "/api/placeholder/120/60?text=Interproteccion", sector: "Seguros" },
-    { name: "MetLife", logo: "/api/placeholder/120/60?text=MetLife", sector: "Seguros" },
-    { name: "LUMO", logo: "/api/placeholder/120/60?text=LUMO", sector: "Tecnología" }
+    { name: "Santander", logo: "/assets/logos/santander.png", sector: "Financiero" },
+    { name: "Incode", logo: "/assets/logos/incode.png", sector: "Tecnología" },
+    { name: "Termiz", logo: "/assets/logos/termiz.png", sector: "Energía" },
+    { name: "Bray", logo: "/assets/logos/bray.png", sector: "Industrial" },
+    { name: "Quaker State", logo: "/assets/logos/quakerstate.png", sector: "Automotriz" },
+    { name: "Interproteccion", logo: "/assets/logos/interproteccion.png", sector: "Seguros" },
+    { name: "MetLife", logo: "/assets/logos/metlife.png", sector: "Seguros" },
+    { name: "LUMO", logo: "/assets/logos/lumo.png", sector: "Tecnología" }
   ];
 
   const stats = [

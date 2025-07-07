@@ -1,0 +1,481 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .pricing-card {
+        border: 1px solid #e3e6f0;
+        border-radius: 0.75rem;
+        transition: all 0.3s ease;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+    
+    .pricing-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    }
+    
+    .pricing-card.starter {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+    
+    .pricing-card.professional {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    }
+    
+    .pricing-card.enterprise {
+        background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    }
+    
+    .calculator-section {
+        background: #f8f9fc;
+        border-radius: 1rem;
+        padding: 2rem;
+        margin: 2rem 0;
+    }
+    
+    .result-card {
+        background: white;
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        margin: 1rem 0;
+    }
+    
+    .metric-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+        text-align: center;
+        margin: 1rem 0;
+    }
+    
+    .profit-indicator {
+        font-size: 2rem;
+        font-weight: bold;
+        margin: 1rem 0;
+    }
+    
+    .profit-positive { color: #28a745; }
+    .profit-negative { color: #dc3545; }
+    
+    .comparison-table {
+        background: white;
+        border-radius: 0.75rem;
+        overflow: hidden;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    .advantage-badge {
+        background: #28a745;
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 1rem;
+        font-size: 0.875rem;
+        margin: 0.25rem;
+        display: inline-block;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">
+            <i class="fas fa-dollar-sign text-primary"></i>
+            Dashboard de Pricing - huntRED® Payroll
+        </h1>
+        <div>
+            <button class="btn btn-primary" onclick="exportPricingData()">
+                <i class="fas fa-download"></i> Exportar Datos
+            </button>
+        </div>
+    </div>
+
+    <!-- Pricing Overview Cards -->
+    <div class="row mb-4">
+        <div class="col-xl-4 col-md-6 mb-4">
+            <div class="pricing-card starter">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Starter</h5>
+                    <div class="profit-indicator">${{ pricing_data.plans.starter.price_per_employee }}/empleado</div>
+                    <p class="card-text">{{ pricing_data.plans.starter.target_market }}</p>
+                    <div class="mt-3">
+                        <span class="badge bg-light text-dark">Setup: ${{ pricing_data.plans.starter.setup_fee }}</span>
+                        <span class="badge bg-light text-dark">Base: ${{ pricing_data.plans.starter.monthly_base_fee }}/mes</span>
+                    </div>
+                    <div class="mt-2">
+                        <small>Break-even: {{ pricing_data.plans.starter.break_even_employees }} empleados</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-4 col-md-6 mb-4">
+            <div class="pricing-card professional">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Professional</h5>
+                    <div class="profit-indicator">${{ pricing_data.plans.professional.price_per_employee }}/empleado</div>
+                    <p class="card-text">{{ pricing_data.plans.professional.target_market }}</p>
+                    <div class="mt-3">
+                        <span class="badge bg-light text-dark">Setup: ${{ pricing_data.plans.professional.setup_fee }}</span>
+                        <span class="badge bg-light text-dark">Base: ${{ pricing_data.plans.professional.monthly_base_fee }}/mes</span>
+                    </div>
+                    <div class="mt-2">
+                        <small>Break-even: {{ pricing_data.plans.professional.break_even_employees }} empleados</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-4 col-md-6 mb-4">
+            <div class="pricing-card enterprise">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Enterprise</h5>
+                    <div class="profit-indicator">${{ pricing_data.plans.enterprise.price_per_employee }}/empleado</div>
+                    <p class="card-text">{{ pricing_data.plans.enterprise.target_market }}</p>
+                    <div class="mt-3">
+                        <span class="badge bg-light text-dark">Setup: ${{ pricing_data.plans.enterprise.setup_fee }}</span>
+                        <span class="badge bg-light text-dark">Base: ${{ pricing_data.plans.enterprise.monthly_base_fee }}/mes</span>
+                    </div>
+                    <div class="mt-2">
+                        <small>Break-even: {{ pricing_data.plans.enterprise.break_even_employees }} empleados</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cost Breakdown -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-chart-pie"></i> Desglose de Costos por Empresa
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="metric-card">
+                                <h6>WhatsApp Bot</h6>
+                                <div class="profit-indicator">${{ cost_breakdown.monthly_breakdown.whatsapp_bot }}</div>
+                                <small>por mes</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="metric-card">
+                                <h6>Servidores IA</h6>
+                                <div class="profit-indicator">${{ cost_breakdown.monthly_breakdown.ai_servers }}</div>
+                                <small>por mes</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="metric-card">
+                                <h6>Compliance Auto</h6>
+                                <div class="profit-indicator">${{ cost_breakdown.monthly_breakdown.compliance_automation }}</div>
+                                <small>por mes</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="metric-card">
+                                <h6>Total Mensual</h6>
+                                <div class="profit-indicator">${{ cost_breakdown.monthly_breakdown.total }}</div>
+                                <small>por empresa</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pricing Calculator -->
+    <div class="calculator-section">
+        <h4 class="mb-4">
+            <i class="fas fa-calculator text-primary"></i>
+            Calculadora de Precios
+        </h4>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <form id="pricingCalculator">
+                    <div class="mb-3">
+                        <label for="employees" class="form-label">Número de Empleados</label>
+                        <input type="number" class="form-control" id="employees" min="10" value="50">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="plan" class="form-label">Plan</label>
+                        <select class="form-control" id="plan">
+                            <option value="starter">Starter</option>
+                            <option value="professional" selected>Professional</option>
+                            <option value="enterprise">Enterprise</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="country" class="form-label">País</label>
+                        <select class="form-control" id="country">
+                            <option value="MX" selected>México</option>
+                            <option value="CO">Colombia</option>
+                            <option value="AR">Argentina</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Servicios Adicionales</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="predictive_analytics" id="predictive_analytics">
+                            <label class="form-check-label" for="predictive_analytics">
+                                Analytics Predictivo ($8/empleado)
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="compliance_automation" id="compliance_automation">
+                            <label class="form-check-label" for="compliance_automation">
+                                Compliance Automático ($12/empleado)
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="workflow_automation" id="workflow_automation">
+                            <label class="form-check-label" for="workflow_automation">
+                                Workflow Automation ($10/empleado)
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="setup_type" class="form-label">Tipo de Implementación</label>
+                        <select class="form-control" id="setup_type">
+                            <option value="basic_setup">Básica ($5,000)</option>
+                            <option value="standard_setup" selected>Estándar ($12,000)</option>
+                            <option value="enterprise_setup">Enterprise ($35,000)</option>
+                        </select>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="fas fa-calculator"></i> Calcular Precio
+                    </button>
+                </form>
+            </div>
+            
+            <div class="col-md-6">
+                <div id="pricingResults" style="display: none;">
+                    <div class="result-card">
+                        <h5 class="text-primary">Resumen de Precios</h5>
+                        <div class="row">
+                            <div class="col-6">
+                                <p><strong>Precio Base:</strong></p>
+                                <p><strong>Descuento Volumen:</strong></p>
+                                <p><strong>Cargo Base Mensual:</strong></p>
+                                <p><strong>Add-ons:</strong></p>
+                                <hr>
+                                <p><strong>Total Mensual:</strong></p>
+                                <p><strong>Total Anual:</strong></p>
+                            </div>
+                            <div class="col-6 text-end">
+                                <p id="basePrice">$0</p>
+                                <p id="volumeDiscount">0%</p>
+                                <p id="monthlyBaseFee">$0</p>
+                                <p id="addonTotal">$0</p>
+                                <hr>
+                                <p id="monthlyTotal" class="fw-bold">$0</p>
+                                <p id="annualTotal" class="fw-bold">$0</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="result-card">
+                        <h5 class="text-success">Análisis ROI</h5>
+                        <div class="row">
+                            <div class="col-6">
+                                <p><strong>Ahorro Anual:</strong></p>
+                                <p><strong>Costo Anual:</strong></p>
+                                <p><strong>Ahorro Neto:</strong></p>
+                                <p><strong>ROI:</strong></p>
+                                <p><strong>Payback:</strong></p>
+                            </div>
+                            <div class="col-6 text-end">
+                                <p id="annualSavings">$0</p>
+                                <p id="annualCost">$0</p>
+                                <p id="netSavings" class="fw-bold">$0</p>
+                                <p id="roiPercentage" class="fw-bold">0%</p>
+                                <p id="paybackMonths">0 meses</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Competitive Analysis -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-trophy"></i> Análisis Competitivo
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="comparison-table">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Competidor</th>
+                                    <th>Precio/Empleado</th>
+                                    <th>Setup Fee</th>
+                                    <th>Nuestras Ventajas</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for competitor, data in competitive_analysis.items %}
+                                <tr>
+                                    <td><strong>{{ competitor|title }}</strong></td>
+                                    <td>${{ data.price_per_employee }}</td>
+                                    <td>${{ data.setup_fee }}</td>
+                                    <td>
+                                        <span class="advantage-badge">{{ data.our_advantage }}</span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Profitability Analysis -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-chart-line"></i> Análisis de Rentabilidad
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for plan, data in profitability_analysis.items %}
+                        <div class="col-md-4">
+                            <div class="metric-card">
+                                <h6>{{ plan|title }}</h6>
+                                <div class="profit-indicator profit-positive">
+                                    {{ data.profit_margin|floatformat:0 }}% Margen
+                                </div>
+                                <p>Break-even: {{ data.break_even_employees }} empleados</p>
+                                <p>Profit en break-even: ${{ data.monthly_profit_at_break_even|floatformat:0 }}/mes</p>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('pricingCalculator').addEventListener('submit', function(e) {
+    e.preventDefault();
+    calculatePricing();
+});
+
+function calculatePricing() {
+    const employees = parseInt(document.getElementById('employees').value);
+    const plan = document.getElementById('plan').value;
+    const country = document.getElementById('country').value;
+    const setup_type = document.getElementById('setup_type').value;
+    
+    // Get selected addons
+    const addons = [];
+    if (document.getElementById('predictive_analytics').checked) addons.push('predictive_analytics');
+    if (document.getElementById('compliance_automation').checked) addons.push('compliance_automation');
+    if (document.getElementById('workflow_automation').checked) addons.push('workflow_automation');
+    
+    const data = {
+        employees: employees,
+        plan: plan,
+        country: country,
+        addons: addons,
+        setup_type: setup_type
+    };
+    
+    fetch('{% url "payroll:calculate_pricing" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        displayResults(data);
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error al calcular el precio');
+    });
+}
+
+function displayResults(data) {
+    document.getElementById('pricingResults').style.display = 'block';
+    
+    // Pricing breakdown
+    document.getElementById('basePrice').textContent = '$' + data.pricing_breakdown.base_price.toFixed(2);
+    document.getElementById('volumeDiscount').textContent = data.pricing_breakdown.volume_discount.toFixed(1) + '%';
+    document.getElementById('monthlyBaseFee').textContent = '$' + data.pricing_breakdown.monthly_base_fee.toFixed(2);
+    document.getElementById('addonTotal').textContent = '$' + data.pricing_breakdown.addon_total.toFixed(2);
+    document.getElementById('monthlyTotal').textContent = '$' + data.pricing_breakdown.monthly_total.toFixed(2);
+    document.getElementById('annualTotal').textContent = '$' + data.pricing_breakdown.annual_total.toFixed(2);
+    
+    // ROI analysis
+    document.getElementById('annualSavings').textContent = '$' + data.roi_analysis.annual_savings.toFixed(2);
+    document.getElementById('annualCost').textContent = '$' + data.roi_analysis.annual_cost.toFixed(2);
+    document.getElementById('netSavings').textContent = '$' + data.roi_analysis.net_savings.toFixed(2);
+    document.getElementById('roiPercentage').textContent = data.roi_analysis.roi_percentage.toFixed(1) + '%';
+    document.getElementById('paybackMonths').textContent = data.roi_analysis.payback_months.toFixed(1) + ' meses';
+    
+    // Color coding for ROI
+    const roiElement = document.getElementById('roiPercentage');
+    if (data.roi_analysis.roi_percentage > 0) {
+        roiElement.className = 'fw-bold profit-positive';
+    } else {
+        roiElement.className = 'fw-bold profit-negative';
+    }
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function exportPricingData() {
+    // Implementation for exporting pricing data
+    alert('Función de exportación en desarrollo');
+}
+</script>
+{% endblock %} 

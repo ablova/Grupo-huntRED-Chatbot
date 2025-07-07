@@ -13,7 +13,7 @@ import hmac
 import base64
 
 from app.models import BusinessUnit, PaymentTransaction
-from app.ats.pricing.models import BankAccount, PaymentGateway
+from app.ats.models import BankAccount, PaymentGateway
 
 logger = logging.getLogger(__name__)
 
@@ -304,7 +304,7 @@ class BaseBankGateway(ABC):
         """
         try:
             # Crear pago programado en el sistema
-            from app.ats.pricing.models import ScheduledPayment
+            from app.ats.models import ScheduledPayment
             
             scheduled_payment = ScheduledPayment.objects.create(
                 name=f"Pago recurrente: {description}",

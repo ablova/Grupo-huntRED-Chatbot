@@ -17,7 +17,7 @@ from app.ml.feedback.feedback_system import FeedbackAggregator, ModelRetrainer
 import json
 from app.models import Person, BusinessUnit, Vacante, User
 from app.ats.feedback.feedback_models import SkillFeedback
-from app.ats.notifications.managers import SkillFeedbackNotificationManager
+from app.ats.notifications.notification_manager import SkillFeedbackNotificationManager
 from app.ats.feedback.feedback_models import SkillAssessment
 
 @api_view(['POST'])

@@ -3325,7 +3325,7 @@ class SuperAdminDashboard:
             
             # Importar modelos necesarios
             from app.models import Invoice
-            from app.ats.pricing.models import ExternalService
+            from app.ats.models import ExternalService
             
             # Ingresos por mes
             monthly_revenue = await sync_to_async(list)(Invoice.objects.filter(
@@ -3371,7 +3371,7 @@ class SuperAdminDashboard:
             start_date = end_date - timedelta(days=90)
             
             # Importar modelos necesarios
-            from app.ats.pricing.models import PaymentTransaction
+            from app.ats.models import PaymentTransaction
             
             transactions = await sync_to_async(list)(PaymentTransaction.objects.filter(
                 created_at__range=[start_date, end_date]
@@ -3482,7 +3482,7 @@ class SuperAdminDashboard:
         """Obtiene cuentas por pagar."""
         try:
             # Importar modelos necesarios
-            from app.ats.pricing.models import ScheduledPayment
+            from app.ats.models import ScheduledPayment
             
             # Pagos programados pendientes
             scheduled_payments = await sync_to_async(list)(ScheduledPayment.objects.filter(status='pending'))
@@ -3545,7 +3545,7 @@ class SuperAdminDashboard:
             
             # Importar modelos necesarios
             from app.models import Invoice
-            from app.ats.pricing.models import ScheduledPayment
+            from app.ats.models import ScheduledPayment
             
             # Proyección de ingresos
             projected_revenue = []
@@ -3770,7 +3770,7 @@ class SuperAdminDashboard:
         """Obtiene overview de pagos programados."""
         try:
             # Importar modelos necesarios
-            from app.ats.pricing.models import ScheduledPayment
+            from app.ats.models import ScheduledPayment
             
             # Pagos programados activos
             active_scheduled = await sync_to_async(list)(ScheduledPayment.objects.filter(status='active'))

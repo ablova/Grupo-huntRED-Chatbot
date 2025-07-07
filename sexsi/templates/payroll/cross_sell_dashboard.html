@@ -1,0 +1,364 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .cross-sell-card {
+        border: 1px solid #e3e6f0;
+        border-radius: 0.75rem;
+        transition: all 0.3s ease;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+    
+    .cross-sell-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    }
+    
+    .ats-card {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    }
+    
+    .aura-card {
+        background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    }
+    
+    .bundle-card {
+        background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+    }
+    
+    .opportunity-badge {
+        background: #28a745;
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 1rem;
+        font-size: 0.875rem;
+        margin: 0.25rem;
+        display: inline-block;
+    }
+    
+    .priority-high { background: #dc3545; }
+    .priority-medium { background: #ffc107; color: #000; }
+    .priority-low { background: #6c757d; }
+    
+    .stats-card {
+        background: white;
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        margin: 1rem 0;
+        text-align: center;
+    }
+    
+    .value-indicator {
+        font-size: 2rem;
+        font-weight: bold;
+        margin: 1rem 0;
+        color: #28a745;
+    }
+    
+    .company-list {
+        background: white;
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        margin: 1rem 0;
+    }
+    
+    .company-item {
+        border-bottom: 1px solid #e3e6f0;
+        padding: 1rem 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .company-item:last-child {
+        border-bottom: none;
+    }
+    
+    .service-indicator {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 0.5rem;
+    }
+    
+    .service-payroll { background: #007bff; }
+    .service-ats { background: #28a745; }
+    .service-aura { background: #ffc107; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">
+            <i class="fas fa-exchange-alt text-primary"></i>
+            Dashboard de Venta Cruzada - huntRED® Payroll
+        </h1>
+        <div>
+            <a href="{% url 'payroll:pricing:cross_sell_opportunities_list' %}" class="btn btn-primary">
+                <i class="fas fa-list"></i> Ver Oportunidades
+            </a>
+            <a href="{% url 'payroll:pricing:cross_sell_analytics' %}" class="btn btn-info">
+                <i class="fas fa-chart-line"></i> Analytics
+            </a>
+        </div>
+    </div>
+
+    <!-- Estadísticas Generales -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="stats-card">
+                <h6 class="text-primary">Total Empresas</h6>
+                <div class="value-indicator">{{ stats.total_companies }}</div>
+                <small>Clientes activos</small>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="stats-card">
+                <h6 class="text-warning">Solo Payroll</h6>
+                <div class="value-indicator">{{ stats.payroll_only }}</div>
+                <small>Oportunidades de venta cruzada</small>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="stats-card">
+                <h6 class="text-success">Con ATS</h6>
+                <div class="value-indicator">{{ stats.ats_companies }}</div>
+                <small>Clientes con ATS</small>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="stats-card">
+                <h6 class="text-info">Con AURA</h6>
+                <div class="value-indicator">{{ stats.aura_companies }}</div>
+                <small>Clientes con AURA</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Oportunidades de Venta Cruzada -->
+    <div class="row mb-4">
+        <div class="col-xl-4 col-md-6 mb-4">
+            <div class="cross-sell-card ats-card">
+                <div class="card-body text-center">
+                    <h5 class="card-title">
+                        <i class="fas fa-users"></i> Oportunidades ATS
+                    </h5>
+                    <div class="value-indicator">{{ stats.total_opportunities }}</div>
+                    <p class="card-text">Oportunidades de reclutamiento identificadas</p>
+                    <div class="mt-3">
+                        <span class="badge bg-light text-dark">Reclutamiento</span>
+                        <span class="badge bg-light text-dark">Talent Management</span>
+                        <span class="badge bg-light text-dark">Executive Search</span>
+                    </div>
+                    <div class="mt-3">
+                        <a href="{% url 'payroll:pricing:cross_sell_opportunities_list' %}" class="btn btn-light">
+                            Ver Detalles
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-4 col-md-6 mb-4">
+            <div class="cross-sell-card aura-card">
+                <div class="card-body text-center">
+                    <h5 class="card-title">
+                        <i class="fas fa-robot"></i> Oportunidades AURA
+                    </h5>
+                    <div class="value-indicator">{{ stats.total_opportunities }}</div>
+                    <p class="card-text">Oportunidades de IA conversacional</p>
+                    <div class="mt-3">
+                        <span class="badge bg-light text-dark">Chatbot HR</span>
+                        <span class="badge bg-light text-dark">Recruitment Bot</span>
+                        <span class="badge bg-light text-dark">Customer Service</span>
+                    </div>
+                    <div class="mt-3">
+                        <a href="{% url 'payroll:pricing:cross_sell_opportunities_list' %}" class="btn btn-light">
+                            Ver Detalles
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-4 col-md-6 mb-4">
+            <div class="cross-sell-card bundle-card">
+                <div class="card-body text-center">
+                    <h5 class="card-title">
+                        <i class="fas fa-box"></i> Bundles Completos
+                    </h5>
+                    <div class="value-indicator">{{ stats.bundle_companies }}</div>
+                    <p class="card-text">Clientes con solución completa</p>
+                    <div class="mt-3">
+                        <span class="badge bg-light text-dark">Payroll + ATS</span>
+                        <span class="badge bg-light text-dark">Payroll + AURA</span>
+                        <span class="badge bg-light text-dark">Complete Solution</span>
+                    </div>
+                    <div class="mt-3">
+                        <a href="{% url 'payroll:pricing:bundle_proposals' %}" class="btn btn-light">
+                            Ver Bundles
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Valor Potencial -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-dollar-sign"></i> Valor Potencial de Venta Cruzada
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="stats-card">
+                                <h6>Valor Total Potencial</h6>
+                                <div class="value-indicator">${{ stats.total_potential_value|floatformat:0 }}</div>
+                                <small>USD por mes</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="stats-card">
+                                <h6>Oportunidades Identificadas</h6>
+                                <div class="value-indicator">{{ stats.total_opportunities }}</div>
+                                <small>Recomendaciones activas</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista de Empresas -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="company-list">
+                <h5 class="mb-3">
+                    <i class="fas fa-building"></i> Empresas Recientes
+                </h5>
+                
+                {% for company in companies %}
+                <div class="company-item">
+                    <div class="d-flex align-items-center">
+                        <div>
+                            <h6 class="mb-1">{{ company.name }}</h6>
+                            <small class="text-muted">
+                                {{ company.employees.count }} empleados • {{ company.industry|default:"Sin industria" }}
+                            </small>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex align-items-center">
+                        <div class="me-3">
+                            <span class="service-indicator service-payroll" title="Payroll"></span>
+                            {% if company.has_ats %}
+                            <span class="service-indicator service-ats" title="ATS"></span>
+                            {% endif %}
+                            {% if company.has_aura %}
+                            <span class="service-indicator service-aura" title="AURA"></span>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="me-3">
+                            {% if not company.has_ats and not company.has_aura %}
+                            <span class="opportunity-badge priority-high">Alta Prioridad</span>
+                            {% elif not company.has_ats or not company.has_aura %}
+                            <span class="opportunity-badge priority-medium">Media Prioridad</span>
+                            {% else %}
+                            <span class="opportunity-badge priority-low">Completo</span>
+                            {% endif %}
+                        </div>
+                        
+                        <a href="{% url 'payroll:pricing:company_cross_sell_analysis' company.id %}" class="btn btn-sm btn-primary">
+                            <i class="fas fa-eye"></i> Analizar
+                        </a>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="text-center py-4">
+                    <i class="fas fa-building fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">No hay empresas registradas</p>
+                </div>
+                {% endfor %}
+                
+                {% if companies.count > 10 %}
+                <div class="text-center mt-3">
+                    <a href="{% url 'payroll:pricing:cross_sell_opportunities_list' %}" class="btn btn-outline-primary">
+                        Ver Todas las Empresas
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Acciones Rápidas -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-bolt"></i> Acciones Rápidas
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <a href="{% url 'payroll:pricing:cross_sell_recommendations' %}" class="btn btn-primary btn-block mb-2">
+                                <i class="fas fa-lightbulb"></i> Ver Recomendaciones
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="{% url 'payroll:pricing:bundle_proposals' %}" class="btn btn-success btn-block mb-2">
+                                <i class="fas fa-box"></i> Crear Bundles
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="{% url 'payroll:pricing:cross_sell_analytics' %}" class="btn btn-info btn-block mb-2">
+                                <i class="fas fa-chart-bar"></i> Ver Analytics
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="{% url 'payroll:pricing:pricing_dashboard' %}" class="btn btn-warning btn-block mb-2">
+                                <i class="fas fa-calculator"></i> Calculadora
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Auto-refresh cada 5 minutos para mantener datos actualizados
+setTimeout(function() {
+    location.reload();
+}, 300000);
+
+// Tooltips para indicadores de servicio
+$(document).ready(function() {
+    $('[title]').tooltip();
+});
+</script>
+{% endblock %} 

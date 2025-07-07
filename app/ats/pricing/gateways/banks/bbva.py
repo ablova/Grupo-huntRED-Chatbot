@@ -10,7 +10,7 @@ import json
 
 from .base_bank_gateway import BaseBankGateway
 from app.models import BusinessUnit, PaymentTransaction
-from app.ats.pricing.models import BankAccount, PaymentGateway
+from app.ats.models import BankAccount, PaymentGateway
 
 logger = logging.getLogger(__name__)
 

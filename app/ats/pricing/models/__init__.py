@@ -1,6 +1,7 @@
 """
 Modelos del módulo de pricing unificado - ESTRUCTURA ORGANIZADA.
 """
+from django.db import models
 # ============================================================================
 # MODELOS DE PRICING
 # ============================================================================
@@ -10,6 +11,28 @@ from app.ats.pricing.models.pricing import (
     DiscountRule,
     ReferralFee
 )
+
+# Modelo Bundle para paquetes de pricing
+class Bundle(models.Model):
+    """Bundle model for pricing packages."""
+    
+    name = models.CharField(max_length=100, unique=True)
+    description = models.TextField()
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    currency = models.CharField(max_length=3, default='USD')
+    duration_days = models.PositiveIntegerField(default=30)
+    features = models.JSONField(default=dict)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'ats_pricing_bundle'
+        verbose_name = 'Bundle'
+        verbose_name_plural = 'Bundles'
+    
+    def __str__(self):
+        return self.name
 
 from app.ats.pricing.models.service import (
     PricingCalculation,
@@ -84,6 +107,7 @@ __all__ = [
     'PricePoint',
     'DiscountRule',
     'ReferralFee',
+    'Bundle',
     
     # Modelos de servicio
     'PricingCalculation',
