@@ -23,7 +23,7 @@ from app.ats.chatbot.components.events import workflow_event_manager
 from app.ats.utils.parser import AdvancedParser as CVParser
 from app.models import (
     BusinessUnit, Person,
-    Conversation, ChatMessage, Notification,
+    ChatMessage, Notification,
     Metric, WorkflowStatus, ChannelSettings
 )
 from app.ml.core.models.base import MatchmakingLearningSystem
