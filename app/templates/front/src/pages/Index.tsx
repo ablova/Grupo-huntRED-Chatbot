@@ -94,9 +94,9 @@ const Index = () => {
           <TechnologySection />
           <MLCapabilitiesSection />
           
-          {/* ===== BUSINESS SOLUTIONS ===== */}
-          <BusinessUnitsSection />
+          {/* ===== SERVICES & BUSINESS SOLUTIONS ===== */}
           <ServicesSection />
+          <BusinessUnitsSection />
           <ProcessSection />
           
           {/* ===== INTEGRATION & PRICING ===== */}

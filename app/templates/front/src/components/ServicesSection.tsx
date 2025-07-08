@@ -2,10 +2,58 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Calendar, Users, Brain, Target, Star, Check } from 'lucide-react';
+import { Calendar, Users, Brain, Target, Star, Check, Landmark, Clock, Shield } from 'lucide-react';
 
 const ServicesSection = () => {
-  const [selectedTab, setSelectedTab] = useState('business-units');
+  const [selectedTab, setSelectedTab] = useState('services');
+
+  // Servicios principales incluyendo Administración de Nómina como destacado
+  const services = [
+    {
+      id: "payroll-management",
+      name: "Administración de Nómina",
+      price: "Desde $28/usuario",
+      description: "Gestión integral de nómina con registro de entradas/salidas vía mensajería, cumplimiento normativo y dispersión automática.",
+      features: ["Registro vía mensajería", "Cálculos precisos", "Dispersión automática", "Reportes avanzados", "Gestión de ausencias"],
+      popular: true,
+      color: "from-red-600 to-red-800",
+      icon: <Landmark className="h-6 w-6" />,
+      dataSource: "payroll.pricing.base"
+    },
+    {
+      id: "talent-acquisition",
+      name: "Adquisición de Talento",
+      price: "Personalizado",
+      description: "Soluciones de reclutamiento optimizadas con IA para identificar el mejor talento para tu empresa.",
+      features: ["AI Matching", "Executive Search", "Talent Pipeline", "Cultural Fit"],
+      popular: false,
+      color: "from-blue-600 to-indigo-600",
+      icon: <Users className="h-6 w-6" />,
+      dataSource: "talent.pricing.base"
+    },
+    {
+      id: "learning-development",
+      name: "Learning & Career Path",
+      price: "Desde $15/usuario",
+      description: "Plataforma de upskilling y desarrollo de carrera con IA personalizada AURA™.",
+      features: ["Career Roadmaps", "Upskilling", "Certificaciones", "Evaluación de desempeño"],
+      popular: false,
+      color: "from-green-600 to-emerald-600",
+      icon: <Brain className="h-6 w-6" />,
+      dataSource: "learning.pricing.base"
+    },
+    {
+      id: "compliance-management",
+      name: "Cumplimiento Normativo",
+      price: "Desde $12/usuario",
+      description: "Garantiza el cumplimiento de normativas laborales, incluyendo NOM 35 y reglamentaciones regionales.",
+      features: ["NOM 35", "Clima Organizacional", "Auditoría Automática", "Reportes de Cumplimiento"],
+      popular: false,
+      color: "from-purple-500 to-violet-600",
+      icon: <Shield className="h-6 w-6" />,
+      dataSource: "compliance.pricing.base"
+    },
+  ];
 
   // Data with dynamic identifiers for ATS system integration
   const businessUnits = [

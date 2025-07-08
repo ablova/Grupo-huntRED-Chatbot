@@ -39,6 +39,11 @@ urlpatterns = [
     path('companies/<uuid:company_id>/employees/<uuid:employee_id>/edit/', views.employee_edit, name='employee_edit'),
     path('companies/<uuid:company_id>/employees/<uuid:employee_id>/delete/', views.employee_delete, name='employee_delete'),
     
+    # Dashboard de empleados
+    path('companies/<uuid:company_id>/employees/<uuid:employee_id>/dashboard/', views.employee_dashboard.EmployeeDashboardView.as_view(), name='employee_dashboard'),
+    path('companies/<uuid:company_id>/employees/<uuid:employee_id>/dashboard/api/', views.employee_dashboard.EmployeeDashboardAPIView.as_view(), name='employee_dashboard_api'),
+    path('companies/<uuid:company_id>/employees/<uuid:employee_id>/quick-action/', views.employee_dashboard.EmployeeQuickActionView.as_view(), name='employee_quick_action'),
+    
     # Carga masiva de empleados
     path('companies/<uuid:company_id>/employees/bulk-upload/', views.employee_bulk_upload, name='employee_bulk_upload'),
     path('companies/<uuid:company_id>/employees/bulk-upload/process/', views.employee_bulk_process, name='employee_bulk_process'),
