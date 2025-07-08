@@ -20,7 +20,7 @@ from app.ats.chatbot.utils.chatbot_utils import ChatbotUtils
 get_nlp_processor = ChatbotUtils.get_nlp_processor
 from app.ats.chatbot.components.metrics import chatbot_metrics
 from app.ats.chatbot.components.events import workflow_event_manager
-from app.ats.utils.parser import CVParser
+from app.ats.utils.parser import AdvancedParser as CVParser
 from app.models import (
     BusinessUnit, Person,
     Conversation, ChatMessage, Notification,
