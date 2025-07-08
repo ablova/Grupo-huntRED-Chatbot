@@ -27,7 +27,7 @@ from app.ats.chatbot.core.gpt import GPTHandler
 from app.ats.chatbot.nlp.nlp import NLPProcessor
 from app.ats.utils.vacantes import VacanteManager
 from app.ats.utils.scraping.scraping_utils import ScrapingMetrics, SystemHealthMonitor, ScrapingCache
-from app.core.monitoring_system import record_scraping_metric
+# from app.core.monitoring_system import record_scraping_metric  # Removed - using existing monitoring
 
 logger = logging.getLogger(__name__)
 
@@ -674,12 +674,12 @@ async def scrape_multiple_urls_advanced(urls: List[str], domains: List[str] = No
         scraping_stats.end_time = timezone.now()
         
         # Registrar métricas en sistema de monitoreo
-        record_scraping_metric(
-            scraping_stats.total_requests,
-            scraping_stats.successful_requests,
-            scraping_stats.failed_requests,
-            scraping_stats.domain_stats.get("unknown", {}).get("domain", "unknown")
-        )
+        # record_scraping_metric(  # Removed - using existing monitoring
+        #     scraping_stats.total_requests,
+        #     scraping_stats.successful_requests,
+        #     scraping_stats.failed_requests,
+        #     scraping_stats.domain_stats.get("unknown", {}).get("domain", "unknown")
+        # )
         
         # Obtener estadísticas finales
         stats = scraping_stats.get_stats()

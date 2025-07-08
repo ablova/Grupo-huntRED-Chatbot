@@ -29,7 +29,7 @@ from email.mime.text import MIMEText
 from playwright.async_api import async_playwright
 from app.ats.utils.parser import parse_job_listing, save_job_to_vacante, extract_url
 from app.ats.utils.logger_utils import get_module_logger, log_async_function_call, ResourceMonitor
-from app.core.monitoring_system import record_email_metric
+# from app.core.monitoring_system import record_email_metric  # Removed - using existing monitoring
 
 env = environ.Env()
 environ.Env.read_env(env_file='/home/pablo/.env')
@@ -145,7 +145,7 @@ class AdvancedEmailScraperStats:
         self.processing_time = time.time() - self.start_time
         
         # Registrar métricas en el sistema de monitoreo
-        record_email_metric(self.processed, self.successful, self.failed)
+        # record_email_metric(self.processed, self.successful, self.failed)  # Removed - using existing monitoring
     
     def get_stats(self) -> Dict:
         """Obtiene estadísticas detalladas."""

@@ -24,7 +24,7 @@ from asgiref.sync import sync_to_async
 from app.models import Vacante, BusinessUnit, Person
 from app.ats.chatbot.core.gpt import GPTHandler
 from app.ats.chatbot.nlp.nlp import NLPProcessor
-from app.core.monitoring_system import record_parser_metric
+# from app.core.monitoring_system import record_parser_metric  # Removed - using existing monitoring
 
 logger = logging.getLogger(__name__)
 
@@ -589,11 +589,11 @@ async def process_documents_advanced(documents: List[Dict[str, Any]],
         parser_stats.end_time = timezone.now()
         
         # Registrar métricas en sistema de monitoreo
-        record_parser_metric(
-            parser_stats.total_documents,
-            parser_stats.successful_parses,
-            parser_stats.failed_parses
-        )
+        # record_parser_metric(  # Removed - using existing monitoring
+        #     parser_stats.total_documents,
+        #     parser_stats.successful_parses,
+        #     parser_stats.failed_parses
+        # )
         
         # Obtener estadísticas finales
         stats = parser_stats.get_stats()
