@@ -29,6 +29,7 @@ class CrossSellService:
         opportunities = {
             'ats_opportunities': self._get_ats_opportunities(company),
             'aura_opportunities': self._get_aura_opportunities(company),
+            'overhead_opportunities': self._get_overhead_opportunities(company),
             'bundle_opportunities': self._get_bundle_opportunities(company),
             'upgrade_opportunities': self._get_upgrade_opportunities(company),
             'recommendations': self._get_cross_sell_recommendations(company)
@@ -138,6 +139,34 @@ class CrossSellService:
         }
         
         return opportunities
+    
+    def _get_overhead_opportunities(self, company: Company) -> Dict:
+        """
+        Identifica oportunidades de optimización de overhead usando ML y AURA
+        """
+        employee_count = company.employees.count()
+        total_payroll = sum(e.monthly_salary for e in company.employees.all())
+        
+        # Supongamos un ahorro potencial promedio del 5% al 12% del salario total
+        baseline_overhead_percentage = 0.51  # 51% promedio tradicional
+        optimized_overhead_percentage = 0.45  # 45% con ML + AURA
+        potential_savings = (baseline_overhead_percentage - optimized_overhead_percentage) * total_payroll
+        
+        return {
+            'overhead_optimization_ml_aura': {
+                'priority': 'high',
+                'reasoning': 'Reducción de costos y mayor eficiencia operativa',
+                'estimated_savings': float(round(potential_savings, 2)),
+                'features': [
+                    'Cálculo de overhead avanzado',
+                    'Predicciones ML personalizadas',
+                    'Ajustes AURA basados en bienestar e innovación',
+                    'Benchmarking vs industria',
+                    'Recomendaciones de optimización en tiempo real'
+                ],
+                'discount_available': 0.10  # 10% descuento por adopción temprana
+            }
+        }
     
     def _get_bundle_opportunities(self, company: Company) -> Dict:
         """
@@ -406,6 +435,10 @@ class CrossSellService:
         # Valor de bundles
         for bundle in opportunities.get('bundle_opportunities', {}).values():
             total_value += bundle.get('bundle_price', 0)
+        
+        # Valor potencial de optimización de overhead (ahorro)
+        for overhead in opportunities.get('overhead_opportunities', {}).values():
+            total_value += overhead.get('estimated_savings', 0)
         
         return total_value
     
