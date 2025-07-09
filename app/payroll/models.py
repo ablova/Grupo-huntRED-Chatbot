@@ -829,4 +829,404 @@ def create_default_data():
     
     # Aquí se pueden crear configuraciones por defecto
     # como templates de mensajes, configuraciones de países, etc.
-    pass 
+    pass
+
+
+class OverheadCategory(models.Model):
+    """
+    Categorías de overhead configurables por empresa
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    company = models.ForeignKey(PayrollCompany, on_delete=models.CASCADE, related_name='overhead_categories')
+    
+    # Configuración de categoría
+    name = models.CharField(max_length=100, verbose_name="Nombre de categoría")
+    description = models.TextField(blank=True, verbose_name="Descripción")
+    calculation_method = models.CharField(
+        max_length=50, 
+        choices=[
+            ('percentage', 'Porcentaje del salario'),
+            ('fixed', 'Monto fijo'),
+            ('formula', 'Fórmula personalizada'),
+            ('ml_predicted', 'Predicción ML')
+        ],
+        default='percentage',
+        verbose_name="Método de cálculo"
+    )
+    
+    # Parámetros de cálculo
+    default_rate = models.DecimalField(max_digits=8, decimal_places=4, default=0.0000, verbose_name="Tasa por defecto")
+    min_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Monto mínimo")
+    max_amount = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, verbose_name="Monto máximo")
+    formula = models.TextField(blank=True, verbose_name="Fórmula personalizada")
+    
+    # AURA Integration
+    aura_category = models.CharField(
+        max_length=50,
+        choices=[
+            ('infrastructure', 'Infraestructura'),
+            ('administrative', 'Administrativo'),
+            ('benefits', 'Beneficios'),
+            ('training', 'Capacitación'),
+            ('technology', 'Tecnología'),
+            ('social_impact', 'Impacto Social'),
+            ('sustainability', 'Sustentabilidad'),
+            ('wellbeing', 'Bienestar'),
+            ('innovation', 'Innovación')
+        ],
+        default='administrative',
+        verbose_name="Categoría AURA"
+    )
+    
+    # ML Configuration
+    ml_enabled = models.BooleanField(default=True, verbose_name="ML habilitado")
+    ml_weight = models.DecimalField(max_digits=3, decimal_places=2, default=1.00, verbose_name="Peso ML")
+    
+    # Estado
+    is_active = models.BooleanField(default=True, verbose_name="Activo")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Categoría de Overhead"
+        verbose_name_plural = "Categorías de Overhead"
+        db_table = 'payroll_overhead_category'
+        unique_together = ['company', 'name']
+        indexes = [
+            models.Index(fields=['company', 'is_active']),
+            models.Index(fields=['aura_category']),
+            models.Index(fields=['ml_enabled']),
+        ]
+    
+    def __str__(self):
+        return f"{self.name} - {self.company.name}"
+
+
+class EmployeeOverheadCalculation(models.Model):
+    """
+    Cálculo de overhead individual por empleado con ML y AURA
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    employee = models.ForeignKey(PayrollEmployee, on_delete=models.CASCADE, related_name='overhead_calculations')
+    period = models.ForeignKey(PayrollPeriod, on_delete=models.CASCADE, related_name='overhead_calculations')
+    
+    # Overhead detallado por categoría
+    infrastructure_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Costo infraestructura")
+    administrative_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Costo administrativo")
+    benefits_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Costo beneficios")
+    training_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Costo capacitación")
+    technology_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Costo tecnología")
+    
+    # AURA Enhanced Categories
+    social_impact_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Costo impacto social")
+    sustainability_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Costo sustentabilidad")
+    wellbeing_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Costo bienestar")
+    innovation_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Costo innovación")
+    
+    # Totales
+    traditional_overhead = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Overhead tradicional")
+    aura_enhanced_overhead = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Overhead mejorado AURA")
+    total_overhead = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Overhead total")
+    overhead_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name="Porcentaje overhead")
+    
+    # ML Predictions and Optimizations
+    ml_predicted_overhead = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Overhead predicho ML")
+    ml_confidence_score = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name="Score confianza ML")
+    ml_optimization_potential = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Potencial optimización ML")
+    ml_recommendations = models.JSONField(default=dict, verbose_name="Recomendaciones ML")
+    
+    # AURA Analysis
+    aura_ethics_score = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name="Score ética AURA")
+    aura_fairness_score = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name="Score equidad AURA")
+    aura_sustainability_score = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name="Score sustentabilidad AURA")
+    aura_insights = models.JSONField(default=dict, verbose_name="Insights AURA")
+    
+    # Benchmarking
+    industry_benchmark = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name="Benchmark industria")
+    company_size_benchmark = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name="Benchmark tamaño empresa")
+    regional_benchmark = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name="Benchmark regional")
+    
+    # Metadatos
+    calculation_version = models.CharField(max_length=20, default='2.0', verbose_name="Versión cálculo")
+    calculated_at = models.DateTimeField(auto_now_add=True, verbose_name="Calculado en")
+    
+    class Meta:
+        verbose_name = "Cálculo Overhead Empleado"
+        verbose_name_plural = "Cálculos Overhead Empleados"
+        db_table = 'payroll_employee_overhead'
+        unique_together = ['employee', 'period']
+        indexes = [
+            models.Index(fields=['employee', 'period']),
+            models.Index(fields=['ml_confidence_score']),
+            models.Index(fields=['aura_ethics_score']),
+            models.Index(fields=['calculated_at']),
+        ]
+    
+    def __str__(self):
+        return f"Overhead {self.employee.get_full_name()} - {self.period.period_name}"
+    
+    def calculate_total_cost(self):
+        """Calcula costo total empleado + overhead"""
+        return self.employee.monthly_salary + self.total_overhead
+    
+    def get_optimization_savings(self):
+        """Calcula ahorros potenciales con optimización ML"""
+        if self.ml_predicted_overhead > 0:
+            return max(0, self.total_overhead - self.ml_predicted_overhead)
+        return 0
+    
+    def get_aura_overall_score(self):
+        """Calcula score general AURA"""
+        scores = [self.aura_ethics_score, self.aura_fairness_score, self.aura_sustainability_score]
+        valid_scores = [s for s in scores if s > 0]
+        return sum(valid_scores) / len(valid_scores) if valid_scores else 0
+
+
+class TeamOverheadAnalysis(models.Model):
+    """
+    Análisis de overhead grupal/equipo con ML y AURA
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    company = models.ForeignKey(PayrollCompany, on_delete=models.CASCADE, related_name='team_analyses')
+    period = models.ForeignKey(PayrollPeriod, on_delete=models.CASCADE, related_name='team_analyses')
+    
+    # Información del equipo
+    team_name = models.CharField(max_length=100, verbose_name="Nombre del equipo")
+    department = models.CharField(max_length=100, verbose_name="Departamento")
+    team_lead = models.ForeignKey(PayrollEmployee, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Líder del equipo")
+    
+    # Métricas del equipo
+    team_size = models.IntegerField(verbose_name="Tamaño del equipo")
+    total_salaries = models.DecimalField(max_digits=15, decimal_places=2, verbose_name="Total salarios")
+    total_overhead = models.DecimalField(max_digits=15, decimal_places=2, verbose_name="Total overhead")
+    overhead_per_employee = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Overhead por empleado")
+    
+    # Análisis AURA del equipo
+    team_ethics_score = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name="Score ética equipo")
+    team_diversity_score = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name="Score diversidad")
+    team_sustainability_score = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name="Score sustentabilidad")
+    team_innovation_score = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name="Score innovación")
+    
+    # ML Insights del equipo
+    ml_efficiency_prediction = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name="Predicción eficiencia ML")
+    ml_turnover_risk = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name="Riesgo rotación ML")
+    ml_performance_forecast = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name="Pronóstico desempeño ML")
+    ml_cost_optimization = models.JSONField(default=dict, verbose_name="Optimización costos ML")
+    
+    # Benchmarking y comparativas
+    efficiency_score = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name="Score eficiencia")
+    industry_percentile = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name="Percentil industria")
+    company_ranking = models.IntegerField(default=0, verbose_name="Ranking en empresa")
+    
+    # AURA Premium Features (solo si tienen AURA)
+    aura_holistic_assessment = models.JSONField(default=dict, verbose_name="Evaluación holística AURA")
+    aura_energy_analysis = models.JSONField(default=dict, verbose_name="Análisis energético AURA")
+    aura_compatibility_matrix = models.JSONField(default=dict, verbose_name="Matriz compatibilidad AURA")
+    aura_growth_recommendations = models.JSONField(default=dict, verbose_name="Recomendaciones crecimiento AURA")
+    
+    # Estado y metadatos
+    is_active = models.BooleanField(default=True, verbose_name="Activo")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Análisis Overhead Equipo"
+        verbose_name_plural = "Análisis Overhead Equipos"
+        db_table = 'payroll_team_overhead_analysis'
+        unique_together = ['company', 'team_name', 'period']
+        indexes = [
+            models.Index(fields=['company', 'period']),
+            models.Index(fields=['department']),
+            models.Index(fields=['efficiency_score']),
+            models.Index(fields=['team_ethics_score']),
+        ]
+    
+    def __str__(self):
+        return f"Análisis {self.team_name} - {self.period.period_name}"
+    
+    def get_total_cost(self):
+        """Calcula costo total del equipo"""
+        return self.total_salaries + self.total_overhead
+    
+    def get_cost_per_employee(self):
+        """Calcula costo promedio por empleado"""
+        if self.team_size > 0:
+            return self.get_total_cost() / self.team_size
+        return 0
+    
+    def get_aura_overall_score(self):
+        """Calcula score general AURA del equipo"""
+        scores = [
+            self.team_ethics_score, 
+            self.team_diversity_score, 
+            self.team_sustainability_score, 
+            self.team_innovation_score
+        ]
+        valid_scores = [s for s in scores if s > 0]
+        return sum(valid_scores) / len(valid_scores) if valid_scores else 0
+
+
+class OverheadMLModel(models.Model):
+    """
+    Modelo de Machine Learning para predicción y optimización de overhead
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    company = models.ForeignKey(PayrollCompany, on_delete=models.CASCADE, related_name='overhead_ml_models')
+    
+    # Configuración del modelo
+    model_name = models.CharField(max_length=100, verbose_name="Nombre del modelo")
+    model_type = models.CharField(
+        max_length=30,
+        choices=[
+            ('random_forest', 'Random Forest'),
+            ('neural_network', 'Neural Network'),
+            ('gradient_boosting', 'Gradient Boosting'),
+            ('lstm', 'LSTM'),
+            ('transformer', 'Transformer'),
+            ('hybrid_ml_aura', 'Híbrido ML + AURA'),
+            ('aura_enhanced', 'AURA Enhanced')
+        ],
+        default='hybrid_ml_aura',
+        verbose_name="Tipo de modelo"
+    )
+    
+    # Métricas del modelo
+    accuracy = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name="Precisión (%)")
+    precision = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name="Precisión (%)")
+    recall = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name="Recall (%)")
+    f1_score = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name="F1 Score")
+    mse = models.DecimalField(max_digits=10, decimal_places=4, default=0, verbose_name="Mean Squared Error")
+    
+    # AURA Integration Metrics
+    aura_ethics_compliance = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name="Cumplimiento ética AURA")
+    aura_fairness_score = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name="Score equidad AURA")
+    aura_bias_detection = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name="Detección sesgos AURA")
+    
+    # Datos de entrenamiento
+    training_data_size = models.IntegerField(default=0, verbose_name="Tamaño datos entrenamiento")
+    validation_data_size = models.IntegerField(default=0, verbose_name="Tamaño datos validación")
+    test_data_size = models.IntegerField(default=0, verbose_name="Tamaño datos prueba")
+    
+    # Configuración y parámetros
+    model_parameters = models.JSONField(default=dict, verbose_name="Parámetros del modelo")
+    feature_importance = models.JSONField(default=dict, verbose_name="Importancia características")
+    aura_weights = models.JSONField(default=dict, verbose_name="Pesos AURA")
+    
+    # Fechas de entrenamiento
+    last_training_date = models.DateTimeField(null=True, blank=True, verbose_name="Última fecha entrenamiento")
+    next_training_date = models.DateTimeField(null=True, blank=True, verbose_name="Próxima fecha entrenamiento")
+    training_frequency_days = models.IntegerField(default=30, verbose_name="Frecuencia entrenamiento (días)")
+    
+    # Estado
+    is_active = models.BooleanField(default=True, verbose_name="Modelo activo")
+    is_production = models.BooleanField(default=False, verbose_name="En producción")
+    version = models.CharField(max_length=20, default='1.0.0', verbose_name="Versión")
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Modelo ML Overhead"
+        verbose_name_plural = "Modelos ML Overhead"
+        db_table = 'payroll_overhead_ml_model'
+        indexes = [
+            models.Index(fields=['company', 'is_active']),
+            models.Index(fields=['model_type']),
+            models.Index(fields=['accuracy']),
+            models.Index(fields=['is_production']),
+        ]
+    
+    def __str__(self):
+        return f"{self.model_name} ({self.model_type}) - {self.company.name}"
+    
+    def get_performance_score(self):
+        """Calcula score general de desempeño"""
+        metrics = [self.accuracy, self.precision, self.recall, self.f1_score]
+        valid_metrics = [m for m in metrics if m > 0]
+        return sum(valid_metrics) / len(valid_metrics) if valid_metrics else 0
+    
+    def get_aura_compliance_score(self):
+        """Calcula score de cumplimiento AURA"""
+        aura_metrics = [self.aura_ethics_compliance, self.aura_fairness_score, self.aura_bias_detection]
+        valid_metrics = [m for m in aura_metrics if m > 0]
+        return sum(valid_metrics) / len(valid_metrics) if valid_metrics else 0
+
+
+class OverheadBenchmark(models.Model):
+    """
+    Benchmarks de overhead por industria, región y tamaño de empresa
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    
+    # Categorización
+    industry = models.CharField(max_length=100, verbose_name="Industria")
+    region = models.CharField(max_length=100, verbose_name="Región")
+    company_size_range = models.CharField(
+        max_length=20,
+        choices=[
+            ('1-10', '1-10 empleados'),
+            ('11-50', '11-50 empleados'),
+            ('51-200', '51-200 empleados'),
+            ('201-500', '201-500 empleados'),
+            ('501-1000', '501-1000 empleados'),
+            ('1000+', '1000+ empleados')
+        ],
+        verbose_name="Rango tamaño empresa"
+    )
+    
+    # Benchmarks por categoría
+    infrastructure_benchmark = models.DecimalField(max_digits=5, decimal_places=2, verbose_name="Benchmark infraestructura (%)")
+    administrative_benchmark = models.DecimalField(max_digits=5, decimal_places=2, verbose_name="Benchmark administrativo (%)")
+    benefits_benchmark = models.DecimalField(max_digits=5, decimal_places=2, verbose_name="Benchmark beneficios (%)")
+    training_benchmark = models.DecimalField(max_digits=5, decimal_places=2, verbose_name="Benchmark capacitación (%)")
+    technology_benchmark = models.DecimalField(max_digits=5, decimal_places=2, verbose_name="Benchmark tecnología (%)")
+    
+    # AURA Enhanced Benchmarks
+    social_impact_benchmark = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name="Benchmark impacto social (%)")
+    sustainability_benchmark = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name="Benchmark sustentabilidad (%)")
+    wellbeing_benchmark = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name="Benchmark bienestar (%)")
+    innovation_benchmark = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name="Benchmark innovación (%)")
+    
+    # Totales
+    total_overhead_benchmark = models.DecimalField(max_digits=5, decimal_places=2, verbose_name="Benchmark overhead total (%)")
+    aura_enhanced_benchmark = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name="Benchmark AURA (%)")
+    
+    # Métricas estadísticas
+    percentile_25 = models.DecimalField(max_digits=5, decimal_places=2, verbose_name="Percentil 25")
+    percentile_50 = models.DecimalField(max_digits=5, decimal_places=2, verbose_name="Percentil 50")
+    percentile_75 = models.DecimalField(max_digits=5, decimal_places=2, verbose_name="Percentil 75")
+    percentile_90 = models.DecimalField(max_digits=5, decimal_places=2, verbose_name="Percentil 90")
+    
+    # Metadatos
+    data_source = models.CharField(max_length=100, default='market_research', verbose_name="Fuente de datos")
+    sample_size = models.IntegerField(default=0, verbose_name="Tamaño muestra")
+    confidence_level = models.DecimalField(max_digits=5, decimal_places=2, default=95.00, verbose_name="Nivel confianza (%)")
+    last_updated = models.DateTimeField(auto_now=True, verbose_name="Última actualización")
+    
+    # Estado
+    is_active = models.BooleanField(default=True, verbose_name="Activo")
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        verbose_name = "Benchmark Overhead"
+        verbose_name_plural = "Benchmarks Overhead"
+        db_table = 'payroll_overhead_benchmark'
+        unique_together = ['industry', 'region', 'company_size_range']
+        indexes = [
+            models.Index(fields=['industry']),
+            models.Index(fields=['region']),
+            models.Index(fields=['company_size_range']),
+            models.Index(fields=['total_overhead_benchmark']),
+        ]
+    
+    def __str__(self):
+        return f"Benchmark {self.industry} - {self.region} - {self.company_size_range}"
+    
+    def get_benchmark_range(self):
+        """Obtiene rango de benchmark (P25-P75)"""
+        return {
+            'min': self.percentile_25,
+            'max': self.percentile_75,
+            'median': self.percentile_50,
+            'top_decile': self.percentile_90
+        } 

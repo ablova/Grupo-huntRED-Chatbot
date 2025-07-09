@@ -4,7 +4,7 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 
 // Hero & Stats Sections
-import HeroSection from '@/components/HeroSection';
+import NewHeroSection from '@/components/NewHeroSection';
 import StatsHeroSection from '@/components/StatsHeroSection';
 
 // Value Proposition & Competitive
@@ -65,6 +65,7 @@ import BusinessUnitCalculator from '@/components/BusinessUnitCalculator';
 import AICustomizationSection from '@/components/AICustomizationSection';
 import ClientsSection from '@/components/ClientsSection';
 
+
 const Index = () => {
   return (
     <ThemeProvider defaultTheme="system" storageKey="techai-theme">
@@ -73,7 +74,7 @@ const Index = () => {
         
         <main>
           {/* ===== HERO & IMPACT SECTIONS ===== */}
-          <HeroSection />
+          <NewHeroSection />
           <StatsHeroSection />
           
           {/* ===== VALUE PROPOSITION & COMPETITIVE ===== */}
@@ -81,23 +82,28 @@ const Index = () => {
           <CompetitiveComparisonSection />
           <CompetitiveAdvantagesSection />
           
-          {/* ===== CORE TECHNOLOGY & AI ===== */}
-          <AURAArchitectureSection />
-          <GenIAAndAURASection />
-          <AIFlowsSection />
-          <MLFlowsSection />
-          <MLPipelineSection />
-          <LLMCapabilitiesSection />
-          
+          {/* ===== SERVICES & BUSINESS SOLUTIONS ===== */}
+          <ServicesSection />
+          <BusinessUnitsSection />
+          <ProcessSection />
+
           {/* ===== MODULES & FEATURES ===== */}
           <HuntREDModulesSection />
           <TechnologySection />
           <MLCapabilitiesSection />
           
-          {/* ===== SERVICES & BUSINESS SOLUTIONS ===== */}
-          <ServicesSection />
-          <BusinessUnitsSection />
-          <ProcessSection />
+          {/* ===== CORE TECHNOLOGY & AI ===== */}
+          <GenIAAndAURASection />
+          <AIFlowsSection />
+          <MLFlowsSection />
+          <MLPipelineSection />
+          <LLMCapabilitiesSection />
+          {/* ===== DASHBOARDS & TOOLS ===== */}
+          <RecruitmentDashboard />
+          <KanbanDashboardSection />
+          <AnalyticsDashboardSection />
+
+          <AURAArchitectureSection />
           
           {/* ===== INTEGRATION & PRICING ===== */}
           <HRSystemIntegrationSection />
@@ -106,14 +112,13 @@ const Index = () => {
           <ROICalculatorSection />
           <SolutionCalculator />
           
-          {/* ===== DASHBOARDS & TOOLS ===== */}
-          <RecruitmentDashboard />
-          <KanbanDashboardSection />
-          <AnalyticsDashboardSection />
-          
           {/* ===== ECOSYSTEM & LEARNING ===== */}
           <EcosystemFlow />
           <LearningSection />
+
+          {/* ===== ECOSYSTEM & MARKET ANALYTICS ===== */}
+          <MarketAnalysisSection />
+          <MatchmakingSection />
           
           {/* ===== SOCIAL PROOF & TESTIMONIALS ===== */}
           <CustomerSuccessStories />
@@ -122,15 +127,19 @@ const Index = () => {
           {/* ===== ADVANCED FEATURES ===== */}
           <SimulatorSection />
           <ServiceRoadmapSection />
-          <MarketAnalysisSection />
-          <MatchmakingSection />
+
           <MetaverseSection />
           <QuantumLabSection />
           <PartnershipsSection />
           <PaymentSystemSection />
+          
+          {/* ===== PAYROLL & BUSINESS UNIT CALCULATOR ===== */}
           <PayrollManagementSection />
           <PayrollCalculator />
           <BusinessUnitCalculator />
+
+          
+          {/* ===== AI CUSTOMIZATION & CLIENTS ===== */}
           <AICustomizationSection />
           <ClientsSection />
         </main>

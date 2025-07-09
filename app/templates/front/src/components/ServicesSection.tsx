@@ -156,36 +156,68 @@ const ServicesSection = () => {
 
   const assessments = [
     {
+      id: "personality-leadership",
+      name: "Perfil de Personalidad y Liderazgo",
+      description: "Evaluación completa de personalidad y potencial de liderazgo (tipo Hogan)",
+      price: "$650/usuario",
+      duration: "Tiempo de realización de 40-45 min.",
+      dataSource: "ats.pricing.assessments.personality_leadership"
+    },
+    {
+      id: "sales-assessment",
+      name: "Assessment de Ventas",
+      description: "Evaluación especializada de habilidades comerciales, negociación y cierre de ventas",
+      price: "$380/usuario",
+      duration: "Tiempo de realización de 25-30 min.",
+      dataSource: "ats.pricing.assessments.sales"
+    },
+    {
+      id: "nom-35",
+      name: "Assessment NOM-035",
+      description: "Evaluación de factores de riesgo psicosocial en el trabajo conforme a NOM-035-STPS",
+      price: "$350/usuario",
+      duration: "Tiempo de realización de 25-30 min.",
+      dataSource: "ats.pricing.assessments.nom35"
+    },
+    {
       id: "leadership-assessment",
       name: "Leadership Assessment Suite",
-      description: "Evaluación completa de liderazgo y competencias ejecutivas",
+      description: "Evaluación integral de competencias directivas, toma de decisiones y liderazgo situacional",
       price: "$500/usuario",
-      duration: "Licencia anual",
+      duration: "Tiempo de realización de 35-40 min.",
       dataSource: "ats.pricing.assessments.leadership"
     },
     {
       id: "technical-skills",
       name: "Technical Skills Profiler",
-      description: "Assessment técnico especializado por industria",
+      description: "Evaluación técnica especializada por industria y rol con pruebas prácticas aplicadas",
       price: "$300/usuario",
-      duration: "Licencia anual",
+      duration: "Tiempo de realización de 30-35 min.",
       dataSource: "ats.pricing.assessments.technical"
     },
     {
       id: "cultural-fit",
       name: "Cultural Fit Analyzer",
-      description: "Análisis de compatibilidad cultural y valores",
+      description: "Análisis avanzado de compatibilidad cultural, valores organizacionales y alineación con DEI",
       price: "$200/usuario",
-      duration: "Licencia anual",
+      duration: "Tiempo de realización de 20-25 min.",
       dataSource: "ats.pricing.assessments.cultural"
     },
     {
       id: "cognitive-assessment",
       name: "Cognitive Assessment",
-      description: "Evaluación de capacidades cognitivas y resolución de problemas",
+      description: "Evaluación multidimensional de capacidades cognitivas, analíticas y resolución adaptativa",
       price: "$250/usuario",
-      duration: "Licencia anual",
+      duration: "Tiempo de realización de 20-35 min.",
       dataSource: "ats.pricing.assessments.cognitive"
+    },
+    {
+      id: "behavior-profile",
+      name: "Perfil Conductual",
+      description: "Evaluación completa de comportamiento y comunicación para equipos de trabajo (tipo DISC)",
+      price: "$280/usuario",
+      duration: "Tiempo de realización de 15-20 min.",
+      dataSource: "ats.pricing.assessments.behavior_profile"
     }
   ];
 

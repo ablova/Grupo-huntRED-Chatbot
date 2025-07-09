@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   CheckCircle, 
   Calendar, 
@@ -11,8 +12,13 @@ import {
   UserRound,
   HomeIcon,
   UserCheck,
-  Brain
+  Brain,
+  Calculator,
+  PieChart,
+  ArrowRight
 } from 'lucide-react';
+import SalaryCalculator from '@/components/SalaryCalculator';
+import OverheadCalculator from '@/components/OverheadCalculator';
 
 const PayrollManagementSection = () => {
   const payrollFeatures = [
@@ -118,7 +124,151 @@ const PayrollManagementSection = () => {
   ];
 
   return (
-    <section id="payroll-management" className="py-16 px-4 md:py-24 bg-background">
+    <section id="payroll-management" className="py-16 px-4 md:py-24 bg-background">      
+      {/* Calculadoras integradas */}
+      <div className="container mx-auto mb-16">
+        <div className="text-center space-y-6 mb-10">
+          <h2 className="text-3xl font-bold tracking-tight">Herramientas de Cálculo</h2>
+          <p className="text-muted-foreground max-w-3xl mx-auto">
+            Utilice nuestras calculadoras especializadas para planificación financiera, 
+            estimación de costos y optimización de recursos humanos
+          </p>
+        </div>
+        
+        <Tabs defaultValue="overview" className="max-w-5xl mx-auto">
+          <TabsList className="grid grid-cols-3 w-full mb-8">
+            <TabsTrigger value="overview" className="text-base">
+              <div className="flex items-center gap-2">
+                <PieChart className="h-4 w-4" />
+                <span>Vista General</span>
+              </div>
+            </TabsTrigger>
+            <TabsTrigger value="salary" className="text-base">
+              <div className="flex items-center gap-2">
+                <Calculator className="h-4 w-4" />
+                <span>Calculadora de Salario</span>
+              </div>
+            </TabsTrigger>
+            <TabsTrigger value="overhead" className="text-base">
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                <span>Calculadora de Overhead</span>
+              </div>
+            </TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="overview" className="space-y-8">
+            <div className="grid md:grid-cols-2 gap-6">
+              <Card className="border-primary/20 hover:shadow-lg transition-all duration-300">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white">
+                      <Calculator className="h-5 w-5" />
+                    </div>
+                    <CardTitle className="text-lg">Calculadora de Salario</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Convierta entre salarios brutos y netos con precisión utilizando
+                    los cálculos oficiales de ISR, IMSS, Infonavit y más.
+                  </p>
+                  <ul className="text-sm space-y-2 mb-4">
+                    <li className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 bg-primary rounded-full" />
+                      <span>Cálculos actualizados a la última legislación fiscal</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 bg-primary rounded-full" />
+                      <span>Desglose detallado de impuestos y deducciones</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 bg-primary rounded-full" />
+                      <span>Historial exportable de cálculos realizados</span>
+                    </li>
+                  </ul>
+                  <Button 
+                    variant="outline" 
+                    className="w-full flex items-center justify-between group" 
+                    onClick={() => {
+                      const tabsList = document.querySelector('[role="tablist"]');
+                      if (tabsList) {
+                        const salaryTab = tabsList.querySelector('[value="salary"]');
+                        if (salaryTab) {
+                          (salaryTab as HTMLElement).click();
+                        }
+                      }
+                    }}
+                  >
+                    <span>Acceder a la calculadora</span>
+                    <ArrowRight className="h-4 w-4 opacity-70 group-hover:translate-x-1 transition-transform" />
+                  </Button>
+                </CardContent>
+              </Card>
+              
+              <Card className="border-primary/20 hover:shadow-lg transition-all duration-300">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-emerald-500 rounded-full flex items-center justify-center text-white">
+                      <PieChart className="h-5 w-5" />
+                    </div>
+                    <CardTitle className="text-lg">Calculadora de Overhead</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Calcule todos los costos asociados a sus empleados y obtenga
+                    información detallada sobre distribución de gastos.
+                  </p>
+                  <ul className="text-sm space-y-2 mb-4">
+                    <li className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 bg-primary rounded-full" />
+                      <span>Análisis visual con gráficos detallados</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 bg-primary rounded-full" />
+                      <span>Configuración personalizada de beneficios y bonos</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 bg-primary rounded-full" />
+                      <span>Gestión de múltiples empleados y comparativas</span>
+                    </li>
+                  </ul>
+                  <Button 
+                    variant="outline" 
+                    className="w-full flex items-center justify-between group"
+                    onClick={() => {
+                      const tabsList = document.querySelector('[role="tablist"]');
+                      if (tabsList) {
+                        const overheadTab = tabsList.querySelector('[value="overhead"]');
+                        if (overheadTab) {
+                          (overheadTab as HTMLElement).click();
+                        }
+                      }
+                    }}
+                  >
+                    <span>Acceder a la calculadora</span>
+                    <ArrowRight className="h-4 w-4 opacity-70 group-hover:translate-x-1 transition-transform" />
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="salary">
+            <div className="bg-white p-6 rounded-lg shadow-sm">
+              <SalaryCalculator />
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="overhead">
+            <div className="bg-white p-6 rounded-lg shadow-sm">
+              <OverheadCalculator />
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
+      
       <div className="container mx-auto max-w-7xl">
         {/* Header */}
         <div className="text-center mb-16 space-y-4">
@@ -253,6 +403,8 @@ const PayrollManagementSection = () => {
             </ul>
           </div>
         </div>
+        
+        {/* Ya no necesitamos estas anclas porque usamos JavaScript para navegar */}
       </div>
     </section>
   );

@@ -24,7 +24,7 @@ from app.ats.utils.parser import AdvancedParser as CVParser
 from app.models import (
     BusinessUnit, Person,
     ChatMessage, Notification,
-    Metric, WorkflowStatus, ChannelSettings
+    WorkflowStatus, ChannelSettings
 )
 from app.ml.core.models.base import MatchmakingLearningSystem
 from app.ml.ml_utils import calculate_match_percentage, calculate_alignment_percentage

@@ -15,7 +15,9 @@ import json
 from .models import (
     PayrollCompany, PayrollEmployee, PayrollPeriod, PayrollCalculation,
     AttendanceRecord, EmployeeRequest, MLAttendanceModel, TaxTable, UMARegistry,
-    TaxUpdateLog, TaxValidationLog
+    TaxUpdateLog, TaxValidationLog,
+    OverheadCategory, EmployeeOverheadCalculation, TeamOverheadAnalysis,
+    OverheadMLModel, OverheadBenchmark
 )
 from .services.ml_attendance_service import MLAttendanceService
 from .services.payroll_engine import PayrollEngine
@@ -1056,6 +1058,228 @@ class TaxValidationLogAdmin(admin.ModelAdmin):
         # Implementar exportación de validaciones
         self.message_user(request, 'Exportación de validaciones iniciada.')
     export_validations.short_description = "Exportar validaciones seleccionadas"
+
+
+@admin.register(OverheadCategory)
+class OverheadCategoryAdmin(admin.ModelAdmin):
+    list_display = ('name', 'company', 'aura_category', 'calculation_method', 
+                   'default_rate', 'ml_enabled', 'is_active', 'created_at')
+    list_filter = ('company', 'aura_category', 'calculation_method', 'ml_enabled', 'is_active')
+    search_fields = ('name', 'description', 'company__name')
+    readonly_fields = ('id', 'created_at', 'updated_at')
+    
+    fieldsets = (
+        ('Información Básica', {
+            'fields': ('company', 'name', 'description', 'aura_category')
+        }),
+        ('Configuración de Cálculo', {
+            'fields': ('calculation_method', 'default_rate', 'min_amount', 'max_amount', 'formula')
+        }),
+        ('Configuración ML', {
+            'fields': ('ml_enabled', 'ml_weight'),
+            'classes': ('collapse',)
+        }),
+        ('Estado', {
+            'fields': ('is_active',)
+        }),
+        ('Metadatos', {
+            'fields': ('id', 'created_at', 'updated_at'),
+            'classes': ('collapse',)
+        })
+    )
+    
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('company')
+
+
+@admin.register(EmployeeOverheadCalculation)
+class EmployeeOverheadCalculationAdmin(admin.ModelAdmin):
+    list_display = ('employee_name', 'period', 'total_overhead', 'overhead_percentage', 
+                   'ml_confidence_score', 'aura_ethics_score', 'calculated_at')
+    list_filter = ('period', 'calculated_at', 'calculation_version', 
+                   'employee__company', 'employee__department')
+    search_fields = ('employee__first_name', 'employee__last_name', 'employee__email')
+    readonly_fields = ('id', 'calculated_at')
+    date_hierarchy = 'calculated_at'
+    
+    fieldsets = (
+        ('Información Básica', {
+            'fields': ('employee', 'period')
+        }),
+        ('Costos Tradicionales', {
+            'fields': ('infrastructure_cost', 'administrative_cost', 'benefits_cost', 
+                      'training_cost', 'technology_cost', 'traditional_overhead')
+        }),
+        ('Costos AURA Enhanced', {
+            'fields': ('social_impact_cost', 'sustainability_cost', 'wellbeing_cost', 
+                      'innovation_cost', 'aura_enhanced_overhead'),
+            'classes': ('collapse',)
+        }),
+        ('Totales', {
+            'fields': ('total_overhead', 'overhead_percentage')
+        }),
+        ('Análisis ML', {
+            'fields': ('ml_predicted_overhead', 'ml_confidence_score', 
+                      'ml_optimization_potential', 'ml_recommendations'),
+            'classes': ('collapse',)
+        }),
+        ('Análisis AURA', {
+            'fields': ('aura_ethics_score', 'aura_fairness_score', 
+                      'aura_sustainability_score', 'aura_insights'),
+            'classes': ('collapse',)
+        }),
+        ('Benchmarking', {
+            'fields': ('industry_benchmark', 'company_size_benchmark', 'regional_benchmark'),
+            'classes': ('collapse',)
+        }),
+        ('Metadatos', {
+            'fields': ('calculation_version', 'calculated_at'),
+            'classes': ('collapse',)
+        })
+    )
+    
+    def employee_name(self, obj):
+        return obj.employee.get_full_name()
+    employee_name.short_description = 'Empleado'
+    employee_name.admin_order_field = 'employee__first_name'
+    
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('employee', 'period')
+
+
+@admin.register(TeamOverheadAnalysis)
+class TeamOverheadAnalysisAdmin(admin.ModelAdmin):
+    list_display = ('team_name', 'company', 'department', 'team_size', 
+                   'total_overhead', 'efficiency_score', 'created_at')
+    list_filter = ('company', 'department', 'period', 'is_active', 'created_at')
+    search_fields = ('team_name', 'department', 'company__name')
+    readonly_fields = ('id', 'created_at', 'updated_at')
+    date_hierarchy = 'created_at'
+    
+    fieldsets = (
+        ('Información del Equipo', {
+            'fields': ('company', 'period', 'team_name', 'department', 'team_lead', 'team_size')
+        }),
+        ('Métricas Financieras', {
+            'fields': ('total_salaries', 'total_overhead', 'overhead_per_employee')
+        }),
+        ('Scores AURA', {
+            'fields': ('team_ethics_score', 'team_diversity_score', 
+                      'team_sustainability_score', 'team_innovation_score'),
+            'classes': ('collapse',)
+        }),
+        ('Análisis ML', {
+            'fields': ('ml_efficiency_prediction', 'ml_turnover_risk', 
+                      'ml_performance_forecast', 'ml_cost_optimization'),
+            'classes': ('collapse',)
+        }),
+        ('Benchmarking', {
+            'fields': ('efficiency_score', 'industry_percentile', 'company_ranking'),
+            'classes': ('collapse',)
+        }),
+        ('Análisis AURA Avanzado', {
+            'fields': ('aura_holistic_assessment', 'aura_energy_analysis', 
+                      'aura_compatibility_matrix', 'aura_growth_recommendations'),
+            'classes': ('collapse',)
+        }),
+        ('Estado', {
+            'fields': ('is_active',)
+        }),
+        ('Metadatos', {
+            'fields': ('id', 'created_at', 'updated_at'),
+            'classes': ('collapse',)
+        })
+    )
+    
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('company', 'period', 'team_lead')
+
+
+@admin.register(OverheadMLModel)
+class OverheadMLModelAdmin(admin.ModelAdmin):
+    list_display = ('model_name', 'company', 'model_type', 'accuracy', 'precision', 
+                   'is_production', 'last_training_date', 'version')
+    list_filter = ('company', 'model_type', 'is_active', 'is_production', 'last_training_date')
+    search_fields = ('model_name', 'company__name', 'version')
+    readonly_fields = ('id', 'created_at', 'updated_at')
+    
+    fieldsets = (
+        ('Información del Modelo', {
+            'fields': ('company', 'model_name', 'model_type', 'version')
+        }),
+        ('Métricas de Rendimiento', {
+            'fields': ('accuracy', 'precision', 'recall', 'f1_score', 'mse')
+        }),
+        ('Métricas AURA', {
+            'fields': ('aura_ethics_compliance', 'aura_fairness_score', 'aura_bias_detection'),
+            'classes': ('collapse',)
+        }),
+        ('Datos de Entrenamiento', {
+            'fields': ('training_data_size', 'validation_data_size', 'test_data_size'),
+            'classes': ('collapse',)
+        }),
+        ('Configuración', {
+            'fields': ('model_parameters', 'feature_importance', 'aura_weights'),
+            'classes': ('collapse',)
+        }),
+        ('Programación', {
+            'fields': ('last_training_date', 'next_training_date', 'training_frequency_days')
+        }),
+        ('Estado', {
+            'fields': ('is_active', 'is_production')
+        }),
+        ('Metadatos', {
+            'fields': ('id', 'created_at', 'updated_at'),
+            'classes': ('collapse',)
+        })
+    )
+    
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('company')
+
+
+@admin.register(OverheadBenchmark)
+class OverheadBenchmarkAdmin(admin.ModelAdmin):
+    list_display = ('industry', 'region', 'company_size_range', 'total_overhead_benchmark', 
+                   'sample_size', 'confidence_level', 'last_updated', 'is_active')
+    list_filter = ('industry', 'region', 'company_size_range', 'is_active', 'last_updated')
+    search_fields = ('industry', 'region', 'data_source')
+    readonly_fields = ('id', 'created_at', 'last_updated')
+    
+    fieldsets = (
+        ('Categorización', {
+            'fields': ('industry', 'region', 'company_size_range')
+        }),
+        ('Benchmarks Tradicionales (%)', {
+            'fields': ('infrastructure_benchmark', 'administrative_benchmark', 
+                      'benefits_benchmark', 'training_benchmark', 'technology_benchmark')
+        }),
+        ('Benchmarks AURA Enhanced (%)', {
+            'fields': ('social_impact_benchmark', 'sustainability_benchmark', 
+                      'wellbeing_benchmark', 'innovation_benchmark', 'aura_enhanced_benchmark'),
+            'classes': ('collapse',)
+        }),
+        ('Totales y Percentiles', {
+            'fields': ('total_overhead_benchmark', 'percentile_25', 'percentile_50', 
+                      'percentile_75', 'percentile_90')
+        }),
+        ('Metadatos de Investigación', {
+            'fields': ('data_source', 'sample_size', 'confidence_level'),
+            'classes': ('collapse',)
+        }),
+        ('Estado', {
+            'fields': ('is_active',)
+        }),
+        ('Fechas', {
+            'fields': ('last_updated', 'created_at'),
+            'classes': ('collapse',)
+        })
+    )
+    
+    class Media:
+        css = {
+            'all': ('admin/css/overhead_admin.css',)
+        }
 
 
 # Configuración del admin site
