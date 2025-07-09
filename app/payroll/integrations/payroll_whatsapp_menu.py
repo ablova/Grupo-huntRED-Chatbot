@@ -5,6 +5,7 @@ from app.payroll.services.rh_email_reports_service import RHEmailReportsService
 from app.payroll.services.hr_dashboard_service import HRDashboardService
 from app.payroll.services.unified_whatsapp_service import UnifiedWhatsAppService
 from app.payroll.services.assessment_integration_service import AssessmentIntegrationService
+from app.payroll.services.payroll_report_service import PayrollEmailReportService, PayrollWhatsAppReportService
 from datetime import datetime, date, timedelta
 from django.utils import timezone
 from app.payroll import PAYROLL_ROLES
@@ -20,6 +21,10 @@ class PayrollWhatsAppMenu(BaseMenu):
         self.hr_dashboard = HRDashboardService(company)
         self.whatsapp_service = UnifiedWhatsAppService(company)
         self.assessment_service = AssessmentIntegrationService(company)
+        
+        # Servicios de reportes multi-país
+        self.payroll_email_service = PayrollEmailReportService(company)
+        self.payroll_whatsapp_service = PayrollWhatsAppReportService(company)
         
         # Diccionario para almacenar preferencias de idioma de usuarios
         self.user_languages = {}
@@ -38,6 +43,12 @@ class PayrollWhatsAppMenu(BaseMenu):
         self.register_handler("hr_report_new_hires", self.handle_hr_new_hires_report)
         self.register_handler("hr_report_vacation", self.handle_hr_vacation_report)
         self.register_handler("email_report", self.handle_email_report)
+        
+        # registrar handlers para reportes multi-país
+        self.register_handler("multicountry_report", self.handle_multicountry_report)
+        self.register_handler("country_report", self.handle_country_report)
+        self.register_handler("report_email", self.handle_report_email_request)
+        self.register_handler("report_detail", self.handle_report_detail_request)
         
         # registrar handlers de assessments
         self.register_handler("nom35_dashboard", self.handle_nom35_dashboard)
@@ -101,48 +112,43 @@ class PayrollWhatsAppMenu(BaseMenu):
                 [{"text": "⬅️ Volver", "action": "back"}]
             )
             
-        message = """📊 *Dashboard de RH*
+        # Obtener idioma preferido
+        lang = self._get_user_language(kw.get('phone_number', ''))
+        
+        # Textos adaptados al idioma
+        header = get_message('hr_dashboard', 'header', lang)
+        msg_intro = get_message('hr_dashboard', 'intro', lang)
+        msg_choose = get_message('hr_dashboard', 'choose', lang)
+        
+        # Opciones de reportes
+        attendance_text = get_message('hr_dashboard', 'attendance', lang)
+        roster_text = get_message('hr_dashboard', 'roster', lang)
+        payroll_text = get_message('hr_dashboard', 'payroll', lang)
+        terminations_text = get_message('hr_dashboard', 'terminations', lang)
+        new_hires_text = get_message('hr_dashboard', 'new_hires', lang)
+        vacation_text = get_message('hr_dashboard', 'vacation', lang)
+        multicountry_text = get_message('hr_dashboard', 'multicountry', lang, default="Nómina Multi-País")
+        
+        # Construir mensaje
+        message = f"""*{header}*
 
-Selecciona una opción:"""
+{msg_intro}
+
+{msg_choose}"""
         
-        options = [
-            {"text": "📋 Reportes", "action": "hr_report_menu"},
-            {"text": "📊 Dashboards", "action": "hr_dashboard_menu"},
-            {"text": "📋 NOM 35", "action": "nom35_dashboard"}
-        ]
-        
-        # Verificar que el empleado tenga rol de RH
-        if not emp.has_role(PAYROLL_ROLES.HR):
-            return self._create_text_message(
-                "⚠️ No tienes permisos para acceder al dashboard de RH. "
-                "Contacta al administrador si crees que esto es un error."
-            )
-        
-        # Crear mensaje con opciones de reportes
-        message = f"📊 *DASHBOARD RH* - {emp.company.name}\n\n"
-        message += "Selecciona el tipo de reporte que deseas generar:\n\n"
-        message += "1️⃣ Reporte de Asistencia\n"
-        message += "2️⃣ Planilla de Empleados\n"
-        message += "3️⃣ Resumen de Nómina\n"
-        message += "4️⃣ Bajas de Personal\n"
-        message += "5️⃣ Altas de Personal\n"
-        message += "6️⃣ Balance de Vacaciones\n"
-        message += "\n¿Qué reporte deseas generar?"
-        
-        # Crear opciones de respuesta rápida
+        # Opciones del menú
         quick_replies = [
-            {"text": "📋 Asistencia", "action": "hr_report_attendance"},
-            {"text": "👥 Planilla", "action": "hr_report_roster"},
-            {"text": "💰 Nómina", "action": "hr_report_payroll"},
-            {"text": "🚪 Bajas", "action": "hr_report_terminations"},
-            {"text": "🆕 Altas", "action": "hr_report_new_hires"},
-            {"text": "🏖️ Vacaciones", "action": "hr_report_vacation"}
+            {"text": f"🌎 {multicountry_text}", "action": "multicountry_report"},
+            {"text": f"📊 {attendance_text}", "action": "hr_report_attendance"},
+            {"text": f"👥 {roster_text}", "action": "hr_report_roster"},
+            {"text": f"💰 {payroll_text}", "action": "hr_report_payroll"},
+            {"text": f"🔴 {terminations_text}", "action": "hr_report_terminations"},
+            {"text": f"🟢 {new_hires_text}", "action": "hr_report_new_hires"},
+            {"text": f"🏖 {vacation_text}", "action": "hr_report_vacation"}
         ]
         
-        return {
-            "text": message,
-            "quick_replies": quick_replies
-        }
+        # Formatear respuesta
+        return self._create_text_message(message, quick_replies, lang)
     
     def handle_hr_attendance_report(self, item, **kw):
         """Genera reporte de asistencia"""
@@ -275,6 +281,200 @@ Selecciona una opción:"""
         whatsapp_response = self.hr_dashboard.prepare_whatsapp_report(report_data)
         
         return whatsapp_response
+    
+    def handle_multicountry_report(self, item, **kw):
+        """Muestra el reporte de nómina multi-país en WhatsApp"""
+        emp = kw["employee"]
+        phone_number = kw.get('phone_number', '')
+        
+        # Verificar permisos
+        if not emp.has_role(PAYROLL_ROLES.HR):
+            return self._create_text_message("⚠️ No tienes permisos para esta acción.")
+        
+        # Obtener el idioma preferido del usuario
+        lang = self._get_user_language(phone_number)
+        
+        # Obtener periodo actual de nómina
+        current_period = timezone.now().date().replace(day=1)
+        previous_period = (current_period - timedelta(days=1)).replace(day=1)
+        
+        # Generar reporte en formato WhatsApp
+        whatsapp_report = self.payroll_whatsapp_service.generate_global_payroll_summary(
+            current_period=current_period,
+            previous_period=previous_period,
+            language=lang
+        )
+        
+        # Opciones para solicitar reportes detallados por país
+        countries = self.payroll_whatsapp_service.get_available_countries()
+        country_options = [{"text": f"🏁 {country}", "action": f"country_report:{country}"} 
+                          for country in countries[:6]]  # Limitar a 6 países para evitar sobrecarga
+        
+        # Añadir opción para solicitar el reporte por correo
+        email_option = {"text": "📧 Recibir por Email", "action": "report_email"}
+        country_options.append(email_option)
+        
+        # Crear respuesta para WhatsApp con opciones de países
+        response = {
+            "text": whatsapp_report,
+            "quick_replies": country_options
+        }
+        
+        return response
+    
+    def handle_country_report(self, item, **kw):
+        """Muestra el reporte de nómina de un país específico"""
+        emp = kw["employee"]
+        phone_number = kw.get('phone_number', '')
+        action = item.get('action', '')
+        
+        # Verificar permisos
+        if not emp.has_role(PAYROLL_ROLES.HR):
+            return self._create_text_message("⚠️ No tienes permisos para esta acción.")
+        
+        # Extraer código de país de la acción
+        try:
+            country_code = action.split(':')[1]
+        except (IndexError, ValueError):
+            return self._create_text_message("❌ Error: País no especificado o inválido.")
+        
+        # Obtener el idioma preferido del usuario
+        lang = self._get_user_language(phone_number)
+        
+        # Obtener periodo actual de nómina
+        current_period = timezone.now().date().replace(day=1)
+        
+        # Generar reporte por país en formato WhatsApp
+        country_report = self.payroll_whatsapp_service.generate_country_payroll_summary(
+            country_code=country_code,
+            period=current_period,
+            language=lang
+        )
+        
+        # Opciones para solicitar más detalles o regresar
+        quick_replies = [
+            {"text": "📈 Más Detalles", "action": f"report_detail:{country_code}"},
+            {"text": "📧 Enviar por Email", "action": f"report_email:{country_code}"},
+            {"text": "⬅️ Volver", "action": "multicountry_report"}
+        ]
+        
+        # Crear respuesta para WhatsApp
+        response = {
+            "text": country_report,
+            "quick_replies": quick_replies
+        }
+        
+        return response
+    
+    def handle_report_detail_request(self, item, **kw):
+        """Proporciona detalles adicionales sobre un reporte específico"""
+        emp = kw["employee"]
+        action = item.get('action', '')
+        phone_number = kw.get('phone_number', '')
+        
+        # Verificar permisos
+        if not emp.has_role(PAYROLL_ROLES.HR):
+            return self._create_text_message("⚠️ No tienes permisos para esta acción.")
+        
+        # Extraer código de país o tipo de detalle de la acción
+        try:
+            detail_type = action.split(':')[1]
+        except (IndexError, ValueError):
+            detail_type = 'global'  # Por defecto, detalles globales
+        
+        # Obtener el idioma preferido del usuario
+        lang = self._get_user_language(phone_number)
+        
+        # Generar detalles adicionales (métricas, gráficos en texto, etc.)
+        detail_report = self.payroll_whatsapp_service.generate_detailed_metrics(
+            detail_type=detail_type,
+            language=lang
+        )
+        
+        # Opciones para regresar al menú anterior
+        back_action = "multicountry_report" if detail_type == 'global' else f"country_report:{detail_type}"
+        quick_replies = [
+            {"text": "📧 Enviar por Email", "action": f"report_email:{detail_type}"},
+            {"text": "⬅️ Volver", "action": back_action}
+        ]
+        
+        # Crear respuesta para WhatsApp
+        response = {
+            "text": detail_report,
+            "quick_replies": quick_replies
+        }
+        
+        return response
+    
+    def handle_report_email_request(self, item, **kw):
+        """Envía el reporte completo al correo del usuario"""
+        emp = kw["employee"]
+        action = item.get('action', '')
+        phone_number = kw.get('phone_number', '')
+        
+        # Verificar permisos
+        if not emp.has_role(PAYROLL_ROLES.HR):
+            return self._create_text_message("⚠️ No tienes permisos para esta acción.")
+        
+        # Extraer código de país o tipo de reporte de la acción
+        try:
+            report_type = action.split(':')[1]
+        except (IndexError, ValueError):
+            report_type = 'global'  # Por defecto, reporte global
+        
+        # Obtener el idioma preferido del usuario
+        lang = self._get_user_language(phone_number)
+        
+        # Determinar periodo actual de nómina
+        current_period = timezone.now().date().replace(day=1)
+        
+        # Determinar destinatarios
+        recipients = [emp.email]
+        
+        # Enviar el reporte por correo usando el servicio apropiado
+        if report_type == 'global':
+            # Reporte global multi-país
+            success = self.payroll_email_service.send_global_payroll_report(
+                recipients=recipients,
+                period=current_period,
+                include_charts=True,
+                language=lang
+            )
+        else:
+            # Reporte específico de un país
+            success = self.payroll_email_service.send_country_payroll_report(
+                recipients=recipients,
+                country_code=report_type,
+                period=current_period,
+                include_charts=True,
+                language=lang
+            )
+        
+        # Crear mensaje de confirmación
+        if success:
+            message = f"""📧 *Reporte enviado con éxito*
+            
+Hemos enviado el reporte completo a tu correo electrónico ({emp.email}).
+Revisa tu bandeja de entrada en unos momentos."""
+        else:
+            message = """❌ *Error al enviar el reporte*
+            
+Hubo un problema al enviar el reporte a tu correo electrónico.
+Por favor, inténtalo más tarde o contacta con soporte."""
+        
+        # Opciones para regresar al menú anterior
+        back_action = "multicountry_report" if report_type == 'global' else f"country_report:{report_type}"
+        quick_replies = [
+            {"text": "⬅️ Volver al Menú", "action": back_action}
+        ]
+        
+        # Crear respuesta para WhatsApp
+        response = {
+            "text": message,
+            "quick_replies": quick_replies
+        }
+        
+        return response
     
     def handle_email_report(self, item, **kw):
         """Envía un reporte por correo electrónico"""

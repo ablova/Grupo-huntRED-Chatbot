@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporte de Nómina Multi-País | {{ company.name }}</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
+        
+        body {
+            font-family: 'Roboto', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f9fafc;
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #1a2533 100%);
+            color: white;
+            padding: 25px 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-weight: 700;
+            font-size: 24px;
+            letter-spacing: 0.5px;
+        }
+        
+        .header p {
+            margin: 8px 0 0;
+            opacity: 0.9;
+            font-size: 16px;
+            font-weight: 300;
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .section {
+            margin-bottom: 25px;
+        }
+        
+        .section-title {
+            color: #2c3e50;
+            margin-top: 0;
+            margin-bottom: 15px;
+            font-size: 18px;
+            font-weight: 600;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #eaeaea;
+        }
+        
+        .stats-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            margin: -10px;
+        }
+        
+        .stat-card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            padding: 15px;
+            margin: 10px;
+            flex: 1 1 calc(50% - 20px);
+            min-width: 200px;
+            border-left: 4px solid #3498db;
+        }
+        
+        .stat-card.primary { border-left-color: #3498db; }
+        .stat-card.success { border-left-color: #2ecc71; }
+        .stat-card.warning { border-left-color: #f39c12; }
+        .stat-card.danger { border-left-color: #e74c3c; }
+        
+        .stat-title {
+            font-size: 13px;
+            color: #7f8c8d;
+            margin: 0 0 5px 0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #2c3e50;
+            margin: 0;
+        }
+        
+        .stat-trend {
+            font-size: 12px;
+            margin-top: 5px;
+        }
+        
+        .trend-up { color: #2ecc71; }
+        .trend-down { color: #e74c3c; }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        
+        th {
+            background-color: #f8f9fa;
+            color: #2c3e50;
+            font-weight: 600;
+            text-align: left;
+            padding: 12px;
+            border-bottom: 2px solid #e9ecef;
+        }
+        
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        tr:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .text-right {
+            text-align: right;
+        }
+        
+        .chart-container {
+            width: 100%;
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        .chart-image {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .action-button {
+            display: inline-block;
+            background: linear-gradient(to right, #3498db, #2980b9);
+            color: white;
+            text-decoration: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            margin-top: 25px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .action-button:hover {
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+            background: linear-gradient(to right, #2980b9, #3498db);
+        }
+        
+        .footer {
+            background-color: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            border-top: 1px solid #e9ecef;
+            color: #7f8c8d;
+            font-size: 13px;
+        }
+        
+        .footer p {
+            margin: 5px 0;
+        }
+        
+        .company-logo {
+            max-height: 50px;
+            margin-bottom: 15px;
+        }
+        
+        .indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        
+        .indicator.green { background-color: #2ecc71; }
+        .indicator.yellow { background-color: #f39c12; }
+        .indicator.red { background-color: #e74c3c; }
+        
+        /* Resumen ejecutivo */
+        .executive-summary {
+            background-color: #f8f9fa;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 25px;
+            font-style: italic;
+        }
+        
+        /* Estilos para datos comparativos */
+        .comparison-container {
+            display: flex;
+            margin-bottom: 20px;
+        }
+        
+        .comparison-item {
+            flex: 1;
+            text-align: center;
+            padding: 15px;
+            border-right: 1px solid #eaeaea;
+        }
+        
+        .comparison-item:last-child {
+            border-right: none;
+        }
+        
+        .comparison-label {
+            font-size: 12px;
+            color: #7f8c8d;
+            margin-bottom: 5px;
+        }
+        
+        .comparison-value {
+            font-size: 20px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            {% if company.logo_url %}
+            <img src="{{ company.logo_url }}" alt="{{ company.name }}" class="company-logo">
+            {% endif %}
+            <h1>Reporte de Nómina Multi-País</h1>
+            <p>{{ period.name }} | {{ period.start_date|date:"d M, Y" }} - {{ period.end_date|date:"d M, Y" }}</p>
+        </div>
+        
+        <div class="content">
+            <!-- Resumen ejecutivo -->
+            <div class="executive-summary">
+                Este reporte presenta el análisis consolidado de nómina para {{ company.name }} durante el período {{ period.name }}, 
+                abarcando operaciones en {{ countries_data|length }} países. La nómina global muestra 
+                {% if global_data.gross_trend > 0 %}un incremento de {{ global_data.gross_trend|floatformat:1 }}%{% else %}una disminución de {{ global_data.gross_trend|abs|floatformat:1 }}%{% endif %} 
+                respecto al período anterior.
+            </div>
+            
+            <!-- Sección de estadísticas principales -->
+            <div class="section">
+                <h3 class="section-title">Resumen Global</h3>
+                <div class="stats-container">
+                    <div class="stat-card primary">
+                        <div class="stat-title">Total Empleados</div>
+                        <div class="stat-value">{{ global_data.total_employees|intcomma }}</div>
+                        <div class="stat-trend {% if global_data.employee_trend > 0 %}trend-up{% elif global_data.employee_trend < 0 %}trend-down{% endif %}">
+                            {% if global_data.employee_trend > 0 %}&#9650;{% elif global_data.employee_trend < 0 %}&#9660;{% endif %} 
+                            {{ global_data.employee_trend|abs|floatformat:1 }}% vs período anterior
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card success">
+                        <div class="stat-title">Nómina Bruta</div>
+                        <div class="stat-value">{{ global_data.currency_symbol }} {{ global_data.total_gross|floatformat:2|intcomma }}</div>
+                        <div class="stat-trend {% if global_data.gross_trend > 0 %}trend-up{% elif global_data.gross_trend < 0 %}trend-down{% endif %}">
+                            {% if global_data.gross_trend > 0 %}&#9650;{% elif global_data.gross_trend < 0 %}&#9660;{% endif %} 
+                            {{ global_data.gross_trend|abs|floatformat:1 }}% vs período anterior
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card warning">
+                        <div class="stat-title">Nómina Neta</div>
+                        <div class="stat-value">{{ global_data.currency_symbol }} {{ global_data.total_net|floatformat:2|intcomma }}</div>
+                        <div class="stat-trend">
+                            {{ global_data.net_ratio|floatformat:1 }}% de la nómina bruta
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card danger">
+                        <div class="stat-title">Carga Fiscal</div>
+                        <div class="stat-value">{{ global_data.currency_symbol }} {{ global_data.total_taxes|floatformat:2|intcomma }}</div>
+                        <div class="stat-trend">
+                            {{ global_data.tax_rate|floatformat:1 }}% de la nómina bruta
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Comparación con período anterior -->
+            <div class="section">
+                <h3 class="section-title">Análisis Comparativo</h3>
+                <div class="comparison-container">
+                    <div class="comparison-item">
+                        <div class="comparison-label">Período Anterior</div>
+                        <div class="comparison-value">{{ global_data.currency_symbol }} {{ global_data.previous_gross|floatformat:2|intcomma }}</div>
+                    </div>
+                    <div class="comparison-item">
+                        <div class="comparison-label">Período Actual</div>
+                        <div class="comparison-value">{{ global_data.currency_symbol }} {{ global_data.total_gross|floatformat:2|intcomma }}</div>
+                    </div>
+                    <div class="comparison-item">
+                        <div class="comparison-label">Diferencia</div>
+                        <div class="comparison-value {% if global_data.gross_diff > 0 %}trend-up{% elif global_data.gross_diff < 0 %}trend-down{% endif %}">
+                            {{ global_data.gross_diff|floatformat:2|intcomma }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Gráfico de distribución -->
+            {% if chart_url %}
+            <div class="section">
+                <h3 class="section-title">Distribución por País</h3>
+                <div class="chart-container">
+                    <img src="{{ chart_url }}" alt="Distribución por país" class="chart-image">
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Tabla de desglose por país -->
+            <div class="section">
+                <h3 class="section-title">Desglose por País</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>País</th>
+                            <th>Empleados</th>
+                            <th>Nómina Bruta</th>
+                            <th>Nómina Neta</th>
+                            <th>Impuestos</th>
+                            <th>Carga Fiscal</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for country in countries_data %}
+                        <tr>
+                            <td>{{ country.name }}</td>
+                            <td>{{ country.employees|intcomma }}</td>
+                            <td class="text-right">{{ global_data.currency_symbol }} {{ country.gross_global|floatformat:2|intcomma }}</td>
+                            <td class="text-right">{{ global_data.currency_symbol }} {{ country.net_global|floatformat:2|intcomma }}</td>
+                            <td class="text-right">{{ global_data.currency_symbol }} {{ country.taxes_global|floatformat:2|intcomma }}</td>
+                            <td class="text-right">{{ country.tax_rate|floatformat:1 }}%</td>
+                            <td>
+                                <span class="indicator {% if country.status == 'ok' %}green{% elif country.status == 'warning' %}yellow{% else %}red{% endif %}"></span>
+                                {{ country.status_text }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td><strong>Total</strong></td>
+                            <td><strong>{{ global_data.total_employees|intcomma }}</strong></td>
+                            <td class="text-right"><strong>{{ global_data.currency_symbol }} {{ global_data.total_gross|floatformat:2|intcomma }}</strong></td>
+                            <td class="text-right"><strong>{{ global_data.currency_symbol }} {{ global_data.total_net|floatformat:2|intcomma }}</strong></td>
+                            <td class="text-right"><strong>{{ global_data.currency_symbol }} {{ global_data.total_taxes|floatformat:2|intcomma }}</strong></td>
+                            <td class="text-right"><strong>{{ global_data.avg_tax_rate|floatformat:1 }}%</strong></td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            
+            <div style="text-align: center;">
+                <a href="{{ dashboard_url }}" class="action-button">Ver Dashboard Completo</a>
+            </div>
+            
+            <p style="margin-top: 30px; color: #7f8c8d; font-size: 14px;">
+                <strong>Nota:</strong> Este reporte ha sido generado automáticamente el {{ current_datetime|date:"d/m/Y H:i" }}.
+                Para más detalles o reportes personalizados, acceda al sistema o contacte al administrador.
+            </p>
+        </div>
+        
+        <div class="footer">
+            <p>&copy; {{ current_year }} {{ company.name }}. Todos los derechos reservados.</p>
+            <p>Este correo y su contenido son confidenciales y dirigidos exclusivamente a su destinatario.</p>
+        </div>
+    </div>
+</body>
+</html>
