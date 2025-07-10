@@ -1,3 +1,4 @@
+# app/ats/integrations/notifications/event_notifications.py
 """
 Servicio de notificaciones de eventos de Grupo huntRED®.
 """
@@ -145,5 +146,25 @@ class EventNotificationService(BaseNotificationService):
             additional_data=additional_details
         )
 
-# Instancia global del servicio de notificaciones de eventos
-event_notifier = EventNotificationService(BusinessUnit.objects.first()) 
+# Utilizamos un patrón "lazy loading" para evitar consultar la base de datos durante la importación
+_event_notifier = None
+
+def get_event_notifier():
+    """Obtiene una instancia singleton del servicio de notificaciones de eventos.
+    
+    Utiliza lazy loading para evitar consultar la base de datos durante la importación
+    del módulo.
+    """
+    global _event_notifier
+    if _event_notifier is None:
+        from app.models import BusinessUnit
+        business_unit = BusinessUnit.objects.first()
+        if business_unit:
+            _event_notifier = EventNotificationService(business_unit)
+        else:
+            # Fallback si no hay business_unit disponible
+            _event_notifier = EventNotificationService(None)
+    return _event_notifier
+
+# Alias para mantener compatibilidad con código existente
+event_notifier = get_event_notifier

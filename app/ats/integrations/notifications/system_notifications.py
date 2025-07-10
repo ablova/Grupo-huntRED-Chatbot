@@ -1,3 +1,4 @@
+# app/ats/integrations/notifications/system_notifications.py
 """
 Servicio de notificaciones de sistema de Grupo huntRED®.
 """
@@ -160,5 +161,25 @@ class SystemNotificationService(BaseNotificationService):
             additional_data=additional_details
         )
 
-# Instancia global del servicio de notificaciones de sistema
-system_notifier = SystemNotificationService(BusinessUnit.objects.first()) 
+# Utilizamos un patrón "lazy loading" para evitar consultar la base de datos durante la importación
+_system_notifier = None
+
+def get_system_notifier():
+    """Obtiene una instancia singleton del servicio de notificaciones de sistema.
+    
+    Utiliza lazy loading para evitar consultar la base de datos durante la importación
+    del módulo.
+    """
+    global _system_notifier
+    if _system_notifier is None:
+        from app.models import BusinessUnit
+        business_unit = BusinessUnit.objects.first()
+        if business_unit:
+            _system_notifier = SystemNotificationService(business_unit)
+        else:
+            # Fallback si no hay business_unit disponible
+            _system_notifier = SystemNotificationService(None)
+    return _system_notifier
+
+# Alias para mantener compatibilidad con código existente
+system_notifier = get_system_notifier

@@ -39,7 +39,12 @@ from django.utils import timezone as django_timezone
 
 # Web Scraping
 from bs4 import BeautifulSoup
-import undetected_chromedriver as uc
+# Importar undetected_chromedriver de forma condicional
+try:
+    import undetected_chromedriver as uc
+except ImportError:
+    logger.warning("undetected_chromedriver no está instalado. Las funciones de scraping de LinkedIn no estarán disponibles.")
+    uc = None
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC

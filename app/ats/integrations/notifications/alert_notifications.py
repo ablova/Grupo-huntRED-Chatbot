@@ -1,3 +1,4 @@
+# app/ats/integrations/notifications/alert_notifications.py
 """
 Módulo para manejar notificaciones específicas de alertas.
 Incluye notificaciones para diferentes tipos de alertas y unidades de negocio.

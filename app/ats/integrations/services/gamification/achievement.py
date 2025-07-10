@@ -16,4 +16,5 @@ class Achievement:
     unlocked_at: Optional[datetime] = None
     is_hidden: bool = False
     category: str = "general"
+    type: Any = None  # Añadido para compatibilidad con AchievementType enum
     created_at: datetime = field(default_factory=datetime.now) 

@@ -1,4 +1,4 @@
-# /home/pablo/app/ml/analyzers/base_analyzer.py
+# app/ml/analyzers/base_analyzer.py
 """
 Base Analyzer module for Grupo huntRED® assessment system.
 

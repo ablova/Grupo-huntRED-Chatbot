@@ -1,3 +1,4 @@
+# app/ml/aura/gamification/social_achievements.py
 """
 AURA - Social Achievements Avanzado
 Logros sociales por mentoría, colaboración y valor generado usando GNN, integración con gamificación y dashboards.

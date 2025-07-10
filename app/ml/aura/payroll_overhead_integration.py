@@ -14,7 +14,7 @@ from django.db import transaction
 from django.core.cache import cache
 
 from app.payroll.models import (
-    Employee, Company, OverheadCategory, 
+    PayrollEmployee as Employee, PayrollCompany as Company, OverheadCategory, 
     EmployeeOverheadCalculation, TeamOverheadAnalysis,
     OverheadMLModel
 )

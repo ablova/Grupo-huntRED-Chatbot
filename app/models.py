@@ -6703,3 +6703,322 @@ class ClientFeedbackSchedule(models.Model):
         """Reactiva la programación."""
         self.is_active = True
         self.save(update_fields=['is_active'])
+
+
+class Metric(models.Model):
+    """
+    Modelo para almacenar métricas del sistema.
+    Utilizado por app.ats.integrations.services.document.py y otros componentes de analítica.
+    """
+    name = models.CharField(max_length=100, help_text="Nombre de la métrica")
+    category = models.CharField(
+        max_length=50, 
+        help_text="Categoría de la métrica (ej: rendimiento, sistema, negocio)",
+        blank=True
+    )
+    value = models.FloatField(help_text="Valor numérico de la métrica")
+    value_type = models.CharField(
+        max_length=50,
+        choices=[
+            ('PERCENTAGE', 'Porcentaje'),
+            ('COUNT', 'Conteo'),
+            ('TIME', 'Tiempo'),
+            ('CURRENCY', 'Moneda'),
+            ('SCORE', 'Puntuación'),
+            ('OTHER', 'Otro')
+        ],
+        default='COUNT',
+        help_text="Tipo de valor de la métrica"
+    )
+    entity_type = models.CharField(
+        max_length=100, 
+        help_text="Tipo de entidad relacionada",
+        blank=True
+    )
+    entity_id = models.CharField(
+        max_length=100, 
+        help_text="ID de la entidad relacionada",
+        blank=True
+    )
+    metadata = JSONField(
+        default=dict, 
+        blank=True,
+        help_text="Metadatos adicionales en formato JSON"
+    )
+    timestamp = models.DateTimeField(
+        default=timezone.now,
+        help_text="Momento en que se registró la métrica"
+    )
+    expires_at = models.DateTimeField(
+        null=True, 
+        blank=True,
+        help_text="Fecha opcional de expiración para la métrica"
+    )
+    business_unit = models.ForeignKey(
+        'BusinessUnit',
+        on_delete=models.CASCADE,
+        related_name='metrics',
+        null=True,
+        blank=True,
+        help_text="Unidad de negocio asociada (opcional)"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Métrica"
+        verbose_name_plural = "Métricas"
+        ordering = ['-timestamp']
+        indexes = [
+            models.Index(fields=['name', 'category']),
+            models.Index(fields=['entity_type', 'entity_id']),
+            models.Index(fields=['timestamp']),
+            models.Index(fields=['business_unit']),
+        ]
+    
+    def __str__(self):
+        return f"{self.name}: {self.value} ({self.category})"
+    
+    def is_expired(self):
+        """Verifica si la métrica ha expirado"""
+        if self.expires_at:
+            return timezone.now() > self.expires_at
+        return False
+    
+    @classmethod
+    def record(cls, name, value, category='', entity_type='', entity_id='', **kwargs):
+        """Método de conveniencia para registrar una nueva métrica rápidamente"""
+        metric = cls(
+            name=name,
+            value=value,
+            category=category,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            **kwargs
+        )
+        metric.save()
+        return metric
+
+
+class Consultant(models.Model):
+    """
+    Modelo para almacenar información de consultores.
+    Utilizado por app.ats.utils.google_calendar y otros componentes del sistema.
+    """
+    # Relaciones principales
+    user = models.OneToOneField(
+        'User', 
+        on_delete=models.CASCADE,
+        related_name='consultant_profile',
+        help_text="Usuario asociado al consultor"
+    )
+    business_unit = models.ForeignKey(
+        'BusinessUnit',
+        on_delete=models.CASCADE,
+        related_name='consultants',
+        help_text="Unidad de negocio a la que pertenece el consultor"
+    )
+    
+    # Campos básicos
+    consultant_id = models.CharField(
+        max_length=50,
+        unique=True,
+        help_text="ID único del consultor en el sistema"
+    )
+    title = models.CharField(
+        max_length=100,
+        help_text="Cargo o título del consultor",
+        blank=True
+    )
+    department = models.CharField(
+        max_length=100,
+        help_text="Departamento al que pertenece",
+        blank=True
+    )
+    is_senior = models.BooleanField(
+        default=False,
+        help_text="Indica si el consultor tiene rango senior"
+    )
+    specialties = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Especialidades y áreas de experiencia del consultor"
+    )
+    
+    # Configuraciones y preferencias
+    calendar_settings = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Configuraciones de calendario y disponibilidad"
+    )
+    notification_settings = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Configuraciones de notificaciones"
+    )
+    google_credentials = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Credenciales de Google Calendar (encriptadas)"
+    )
+    
+    # Campos de seguimiento
+    active = models.BooleanField(
+        default=True,
+        help_text="Indica si el consultor está activo"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Consultor"
+        verbose_name_plural = "Consultores"
+        ordering = ['business_unit', '-is_senior', 'user__first_name']
+        indexes = [
+            models.Index(fields=['consultant_id']),
+            models.Index(fields=['business_unit', 'is_senior']),
+            models.Index(fields=['active']),
+        ]
+    
+    def __str__(self):
+        if hasattr(self, 'user') and self.user:
+            return f"{self.user.get_full_name()} ({self.consultant_id})"
+        return f"Consultor {self.consultant_id}"
+    
+    def get_calendar_credentials(self):
+        """Obtiene las credenciales de calendario de Google"""
+        if not self.google_credentials:
+            return None
+        
+        try:
+            # Aquí iría la lógica de descifrado si estuvieran encriptadas
+            return self.google_credentials
+        except Exception as e:
+            logger.error(f"Error al obtener credenciales de calendario: {e}")
+            return None
+    
+    def set_calendar_credentials(self, credentials):
+        """Establece las credenciales de calendario de Google"""
+        try:
+            # Aquí iría la lógica de cifrado si fuera necesario
+            self.google_credentials = credentials
+            self.save(update_fields=['google_credentials', 'updated_at'])
+            return True
+        except Exception as e:
+            logger.error(f"Error al guardar credenciales de calendario: {e}")
+            return False
+
+
+class NotificationPreference(models.Model):
+    """
+    Modelo para almacenar preferencias de notificación de usuarios.
+    Utilizado principalmente para notificaciones relacionadas con slots de calendario y citas.
+    """
+    # Relaciones principales
+    person = models.ForeignKey(
+        'Person',
+        on_delete=models.CASCADE,
+        related_name='notification_preferences',
+        help_text="Persona a la que pertenecen estas preferencias de notificación"
+    )
+    business_unit = models.ForeignKey(
+        'BusinessUnit',
+        on_delete=models.CASCADE,
+        related_name='notification_preferences',
+        null=True,
+        blank=True,
+        help_text="Unidad de negocio asociada a estas preferencias"
+    )
+    
+    # Preferencias de notificación para slots de calendario
+    notify_on_slot_available = models.BooleanField(
+        default=False,
+        help_text="Notificar cuando hay slots disponibles"
+    )
+    notify_on_slot_change = models.BooleanField(
+        default=True,
+        help_text="Notificar cuando hay cambios en los slots reservados"
+    )
+    notify_on_interview_reminder = models.BooleanField(
+        default=True,
+        help_text="Enviar recordatorios de entrevistas"
+    )
+    preferred_channels = models.JSONField(
+        default=list,
+        help_text="Canales preferidos para las notificaciones ['whatsapp', 'email', 'sms']"
+    )
+    
+    # Detalles de la vacante/proceso relevante (si aplica)
+    vacante = models.ForeignKey(
+        'Vacante',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='notification_preferences',
+        help_text="Vacante asociada a estas preferencias de notificación"
+    )
+    preferred_days = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Días preferidos para entrevistas ['MON', 'TUE', 'WED', 'THU', 'FRI']"
+    )
+    preferred_time_ranges = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Rangos horarios preferidos [{'start': '09:00', 'end': '12:00'}, ...]"
+    )
+    
+    # Seguimiento
+    last_notification = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Última vez que se envió una notificación"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Preferencia de notificación"
+        verbose_name_plural = "Preferencias de notificación"
+        unique_together = [('person', 'vacante')]
+        indexes = [
+            models.Index(fields=['person']),
+            models.Index(fields=['notify_on_slot_available']),
+            models.Index(fields=['last_notification']),
+        ]
+    
+    def __str__(self):
+        return f"Preferencias de notificación: {self.person.name if hasattr(self.person, 'name') else 'Usuario'}"
+    
+    def update_last_notification(self):
+        """Actualiza la marca de tiempo de la última notificación"""
+        from django.utils import timezone
+        self.last_notification = timezone.now()
+        self.save(update_fields=['last_notification', 'updated_at'])
+        return True
+
+class Placement(models.Model):
+    """Modelo para colocaciones de candidatos."""
+    candidate = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='placements')
+    position = models.ForeignKey(Vacante, on_delete=models.CASCADE, related_name='placements')
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='placements')
+    
+    # Datos de colocación
+    salary = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    start_date = models.DateField(null=True, blank=True)
+    end_date = models.DateField(null=True, blank=True)
+    
+    # Estatus y seguimiento
+    STATUS_CHOICES = [
+        ('pending', 'Pendiente'),
+        ('active', 'Activo'),
+        ('completed', 'Completado'),
+        ('cancelled', 'Cancelado')
+    ]
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    notes = models.TextField(blank=True)
+    
+    # Metadata
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.SET_NULL, null=True, blank=True)

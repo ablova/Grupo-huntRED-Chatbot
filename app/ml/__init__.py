@@ -90,7 +90,6 @@ from app.ml.aura import (
     # Ecosystem
     PublicAPI,
     ModuleMarketplace,
-    module_marketplace,
     
     # Monitoring & Performance
     AuraMonitor,
@@ -102,8 +101,10 @@ from app.ml.aura import (
     
     # Predictive Analytics
     SentimentAnalyzer,
-    MarketPredictor,
-    CareerPredictor,
+    MarketPrediction,
+    CareerPrediction,
+    CareerMovementPredictor,
+    MarketTrend,
     
     # Models
     # GNNModels,  # Comentado temporalmente - requiere PyTorch

@@ -1,3 +1,4 @@
+# app/payroll/services/ml_overhead_optimizer.py
 """
 Servicio de Optimización ML con AURA para Overhead
 Sistema avanzado de ML para predicción y optimización de overhead
@@ -10,12 +11,9 @@ from datetime import datetime, timedelta
 from django.utils import timezone
 from django.db.models import Avg, Count, Q
 
-# AURA imports
-from app.ml.aura import (
-    AuraEngine, RecommendationEngine, EthicsEngine, BiasDetectionEngine,
-    FairnessOptimizer, HolisticAssessor, CompatibilityEngine,
-    PersonalizationEngine, ExecutiveAnalytics
-)
+# AURA imports serán importados en los métodos para evitar importaciones circulares
+# Importación tardía para evitar problemas de dependencia circular
+import importlib
 
 from ..models import (
     PayrollEmployee, PayrollCompany, EmployeeOverheadCalculation,
@@ -32,15 +30,9 @@ class MLOverheadOptimizer:
     
     def __init__(self, company: PayrollCompany):
         self.company = company
-        self.aura_engine = AuraEngine()
-        self.recommendation_engine = RecommendationEngine()
-        self.ethics_engine = EthicsEngine()
-        self.bias_detector = BiasDetectionEngine()
-        self.fairness_optimizer = FairnessOptimizer()
-        self.holistic_assessor = HolisticAssessor()
-        self.compatibility_engine = CompatibilityEngine()
-        self.personalization_engine = PersonalizationEngine()
-        self.executive_analytics = ExecutiveAnalytics()
+        
+        # Importaciones tardías para evitar problemas de dependencia circular
+        self._aura_modules = {}
         
         # Configuración ML
         self.ml_models = self._load_ml_models()
@@ -66,6 +58,26 @@ class MLOverheadOptimizer:
         
         return models
     
+    def _get_aura_module(self, module_name: str):
+        """Carga módulo AURA bajo demanda para evitar importaciones circulares"""
+        if module_name not in self._aura_modules:
+            aura_module = importlib.import_module('app.ml.aura')
+            if hasattr(aura_module, module_name):
+                self._aura_modules[module_name] = getattr(aura_module, module_name)
+            else:
+                # Si no existe en aura, intentar importar desde submódulos específicos
+                try:
+                    specific_module = importlib.import_module(f'app.ml.aura.{module_name.lower()}')
+                    if hasattr(specific_module, module_name):
+                        self._aura_modules[module_name] = getattr(specific_module, module_name)
+                    else:
+                        logger.error(f"No se pudo cargar el módulo AURA {module_name}")
+                        raise ImportError(f"No se pudo cargar {module_name} de app.ml.aura")
+                except ImportError:
+                    logger.error(f"No se pudo cargar el módulo AURA {module_name}")
+                    raise
+        return self._aura_modules[module_name]
+        
     def _check_aura_subscription(self) -> bool:
         """Verifica si la empresa tiene suscripción AURA activa"""
         return self.company.premium_services.get('aura_enabled', False)
@@ -353,16 +365,25 @@ class MLOverheadOptimizer:
     ) -> Dict:
         """Mejora predicción ML con capacidades AURA"""
         try:
+            # Cargar módulos AURA bajo demanda
+            HolisticAssessor = self._get_aura_module('HolisticAssessor')
+            PersonalizationEngine = self._get_aura_module('PersonalizationEngine')
+            CompatibilityEngine = self._get_aura_module('CompatibilityEngine')
+            ExecutiveAnalytics = self._get_aura_module('ExecutiveAnalytics')
+            
             # Análisis holístico del empleado
-            holistic_profile = self.holistic_assessor.assess_employee(employee)
+            holistic_assessor = HolisticAssessor()
+            holistic_profile = holistic_assessor.assess_employee(employee)
             
             # Personalización basada en perfil AURA
-            personalization = self.personalization_engine.generate_recommendations(
+            personalization_engine = PersonalizationEngine()
+            personalization = personalization_engine.generate_recommendations(
                 employee, context='overhead_optimization'
             )
             
             # Compatibilidad con valores organizacionales
-            compatibility = self.compatibility_engine.assess_organizational_fit(
+            compatibility_engine = CompatibilityEngine()
+            compatibility = compatibility_engine.assess_organizational_fit(
                 employee, self.company
             )
             
@@ -372,7 +393,8 @@ class MLOverheadOptimizer:
             )
             
             # Recomendaciones ejecutivas
-            executive_insights = self.executive_analytics.generate_employee_insights(
+            executive_analytics = ExecutiveAnalytics()
+            executive_insights = executive_analytics.generate_employee_insights(
                 employee, context='cost_optimization'
             )
             

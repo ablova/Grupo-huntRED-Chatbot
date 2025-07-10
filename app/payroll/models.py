@@ -1,3 +1,4 @@
+# app/payroll/models.py
 """
 Modelos del Sistema de Nómina huntRED®
 Modelos críticos para gestión de nómina con WhatsApp dedicado por cliente
@@ -14,7 +15,8 @@ from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 
 from app.models import BusinessUnit
-from app.ats.models import Job, Candidate, Assessment, Interview  # Integración ATS
+from app.models import Vacante as Job, Person as Candidate  # Integración ATS
+from app.ats.models import Assessment, Interview  # Integración ATS
 from . import (
     PAYROLL_STATUSES, EMPLOYEE_TYPES, PAYROLL_FREQUENCIES,
     ATTENDANCE_STATUSES, REQUEST_TYPES, REQUEST_STATUSES,

@@ -149,9 +149,11 @@ def load_json_file(file_name: str, use_cache: bool = False) -> dict:
     """
     file_path = CONFIG_DIR / file_name
     
+    # Definir cache_key aquí para que esté disponible en todo el método
+    cache_key = f"json_file_{file_name}"
+    
     # Verificar si los datos están en caché (solo si use_cache es True)
     if use_cache:
-        cache_key = f"json_file_{file_name}"
         cached_data = cache.get(cache_key)
         if cached_data is not None:
             logger.debug(f"Datos cargados desde caché para {file_name}")

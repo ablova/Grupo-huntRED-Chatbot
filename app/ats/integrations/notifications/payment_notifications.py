@@ -1,3 +1,4 @@
+# app/ats/integrations/notifications/payment_notifications.py
 """
 Servicio de notificaciones de pagos de Grupo huntRED®.
 """
@@ -156,5 +157,25 @@ class PaymentNotificationService(BaseNotificationService):
             additional_data=additional_details
         )
 
-# Instancia global del servicio de notificaciones de pagos
-payment_notifier = PaymentNotificationService(BusinessUnit.objects.first()) 
+# Utilizamos un patrón "lazy loading" para evitar consultar la base de datos durante la importación
+_payment_notifier = None
+
+def get_payment_notifier():
+    """Obtiene una instancia singleton del servicio de notificaciones de pagos.
+    
+    Utiliza lazy loading para evitar consultar la base de datos durante la importación
+    del módulo.
+    """
+    global _payment_notifier
+    if _payment_notifier is None:
+        from app.models import BusinessUnit
+        business_unit = BusinessUnit.objects.first()
+        if business_unit:
+            _payment_notifier = PaymentNotificationService(business_unit)
+        else:
+            # Fallback si no hay business_unit disponible
+            _payment_notifier = PaymentNotificationService(None)
+    return _payment_notifier
+
+# Alias para mantener compatibilidad con código existente
+payment_notifier = get_payment_notifier

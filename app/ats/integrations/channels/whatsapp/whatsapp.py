@@ -36,6 +36,31 @@ from app.ats.integrations.services.document import EnhancedDocumentProcessor
 from app.ats.chatbot.middleware.message_retry import MessageRetry
 from app.ats.integrations.services import MessageService
 
+# Stub temporal para registro_amigro - utilizado durante la migración
+def registro_amigro(phone_number=None, business_unit_id=None, flow_type='registro', **kwargs):
+    """
+    Stub temporal para el template de registro de WhatsApp.
+    Este es un placeholder hasta que la base de datos esté inicializada y los flujos de WhatsApp estén disponibles.
+    
+    Args:
+        phone_number: Número de teléfono del usuario
+        business_unit_id: ID de la unidad de negocio
+        flow_type: Tipo de flujo ('registro' por defecto)
+        kwargs: Argumentos adicionales
+        
+    Returns:
+        Dict: Respuesta simulada del registro
+    """
+    logger.warning("Usando stub temporal para registro_amigro - Este método debe ser reemplazado después de la inicialización de la base de datos")
+    return {
+        'success': True,
+        'message': 'Stub temporal de registro_amigro',
+        'flow_type': flow_type,
+        'phone_number': phone_number,
+        'business_unit_id': business_unit_id,
+        'is_stub': True
+    }
+
 logger = logging.getLogger('chatbot')
 
 # Configuraciones globales

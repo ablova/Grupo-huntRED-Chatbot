@@ -109,7 +109,7 @@ class AuraOrchestratorAction:
     scheduled_time: Optional[datetime] = None
     executed: bool = False
 
-class AURAOrchestrator:
+class AuraOrchestrator:
     """
     Orquestador principal de AURA.
     
@@ -148,7 +148,7 @@ class AURAOrchestrator:
         if self.config.enable_monitoring:
             self._start_monitoring()
         
-        logger.info(f"AURA Orchestrator inicializado - Tier: {self.config.service_tier.value}")
+        logger.info(f"AuraOrchestrator inicializado - Tier: {self.config.service_tier.value}")
     
     def _setup_modules_by_tier(self):
         """Configura módulos según el tier de servicio"""
@@ -702,4 +702,4 @@ class AURAOrchestrator:
         logger.info(f"Servicio actualizado a tier: {new_tier.value}")
 
 # Instancia global del orquestador
-aura_orchestrator = AURAOrchestrator()
+aura_orchestrator = AuraOrchestrator()

@@ -1,3 +1,4 @@
+# app/ats/integrations/matchmaking/service.py
 """
 Servicio de matchmaking mejorado.
 Coordina el proceso de matching entre candidatos y vacantes.
@@ -7,8 +8,8 @@ import logging
 from datetime import datetime
 
 from app.ats.integrations.matchmaking.analyzer import EnhancedMatchmakingAnalyzer
-from app.ats.models import Person, Job, Match
-from app.ats.utils.cache import cache_manager
+from app.models import Person, Vacante as Job  # Usando Vacante como Job
+from app.ats.utils.cache.advanced_cache_system import advanced_cache
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +18,7 @@ class EnhancedMatchmakingService:
     
     def __init__(self):
         self.analyzer = EnhancedMatchmakingAnalyzer()
-        self.cache = cache_manager
+        self.cache = advanced_cache
         
     async def find_matches(
         self,

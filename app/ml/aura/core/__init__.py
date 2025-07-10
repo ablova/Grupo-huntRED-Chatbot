@@ -7,10 +7,13 @@ from .ethics_engine import EthicsEngine
 from .moral_reasoning import MoralReasoning
 from .bias_detection import BiasDetection
 from .fairness_optimizer import FairnessOptimizer
+from .aura_analyzers import BaseAuraAnalyzer, BUAuraAnalyzer
 
 __all__ = [
     'EthicsEngine',
     'MoralReasoning', 
     'BiasDetection',
-    'FairnessOptimizer'
+    'FairnessOptimizer',
+    'BaseAuraAnalyzer',
+    'BUAuraAnalyzer'
 ] 
