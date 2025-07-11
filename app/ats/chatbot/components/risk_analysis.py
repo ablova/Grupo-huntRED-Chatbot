@@ -5,11 +5,12 @@
 # Optimizado para bajo uso de CPU, escalabilidad, y robustez frente a fallos.
 
 import re
+from datetime import datetime, date
 from typing import Dict, Any, Optional
-from app.models import Candidate
+from app.models import Person
 
 class RiskAnalysis:
-    def __init__(self, candidate: Candidate):
+    def __init__(self, candidate: Person):
         self.candidate = candidate
         self.risk_score = 0
         self.risk_factors = []
