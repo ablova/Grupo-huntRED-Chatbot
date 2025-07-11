@@ -42,10 +42,14 @@ from app.ml.aura.holistic_assessor import HolisticAssessor
 from app.ml.aura.impact.impact_analyzer import ImpactAnalyzer
 from app.ml.aura.impact.sustainability_calculator import SustainabilityCalculator
 from app.ml.aura.integration_layer import AuraIntegrationLayer
+# Crear alias para IntegrationLayer
+IntegrationLayer = AuraIntegrationLayer
 from app.ml.aura.monitoring.aura_monitor import AuraMonitor
 from app.ml.aura.networking.auto_introducer import AutoIntroducer
 from app.ml.aura.networking.event_recommender import EventRecommender
 from app.ml.aura.networking.network_matchmaker import NetworkMatchmaker
+# Crear alias para Matchmaker
+Matchmaker = NetworkMatchmaker
 from app.ml.aura.orchestrator import AuraOrchestrator, AuraOrchestratorConfig, AuraOrchestratorState, AuraOrchestratorEvent, AuraOrchestratorAction
 from app.ml.aura.organizational.bu_insights import BUInsights
 from app.ml.aura.organizational.network_analyzer import NetworkAnalyzer
@@ -85,8 +89,9 @@ __all__ = [
     'AdaptiveEngine',
     'AnomalyDetector',
     'AuraEngine',
-    'AuraGraphBuilder',  # Confirmar si existe
+    'AuraGraphBuilder',
     'AuraIntegrationLayer',
+    'IntegrationLayer',  # Alias para AuraIntegrationLayer
     'AuraMetric',
     'AuraMetrics',
     'AuraMonitor',

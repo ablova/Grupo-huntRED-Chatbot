@@ -1,0 +1,3 @@
+"""
+Slack integration channel module.
+"""

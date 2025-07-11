@@ -1,0 +1,3 @@
+"""
+Messenger integration channel module.
+"""

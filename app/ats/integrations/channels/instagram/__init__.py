@@ -1,0 +1,3 @@
+"""
+Instagram integration channel module.
+"""

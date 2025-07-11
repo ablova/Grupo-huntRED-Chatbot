@@ -3,6 +3,11 @@ import { ThemeProvider } from '@/components/ThemeProvider';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 
+// New Main Sections
+import HeroSection from '@/components/HeroSection';
+import TalentEcosystemSection from '@/components/TalentEcosystemSection';
+import TalentLifecycleSection from '@/components/TalentLifecycleSection';
+
 // Hero & Stats Sections
 import NewHeroSection from '@/components/NewHeroSection';
 import StatsHeroSection from '@/components/StatsHeroSection';
@@ -73,6 +78,11 @@ const Index = () => {
         <Header />
         
         <main>
+          {/* ===== NEW MAIN SECTIONS ===== */}
+          <HeroSection />
+          <TalentEcosystemSection />
+          <TalentLifecycleSection />
+          
           {/* ===== HERO & IMPACT SECTIONS ===== */}
           <NewHeroSection />
           <StatsHeroSection />

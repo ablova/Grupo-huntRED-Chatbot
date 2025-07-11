@@ -1,3 +1,4 @@
+# app/ml/aura/connectors/icloud_connector.py
 """
 Conector de iCloud para el Sistema Aura
 
@@ -231,3 +232,6 @@ class iCloudConnector:
         except Exception as e:
             logger.error(f"Error analizando superposición de redes: {str(e)}")
             return {} 
+
+# Alias para mantener compatibilidad con código existente
+ICloudConnector = iCloudConnector

@@ -48,17 +48,13 @@ const Header = () => {
     <header className={`fixed top-0 left-0 right-0 z-50 border-b transition-all duration-300 ${scrolled ? 'bg-background shadow-md' : 'glass border-border/40 backdrop-blur-xl'}`}>
       <div className="container mx-auto px-4 lg:px-8">
         <nav className="flex items-center justify-between h-16">
-          {/* Logo with Heart */}
+          {/* Logo */}
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 modern-gradient-bg rounded-xl flex items-center justify-center shadow-lg">
-              <Heart className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <span className="text-xl font-bold tech-title">
-                Grupo huntRED® AI
-              </span>
-              <div className="text-xs text-muted-foreground">Con ❤️ para tu éxito</div>
-            </div>
+            <img 
+              src="/g_huntred.png" 
+              alt="Grupo huntRED® AI" 
+              className="h-12 w-auto object-contain"
+            />
           </div>
 
           {/* Desktop Navigation */}

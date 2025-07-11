@@ -784,5 +784,7 @@ class AuraGraphBuilder:
             logger.error(f"Error infiriendo segmento para usuario {user_id}: {str(e)}")
             return None
 
-# Alias global para mantener compatibilidad con código existente
-GNNManager = AuraGraphBuilder 
+# Alias globales para mantener compatibilidad con código existente
+GNNManager = AuraGraphBuilder
+GraphBuilder = AuraGraphBuilder
+ProfessionalNetworkBuilder = AuraGraphBuilder
