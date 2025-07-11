@@ -15,8 +15,7 @@ import logging
 from datetime import datetime
 
 from app.models import (
-    Person, BackgroundCheck, INCODEVerification,
-    VerificationStatus, RiskLevel, VerificationType
+    Person, CandidateVerification, INCODEVerification
 )
 from app.ats.chatbot.components.risk_analysis import RiskAnalysis
 from app.ats.verification.tasks import process_verification
@@ -32,15 +31,18 @@ def verification_list(request):
     """
     Lista de verificaciones y análisis
     """
-    verifications = BackgroundCheck.objects.all().order_by('-created_at')
+    verifications = CandidateVerification.objects.all().order_by('-started_at')
     paginator = Paginator(verifications, 20)
     page = request.GET.get('page', 1)
     
     context = {
         'verifications': paginator.get_page(page),
-        'status_choices': VerificationStatus.choices,
-        'risk_levels': RiskLevel.choices,
-        'verification_types': VerificationType.choices
+        'status_choices': [
+            ('pending', 'Pendiente'),
+            ('in_progress', 'En progreso'),
+            ('completed', 'Completado'),
+            ('failed', 'Fallido')
+        ]
     }
     return render(request, 'verification/verification_list.html', context)
 
@@ -57,10 +59,10 @@ def initiate_verification(request, candidate_id):
             data = json.loads(request.body)
             
             # Crear verificación
-            verification = BackgroundCheck.objects.create(
+            verification = CandidateVerification.objects.create(
                 candidate=candidate,
-                status=VerificationStatus.PENDING,
-                verification_type=data.get('verification_type', VerificationType.STANDARD)
+                status='pending',
+                package_id=data.get('package_id', 1)  # Default package
             )
             
             # Procesar verificación en segundo plano
@@ -87,7 +89,11 @@ def initiate_verification(request, candidate_id):
     # GET request
     context = {
         'candidate': candidate,
-        'verification_types': VerificationType.choices
+        'verification_types': [
+            ('standard', 'Estándar'),
+            ('premium', 'Premium'),
+            ('comprehensive', 'Comprehensivo')
+        ]
     }
     return render(request, 'verification/initiate_verification.html', context)
 
@@ -97,7 +103,7 @@ def analyze_risk(request, verification_id):
     """
     Realizar análisis de riesgo para una verificación
     """
-    verification = get_object_or_404(BackgroundCheck, id=verification_id)
+    verification = get_object_or_404(CandidateVerification, id=verification_id)
     
     if request.method == 'POST':
         try:
@@ -140,7 +146,7 @@ def verify_incode(request, verification_id):
     """
     Realizar verificación con INCODE
     """
-    verification = get_object_or_404(BackgroundCheck, id=verification_id)
+    verification = get_object_or_404(CandidateVerification, id=verification_id)
     
     if request.method == 'POST':
         try:
@@ -190,10 +196,10 @@ def webhook_verification(request):
         try:
             data = json.loads(request.body)
             verification_id = data.get('verification_id')
-            verification = get_object_or_404(BackgroundCheck, id=verification_id)
+            verification = get_object_or_404(CandidateVerification, id=verification_id)
             
             # Actualizar estado y resultados
-            verification.status = data.get('status', VerificationStatus.FAILED)
+            verification.status = data.get('status', 'failed')
             verification.results = data.get('results', {})
             verification.completed_at = datetime.now()
             verification.save()
