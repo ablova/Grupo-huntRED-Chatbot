@@ -1,4 +1,4 @@
-# /home/pablo/app/com/chatbot/integrations/risk_analysis.py
+# app/ats/chatbot/components/risk_analysis.py
 #
 # Módulo para analizar riesgos y consistencia en perfiles de candidatos.
 # Implementa métricas y análisis para evaluar la confiabilidad de los datos.

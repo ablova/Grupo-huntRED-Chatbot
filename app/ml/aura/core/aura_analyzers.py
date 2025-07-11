@@ -5,19 +5,31 @@
 
 from typing import Dict, Any, List  # Type hints para legibilidad y errores tempranos.
 from .gpt import BUModularGPT  # Import dinámico desde gpt.py, asumiendo estructura.
-import torch  # Para ML eficiente, con no_grad() para bajo CPU.
+try:
+    import torch  # Para ML eficiente, con no_grad() para bajo CPU.
+    TORCH_AVAILABLE = True
+except ImportError:
+    TORCH_AVAILABLE = False
+    torch = None
+
 from functools import lru_cache
 
 class BaseAuraAnalyzer:
     """Clase base dinámica para analyzers, extensible por BU."""
     def __init__(self, gpt_provider: BUModularGPT):
         self.gpt = gpt_provider
-        self.model = torch.nn.Module()  # Modelo ML existente, optimizado.
+        if TORCH_AVAILABLE:
+            self.model = torch.nn.Module()  # Modelo ML existente, optimizado.
+        else:
+            self.model = None
 
     @lru_cache(maxsize=1000)  # Caché para análisis repetidos, optimiza CPU sin latencia.
-    def preprocess_data(self, data: Dict[str, Any]) -> torch.Tensor:
+    def preprocess_data(self, data: Dict[str, Any]):
         # Optimización: Preprocesamiento cacheado para balance.
-        return torch.tensor(list(data.values()), dtype=torch.float32)
+        if TORCH_AVAILABLE:
+            return torch.tensor(list(data.values()), dtype=torch.float32)
+        else:
+            return list(data.values())  # Fallback sin PyTorch
 
     async def analyze_talent(self, talent_data: Dict[str, Any], bu_id: str) -> Dict[str, float]:
         """Función existente mantenida, ahora async e integrada con GPT para dinamismo."""
