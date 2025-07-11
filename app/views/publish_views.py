@@ -14,9 +14,10 @@ import json
 import logging
 
 from app.models import (
-    JobOpportunity, BusinessUnit, Channel, WhatsAppAPI, TelegramAPI,
+    JobOpportunity, BusinessUnit, WhatsAppAPI, TelegramAPI,
     MessengerAPI, InstagramAPI, SlackAPI
 )
+from app.ats.publish.models import Channel
 from app.ats.publish.tasks import process_new_job_opportunity
 from app.ats.publish.utils import get_channel_processor
 
