@@ -91,11 +91,10 @@ class Talent360RequestForm(forms.ModelForm):
         model = TalentAnalysisRequest
         fields = [
             'user_count', 'description', 'send_proposal_email',
-            'status', 'priority'
+            'status'
         ]
         widgets = {
             'status': Select(attrs={'class': 'form-select'}),
-            'priority': Select(attrs={'class': 'form-select'}),
         }
     
     def __init__(self, *args, **kwargs):
