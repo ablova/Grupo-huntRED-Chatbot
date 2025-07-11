@@ -1,5 +1,6 @@
 from typing import Dict, Any
 import logging
+from django.http import HttpRequest
 from app.ats.integrations.base.webhooks import BaseWebhook
 from app.ats.integrations.channels.whatsapp.handler import WhatsAppHandler
 from app.ats.config.settings.chatbot import CHATBOT_CONFIG
