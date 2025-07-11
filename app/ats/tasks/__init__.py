@@ -23,12 +23,22 @@ from app.ats.onboarding.onboarding_controller import (
     OnboardingController
 )
 
-from app.ats.services import (
-    ProposalService,
-    InterviewService,
-    OfferService,
-    OnboardingService
-)
+# Importaciones circulares movidas dentro de funciones
+def get_proposal_service():
+    from app.ats.services import ProposalService
+    return ProposalService
+
+def get_interview_service():
+    from app.ats.services import InterviewService
+    return InterviewService
+
+def get_offer_service():
+    from app.ats.services import OfferService
+    return OfferService
+
+def get_onboarding_service():
+    from app.ats.services import OnboardingService
+    return OnboardingService
 
 # Tareas de Propuestas
 from app.ats.proposals.tasks import (
@@ -81,10 +91,10 @@ __all__ = [
     
     # Controladores y Servicios Principales
     'OnboardingController',
-    'ProposalService',
-    'InterviewService',
-    'OfferService',
-    'OnboardingService',
+    'get_proposal_service',
+    'get_interview_service',
+    'get_offer_service',
+    'get_onboarding_service',
     
     # Tareas de Propuestas
     'send_proposal_email',
