@@ -1192,9 +1192,15 @@ class SocialConnection(models.Model):
 
 class Company(models.Model):
     name = models.CharField(max_length=255, unique=True, help_text="Nombre de la empresa.")
+    legal_name = models.CharField(max_length=255, blank=True, null=True, help_text="Nombre legal de la empresa.")
+    tax_id = models.CharField(max_length=50, blank=True, null=True, help_text="RFC o identificación fiscal.")
     industry = models.CharField(max_length=100, blank=True, null=True, help_text="Industria.")
     size = models.CharField(max_length=50, blank=True, null=True, help_text="Tamaño de la empresa, ej: 1-10, 11-50, 51-200, 201-500, 501+")
     location = models.CharField(max_length=100, blank=True, null=True, help_text="Ubicación principal.")
+    address = models.TextField(blank=True, null=True, help_text="Dirección completa de la empresa.")
+    city = models.CharField(max_length=100, blank=True, null=True, help_text="Ciudad.")
+    state = models.CharField(max_length=100, blank=True, null=True, help_text="Estado o provincia.")
+    country = models.CharField(max_length=100, blank=True, null=True, help_text="País.")
     website = models.URLField(max_length=200, blank=True, null=True, help_text="Sitio web corporativo.")
     description = models.TextField(blank=True, null=True, help_text="Descripción general de la empresa.")
     created_at = models.DateTimeField(auto_now_add=True)
