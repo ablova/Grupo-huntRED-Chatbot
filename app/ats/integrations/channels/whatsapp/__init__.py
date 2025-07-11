@@ -7,3 +7,4 @@ from .whatsapp import *
 from .services import *
 from .handler import *
 from .webhook import *
+from .whatsapp import whatsapp_webhook
