@@ -29,7 +29,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.core.paginator import Paginator
 
 from app.models import (
-    BusinessUnit, Opportunity, Contact, Company, 
+    BusinessUnit, Opportunity, Contract, Company, 
     TalentAnalysisRequest, ProposalTemplate, Invoice
 )
 from app.ats.pricing.talent_360_pricing import Talent360Pricing
