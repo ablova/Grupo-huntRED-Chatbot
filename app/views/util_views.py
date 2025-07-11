@@ -1,8 +1,8 @@
-# /home/pablo/app/views/utils_views.py
+# /home/pablo/app/views/util_views.py
 
 from django.views import View
 from django.http import JsonResponse
-from app.tasks import send_notification_task
+from app.tasks import send_bulk_notifications_task as send_notification_task
 from django.shortcuts import render
 from app.ats.utils.salario import calcular_neto, calcular_bruto, obtener_tipo_cambio
 from app.ats.integrations.services import send_message

@@ -1,4 +1,4 @@
-# /home/pablo/app/views/chatbot_views.py
+# app/views/chatbot_views.py
 #
 # Vista para el módulo. Implementa la lógica de presentación y manejo de peticiones HTTP.
 
@@ -10,7 +10,7 @@ from django.db import transaction
 import json
 import logging
 from asgiref.sync import sync_to_async
-from app.ats.chatbot.conversational_flow import ConversationalFlowManager
+from app.ats.chatbot.flow.conversational_flow_manager import ConversationalFlowManager
 from app.ats.integrations.services import MessageService
 from app.models import Person, BusinessUnit
 
@@ -183,3 +183,97 @@ class WebhookView(View):
             person_id=candidate_id,
             status=EventStatus.COMPLETADO
         )
+
+@method_decorator(csrf_exempt, name='dispatch')
+class ProcessMessageView(View):
+    """
+    Vista específica para procesar mensajes del chatbot.
+    
+    Esta vista actúa como un endpoint dedicado para el procesamiento de mensajes,
+    permitiendo testing, simulación y integración con otros servicios.
+    """
+    
+    def __init__(self):
+        super().__init__()
+        self.message_service = MessageService()
+        self.flow_manager = ConversationalFlowManager()
+
+    async def post(self, request):
+        """
+        Procesa mensajes enviados al endpoint.
+        
+        Args:
+            request: HttpRequest con datos del mensaje
+            
+        Returns:
+            JsonResponse: Respuesta con el estado de la operación
+        """
+        try:
+            data = json.loads(request.body.decode('utf-8'))
+            user_id = data.get('user_id')
+            text = data.get('text')
+            bu_name = data.get('business_unit')
+            platform = data.get('platform', 'whatsapp')  # Default a WhatsApp
+            
+            if not all([user_id, text, bu_name]):
+                return JsonResponse({
+                    'error': 'Parámetros requeridos faltantes: user_id, text, business_unit'
+                }, status=400)
+            
+            # Obtener o crear el usuario
+            person = await sync_to_async(Person.objects.get_or_create)(
+                external_id=user_id,
+                defaults={'name': 'Usuario Desconocido'}
+            )
+            
+            # Obtener el business unit
+            bu = await sync_to_async(BusinessUnit.objects.get)(name=bu_name)
+            
+            # Procesar el mensaje usando el flow manager
+            result = await self.flow_manager.process_message(person, text)
+            
+            if result['success']:
+                # Enviar respuesta usando el servicio de mensajes
+                await self.message_service.send_message(
+                    platform,
+                    user_id,
+                    result['response']['text']
+                )
+                
+                # Si hay opciones, enviarlas
+                if result['response'].get('options'):
+                    await self.message_service.send_options(
+                        platform,
+                        user_id,
+                        result['response']['text'],
+                        result['response']['options']
+                    )
+                
+                return JsonResponse({
+                    'status': 'success',
+                    'response': result['response'],
+                    'message': 'Mensaje procesado correctamente'
+                })
+            else:
+                return JsonResponse({
+                    'status': 'error',
+                    'error': result.get('error', 'Error desconocido en el procesamiento')
+                }, status=400)
+                
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'JSON inválido'}, status=400)
+        except BusinessUnit.DoesNotExist:
+            return JsonResponse({'error': 'Unidad de negocio no encontrada'}, status=404)
+        except Exception as e:
+            logger.error(f"Error procesando mensaje en ProcessMessageView: {e}", exc_info=True)
+            return JsonResponse({'error': 'Error interno del servidor'}, status=500)
+
+    def get(self, request):
+        """
+        Endpoint GET para verificación de estado del servicio.
+        """
+        return JsonResponse({
+            'status': 'ok',
+            'message': 'ProcessMessageView está funcionando correctamente',
+            'endpoint': 'chatbot/process_message/'
+        })

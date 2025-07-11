@@ -15,7 +15,7 @@ import logging
 from datetime import datetime
 
 from app.models import (
-    Candidate, BackgroundCheck, INCODEVerification,
+    Person, BackgroundCheck, INCODEVerification,
     VerificationStatus, RiskLevel, VerificationType
 )
 from app.ats.chatbot.components.risk_analysis import RiskAnalysis
@@ -50,7 +50,7 @@ def initiate_verification(request, candidate_id):
     """
     Iniciar proceso de verificación para un candidato
     """
-    candidate = get_object_or_404(Candidate, id=candidate_id)
+    candidate = get_object_or_404(Person, id=candidate_id)
     
     if request.method == 'POST':
         try:
