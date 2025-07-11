@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# /home/pablo/app/com/chatbot/integrations/enhanced_document_processor.py
+# app/ats/integrations/services/document.py
 # 
 # Procesador mejorado de documentos que integra NLP, LinkedIn y el sistema de parsing existente.
 
@@ -24,8 +24,9 @@ from app.ats.utils.parser import AdvancedParser as CVParser
 from app.models import (
     BusinessUnit, Person,
     ChatMessage, Notification,
-    WorkflowStatus, ChannelSettings
+    WorkflowStage
 )
+from app.ats.pricing.integrations.automation.workflow_engine import WorkflowStatus
 from app.ml.core.models.base import MatchmakingLearningSystem
 from app.ml.ml_utils import calculate_match_percentage, calculate_alignment_percentage
 

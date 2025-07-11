@@ -1,4 +1,4 @@
-# /home/pablo/app/urls.py
+# app/urls.py
 #
 # Configuración de URLs para el módulo. Define endpoints, vistas y patrones de URL.
 
@@ -13,44 +13,44 @@ from app.views.main_views import (
     index, interacciones_por_unidad, finalize_candidates, 
     submit_application, home
 )
-from app.ats.views.proposal_views import download_proposal_pdf
-from app.ats.views.auth_views import (
+from app.views.proposal_views import download_proposal_pdf
+from app.views.auth_views import (
     login_view, logout_view, user_management,
     approve_user, profile, change_password,
     forgot_password, reset_password, document_verification
 )
-from app.ats.views.offer_letter_views import (
+from app.views.offer_letter_views import (
     gestion_cartas_oferta, marcar_como_firmada, reenviar_carta, ver_carta, generar_preview
 )
-from app.ats.views.preview_views import generar_preview
-from app.ats.views.dashboard_views import dashboard_view
-from app.ats.views.chatbot_views import ProcessMessageView, ChatbotView, WebhookView
-from app.ats.views.util_views import (
+from app.views.preview_views import generar_preview
+from app.views.dashboard_views import dashboard_view
+from app.views.chatbot_views import ProcessMessageView, ChatbotView, WebhookView
+from app.views.util_views import (
     SendTestMessageView, SendTestNotificationView, TriggerErrorView
 )
-from app.ats.views.verification_views import (
+from app.views.verification_views import (
     verification_list, initiate_verification, analyze_risk,
     verify_incode, webhook_verification
 )
-from app.ats.views.candidatos_views import (
+from app.views.candidatos_views import (
     candidato_dashboard, list_candidatos, add_application, 
     candidato_details, generate_challenges
 )
-from app.ats.views.ml_views import train_ml_api, predict_matches
-from app.ats.views.ml_admin_views import MLDashboardView, vacancy_analysis_view, candidate_growth_plan_view, candidate_growth_plan_pdf_view, dashboard_charts_api_view
+from app.views.ml_views import train_ml_api, predict_matches
+from app.views.ml_admin_views import MLDashboardView, vacancy_analysis_view, candidate_growth_plan_view, candidate_growth_plan_pdf_view, dashboard_charts_api_view
 from app.views.dashboard import (
     dashboard, interview_slots_dashboard, generate_slots, 
     slot_details, edit_slot, delete_slot, slot_analytics
 )
 
 # IMPORTACIONES DE WEBHOOKS (MENSAJERÍA)
-from app.ats.views.webhook_views import (
+from app.views.webhook_views import (
     WhatsAppWebhookView, TelegramWebhookView, 
     MessengerWebhookView, InstagramWebhookView
 )
 
 # IMPORTACIONES DE WORKFLOW (GESTIÓN DE ETAPAS)
-from app.ats.views.workflow_views import (
+from app.views.workflow_views import (
     WorkflowStageListView, WorkflowStageCreateView, 
     WorkflowStageUpdateView, WorkflowStageDeleteView
 )
@@ -62,7 +62,7 @@ from app.ats.sexsi.views import (
     request_revision, revoke_agreement, paypal_webhook
 )
 from django.urls import path
-from app.ats.views.publish_views import (
+from app.views.publish_views import (
     job_opportunities_list,
     create_job_opportunity,
     publish_job_opportunity,

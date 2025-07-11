@@ -4,7 +4,7 @@
 
 import pytest
 from unittest.mock import patch, Mock
-from app.ats.chatbot.conversational_flow import ConversationalFlowManager
+from app.ats.chatbot.flow.conversational_flow_manager import ConversationalFlowManager
 from app.models import Person, BusinessUnit, IntentPattern, StateTransition, ChatState
 
 def create_test_data():

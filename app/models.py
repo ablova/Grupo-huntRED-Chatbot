@@ -1,4 +1,4 @@
-# /home/pablo/app/models.py
+# app/models.py
     
 import os
 import logging
@@ -22,6 +22,9 @@ from django.contrib.auth.models import AbstractUser, BaseUserManager, User
 from django.utils.translation import gettext_lazy as _
 from datetime import datetime, timedelta, date
 from functools import lru_cache
+
+# Importar el modelo CustomUser centralizado
+from app.ats.accounts.models import CustomUser
 
 # Import NotificationService
 # Notification service is now imported lazily in methods to avoid circular imports
@@ -702,7 +705,7 @@ class BusinessUnit(models.Model):
             user=user
         ).delete()
         self._clear_caches()
-    
+
     # Métodos de Estado
     @property
     def is_active(self):
@@ -1520,7 +1523,11 @@ class Vacante(models.Model):
     empresa = models.ForeignKey('Empleador', on_delete=models.CASCADE, related_name='vacantes')
     business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE, related_name='vacantes', null=True, blank=True)
     proposal = models.ForeignKey('Proposal', on_delete=models.SET_NULL, null=True, blank=True, related_name='vacancies')
+    # Campo original (mantenido para compatibilidad)
     salario = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    # Nuevos campos para rango salarial
+    salario_minimo = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    salario_maximo = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     ubicacion = models.CharField(max_length=300, blank=True, null=True)
     modalidad = models.CharField(max_length=50, choices=[
         ('presencial', 'Presencial'),
@@ -1529,7 +1536,7 @@ class Vacante(models.Model):
     ], null=True, blank=True)
     remote_friendly = models.BooleanField(default=False)
     descripcion = models.TextField(max_length=3000, blank=True)
-    requisitos = models.TextField(blank=True, null=True)
+    requisitos = models.TextField(blank=True, null=True) 
     beneficios = models.TextField(blank=True, null=True)
     skills_required = models.JSONField(default=list)
     activa = models.BooleanField(default=True)
@@ -1595,7 +1602,7 @@ class Vacancy(models.Model):
         verbose_name_plural = "Vacantes"
 
     def __str__(self):
-        return self.title
+        return self.name
 
 class Opportunity(models.Model):
     """Modelo para oportunidades."""
@@ -1611,7 +1618,7 @@ class Opportunity(models.Model):
         verbose_name_plural = "Oportunidades"
 
     def __str__(self):
-        return self.title
+        return self.name
 
 class MilkyLeak(models.Model):
     """Modelo para el sistema de leaks."""
@@ -1627,12 +1634,14 @@ class MilkyLeak(models.Model):
         verbose_name_plural = "Leaks"
 
     def __str__(self):
-        return self.title
+        return self.name
 
 class WorkflowStage(models.Model):
     """Modelo para etapas del flujo de trabajo."""
     name = models.CharField(max_length=100)
+    description = models.TextField(blank=True, null=True)
     order = models.IntegerField()
+    duration_days = models.PositiveIntegerField(default=1)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -1695,7 +1704,7 @@ class Proposal(models.Model):
         verbose_name_plural = "Propuestas"
 
     def __str__(self):
-        return self.title
+        return self.name
 
 class Invoice(models.Model):
     """Modelo para facturas con soporte para facturación electrónica y compliance."""
@@ -2112,10 +2121,50 @@ class Order(models.Model):
         return progress_map.get(self.status, 0)
 
 class LinkedInMessageTemplate(models.Model):
-    """Modelo para plantillas de mensajes de LinkedIn."""
-    title = models.CharField(max_length=200)
-    content = models.TextField()
-    is_active = models.BooleanField(default=True)
+    """Modelo para plantillas de mensajes de LinkedIn.
+    
+    Este modelo está optimizado para crear mensajes estructurados y personalizados
+    para LinkedIn, siguiendo las mejores prácticas de la plataforma para maximizar
+    la tasa de respuesta y evitar ser marcado como spam.
+    
+    Los mensajes pueden incluir variables dinámicas como:
+    - {name}: Nombre del destinatario
+    - {company}: Empresa actual del destinatario
+    - {skills}: Habilidades relevantes del destinatario
+    - {job_count}: Número de ofertas de trabajo relevantes
+    - {ai_insight}: Insight personalizado generado por IA
+    - {position}: Posición actual del destinatario
+    - {industry}: Industria del destinatario
+    - {mutual_connections}: Conexiones en común
+    - {personalized_note}: Nota personalizada basada en el perfil
+    """
+    name = models.CharField(max_length=200, help_text="Nombre descriptivo de la plantilla")
+    template = models.TextField(help_text="Texto de la plantilla con variables entre llaves, ej: {name}")
+    is_active = models.BooleanField(default=True, help_text="Indica si esta plantilla está activa para uso")
+    
+    # Opciones de personalización
+    include_skills = models.BooleanField(default=False, help_text="Incluir habilidades relevantes del destinatario")
+    include_job_count = models.BooleanField(default=False, help_text="Incluir número de ofertas relevantes")
+    include_ai_insight = models.BooleanField(default=False, help_text="Incluir insight personalizado generado por IA")
+    include_mutual_connections = models.BooleanField(default=False, help_text="Mencionar conexiones en común")
+    include_personalized_note = models.BooleanField(default=False, help_text="Incluir nota personalizada basada en el perfil")
+    
+    # Metadatos
+    target_audience = models.CharField(max_length=100, blank=True, null=True, help_text="Audiencia objetivo de esta plantilla")
+    purpose = models.CharField(max_length=100, blank=True, null=True, 
+                             choices=[
+                                 ('recruitment', 'Reclutamiento'),
+                                 ('networking', 'Networking'),
+                                 ('sales', 'Ventas'),
+                                 ('partnership', 'Alianzas'),
+                                 ('other', 'Otro')
+                             ],
+                             help_text="Propósito principal de esta plantilla")
+    
+    # Estadísticas de rendimiento
+    send_count = models.IntegerField(default=0, help_text="Número de veces que se ha enviado esta plantilla")
+    response_count = models.IntegerField(default=0, help_text="Número de respuestas recibidas")
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -2124,7 +2173,7 @@ class LinkedInMessageTemplate(models.Model):
         verbose_name_plural = "Plantillas de Mensajes LinkedIn"
 
     def __str__(self):
-        return self.title
+        return self.name
 
 class LinkedInInvitationSchedule(models.Model):
     """Modelo para programación de invitaciones de LinkedIn."""
@@ -2184,6 +2233,10 @@ class DocumentVerification(models.Model):
     """Modelo para verificación de documentos."""
     person = models.ForeignKey(Person, on_delete=models.CASCADE)
     document_type = models.CharField(max_length=50)
+    document_number = models.CharField(max_length=50)
+    document_front = models.ImageField(upload_to='documents/', null=True, blank=True)
+    document_back = models.ImageField(upload_to='documents/', null=True, blank=True)
+    selfie = models.ImageField(upload_to='selfies/', null=True, blank=True)
     status = models.CharField(max_length=50)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -2560,7 +2613,7 @@ class AnalyticsReport(models.Model):
         verbose_name_plural = "Reportes Analíticos"
 
     def __str__(self):
-        return self.title
+        return self.name
 
 class Contract(models.Model):
     """Modelo para contratos."""
@@ -2576,12 +2629,14 @@ class Contract(models.Model):
         verbose_name_plural = "Contratos"
 
     def __str__(self):
-        return self.title
+        return self.name
 
 class UserPermission(models.Model):
     """Modelo para permisos de usuario."""
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     permission = models.CharField(max_length=50, choices=PERMISSION_CHOICES)
+    business_unit = models.ForeignKey('BusinessUnit', on_delete=models.CASCADE, null=True, blank=True)
+    division = models.ForeignKey('Division', on_delete=models.CASCADE, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -2866,6 +2921,149 @@ class Coupon(models.Model):
 
     def __str__(self):
         return self.code
+
+
+class Coupons(models.Model):
+    """Modelo avanzado para cupones de descuento con soporte para monto fijo y porcentaje."""
+    # Información básica
+    code = models.CharField(
+        max_length=50, 
+        unique=True,
+        verbose_name="Código",
+        help_text="Código único del cupón"
+    )
+    description = models.TextField(
+        blank=True,
+        verbose_name="Descripción",
+        help_text="Descripción del cupón"
+    )
+    
+    # Tipo y valor del cupón
+    TYPE_CHOICES = [
+        ('fixed', 'Monto Fijo ($)'),
+        ('percentage', 'Porcentaje (%)')
+    ]
+    type = models.CharField(
+        max_length=20, 
+        choices=TYPE_CHOICES,
+        default='percentage',
+        verbose_name="Tipo",
+        help_text="Tipo de descuento: monto fijo o porcentaje"
+    )
+    value = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2,
+        validators=[MinValueValidator(0)],
+        verbose_name="Valor",
+        help_text="Valor del descuento (monto o porcentaje según el tipo)"
+    )
+    
+    # Validez y uso
+    valid_until = models.DateTimeField(
+        verbose_name="Válido hasta",
+        help_text="Fecha de expiración del cupón"
+    )
+    max_uses = models.PositiveIntegerField(
+        default=1,
+        verbose_name="Usos máximos",
+        help_text="Número máximo de veces que se puede usar este cupón"
+    )
+    current_uses = models.PositiveIntegerField(
+        default=0,
+        verbose_name="Usos actuales",
+        help_text="Número de veces que se ha usado este cupón"
+    )
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name="Activo",
+        help_text="Indica si el cupón está activo"
+    )
+    
+    # Relaciones
+    bu = models.ForeignKey(
+        BusinessUnit, 
+        on_delete=models.CASCADE,
+        verbose_name="Unidad de negocio",
+        related_name="coupons"
+    )
+    
+    # Campos para segmentación y campañas
+    campaign = models.CharField(
+        max_length=100, 
+        blank=True, 
+        null=True,
+        verbose_name="Campaña",
+        help_text="Campaña asociada al cupón"
+    )
+    bundle = models.CharField(
+        max_length=100, 
+        blank=True, 
+        null=True,
+        verbose_name="Bundle",
+        help_text="Bundle o paquete asociado al cupón"
+    )
+    
+    # Campos de auditoría
+    created_at = models.DateTimeField(
+        auto_now_add=True, 
+        verbose_name="Creado"
+    )
+    last_updated = models.DateTimeField(
+        auto_now=True, 
+        verbose_name="Última actualización"
+    )
+    
+    class Meta:
+        verbose_name = "Cupón de Pricing"
+        verbose_name_plural = "Cupones de Pricing"
+        ordering = ['-created_at', 'code']
+        indexes = [
+            models.Index(fields=['code']),
+            models.Index(fields=['valid_until']),
+            models.Index(fields=['is_active']),
+            models.Index(fields=['bu', 'is_active']),
+            models.Index(fields=['campaign']),
+            models.Index(fields=['bundle']),
+        ]
+    
+    def __str__(self):
+        return f"{self.code} - {self.get_value_display()}"
+    
+    def get_value_display(self):
+        """Obtiene el valor del cupón en formato legible."""
+        if self.type == 'fixed':
+            return f"${self.value}"
+        return f"{self.value}%"
+    
+    def is_valid(self):
+        """Verifica si el cupón es válido para su uso."""
+        now = timezone.now()
+        return (
+            self.is_active and 
+            self.valid_until > now and 
+            (self.current_uses < self.max_uses)
+        )
+    
+    def calculate_discount(self, amount):
+        """Calcula el descuento para un monto dado."""
+        if not self.is_valid():
+            return 0
+            
+        if self.type == 'fixed':
+            return min(self.value, amount)  # No descontar más que el monto total
+        else:  # percentage
+            return (amount * self.value) / 100
+    
+    def apply_discount(self, amount):
+        """Aplica el descuento y aumenta el contador de usos."""
+        if not self.is_valid():
+            return amount
+            
+        discount = self.calculate_discount(amount)
+        self.current_uses += 1
+        self.save(update_fields=['current_uses', 'last_updated'])
+        
+        return max(amount - discount, 0)  # No permitir montos negativos
 
 class TalentAnalysisRequest(models.Model):
     """Modelo para solicitudes de análisis de talento."""
@@ -3786,6 +3984,7 @@ class CustomUser(AbstractUser):
     
     phone = models.CharField(max_length=20, blank=True, null=True)
     business_unit = models.ForeignKey('BusinessUnit', on_delete=models.SET_NULL, null=True, blank=True)
+    division = models.ForeignKey('Division', on_delete=models.SET_NULL, null=True, blank=True, related_name='users')
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='BU_DIVISION')
     permissions = models.JSONField(default=dict, blank=True)
     
@@ -4260,6 +4459,7 @@ class CartaOferta(models.Model):
 
 class Application(models.Model):
     """Modelo para gestionar aplicaciones a oportunidades."""
+    # Campos originales
     candidato = models.ForeignKey('Person', on_delete=models.CASCADE)
     oportunidad = models.ForeignKey('Oportunidad', on_delete=models.CASCADE)
     estado = models.CharField(max_length=20, choices=[
@@ -4273,6 +4473,17 @@ class Application(models.Model):
     fecha_aplicacion = models.DateTimeField(auto_now_add=True)
     ultima_actualizacion = models.DateTimeField(auto_now=True)
     notas = models.TextField(blank=True)
+    
+    # Campos necesarios para el formulario (agregados)
+    user = models.ForeignKey('accounts.CustomUser', on_delete=models.CASCADE, null=True, blank=True, related_name='applications')
+    vacancy = models.ForeignKey('Vacante', on_delete=models.CASCADE, null=True, blank=True, related_name='applications')
+    status = models.CharField(max_length=20, null=True, blank=True)
+    notes = models.TextField(blank=True, null=True)
+    interview_date = models.DateField(null=True, blank=True)
+    expected_salary = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    current_salary = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    skills = models.TextField(blank=True, null=True)
+    experience_years = models.PositiveIntegerField(null=True, blank=True)
 
     class Meta:
         verbose_name = "Aplicación"
@@ -5190,7 +5401,7 @@ class Chat(models.Model):
         ordering = ['-updated_at']
         
     def __str__(self):
-        return self.title
+        return self.name
 
 class JobOpportunity(models.Model):
     """Modelo para oportunidades de trabajo."""
@@ -5219,7 +5430,7 @@ class JobOpportunity(models.Model):
         ordering = ['-created_at']
         
     def __str__(self):
-        return self.title
+        return self.name
 
 class SmtpConfig(models.Model):
     """Modelo para configuración de servidor SMTP."""
@@ -7022,3 +7233,370 @@ class Placement(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     business_unit = models.ForeignKey(BusinessUnit, on_delete=models.SET_NULL, null=True, blank=True)
+
+
+class Addons(models.Model):
+    """Modelo para complementos (addons) de precios."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=100, verbose_name="Nombre")
+    description = models.TextField(blank=True, verbose_name="Descripción")
+    price = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        validators=[MinValueValidator(0)],
+        verbose_name="Precio"
+    )
+    max_per_vacancy = models.PositiveIntegerField(
+        default=1,
+        verbose_name="Máximo por vacante",
+        help_text="Número máximo de este complemento que se puede aplicar a una vacante"
+    )
+    active = models.BooleanField(default=True, verbose_name="Activo")
+    for_ai_model = models.BooleanField(
+        default=False, 
+        verbose_name="Para modelo AI",
+        help_text="Indica si este complemento es específico para el modelo de precios basado en AI"
+    )
+    bu = models.ForeignKey(
+        BusinessUnit, 
+        on_delete=models.CASCADE, 
+        verbose_name="Unidad de negocio",
+        related_name="addons"
+    )
+    
+    # Configuración específica del addon (opcional)
+    config = models.JSONField(default=dict, blank=True, verbose_name="Configuración")
+    
+    # Campos de auditoría
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Creado")
+    last_updated = models.DateTimeField(auto_now=True, verbose_name="Última actualización")
+    
+    class Meta:
+        verbose_name = "Complemento"
+        verbose_name_plural = "Complementos"
+        ordering = ['name']
+        indexes = [
+            models.Index(fields=['active']),
+            models.Index(fields=['for_ai_model']),
+            models.Index(fields=['bu', 'active']),
+        ]
+    
+    def __str__(self):
+        return f"{self.name} - {self.price}"
+
+
+# Alias para Payment como Pago para mantener compatibilidad con código existente
+Pago = Payment  # Este alias permite importar 'Pago' desde app.models
+
+class INCODEVerification(models.Model):
+    """
+    Modelo para verificaciones de identidad con INCODE.
+    Addon premium para verificación biométrica y de documentos.
+    """
+    candidate = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='incode_verifications')
+    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE, related_name='incode_verifications')
+    
+    # Tipo de verificación
+    verification_type = models.CharField(max_length=50, choices=[
+        ('identity', 'Verificación de Identidad'),
+        ('document', 'Verificación de Documento'),
+        ('biometric', 'Verificación Biométrica'),
+        ('comprehensive', 'Verificación Integral'),
+        ('liveness', 'Detección de Vida'),
+        ('face_match', 'Coincidencia Facial')
+    ], default='identity')
+    
+    # Estado del proceso
+    status = models.CharField(max_length=20, choices=[
+        ('pending', 'Pendiente'),
+        ('in_progress', 'En progreso'),
+        ('completed', 'Completado'),
+        ('failed', 'Fallido'),
+        ('expired', 'Expirado')
+    ], default='pending')
+    
+    # Resultados y métricas
+    confidence_score = models.FloatField(null=True, blank=True, help_text="Puntuación de confianza (0-1)")
+    risk_score = models.FloatField(null=True, blank=True, help_text="Puntuación de riesgo (0-1)")
+    verification_data = models.JSONField(default=dict, help_text="Datos de verificación de INCODE")
+    results = models.JSONField(default=dict, help_text="Resultados detallados")
+    
+    # Documentos y archivos
+    document_front = models.FileField(upload_to='incode/documents/', null=True, blank=True)
+    document_back = models.FileField(upload_to='incode/documents/', null=True, blank=True)
+    selfie_image = models.FileField(upload_to='incode/selfies/', null=True, blank=True)
+    
+    # Información del documento
+    document_type = models.CharField(max_length=50, choices=[
+        ('ine', 'INE/IFE'),
+        ('passport', 'Pasaporte'),
+        ('driver_license', 'Licencia de Conducir'),
+        ('curp', 'CURP'),
+        ('other', 'Otro')
+    ], null=True, blank=True)
+    document_number = models.CharField(max_length=50, null=True, blank=True)
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    # Metadata
+    incode_session_id = models.CharField(max_length=255, null=True, blank=True)
+    webhook_received = models.BooleanField(default=False)
+    retry_count = models.PositiveIntegerField(default=0)
+    
+    class Meta:
+        verbose_name = "Verificación INCODE"
+        verbose_name_plural = "Verificaciones INCODE"
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['candidate', 'status']),
+            models.Index(fields=['business_unit', 'status']),
+            models.Index(fields=['created_at', 'status']),
+            models.Index(fields=['expires_at']),
+        ]
+    
+    def __str__(self):
+        return f"INCODE {self.verification_type} - {self.candidate} ({self.status})"
+    
+    def is_expired(self):
+        """Verifica si la verificación ha expirado."""
+        if self.expires_at:
+            return timezone.now() > self.expires_at
+        return False
+    
+    def get_confidence_level(self):
+        """Obtiene el nivel de confianza en texto."""
+        if not self.confidence_score:
+            return "No disponible"
+        
+        if self.confidence_score >= 0.9:
+            return "Muy Alto"
+        elif self.confidence_score >= 0.8:
+            return "Alto"
+        elif self.confidence_score >= 0.7:
+            return "Medio"
+        elif self.confidence_score >= 0.6:
+            return "Bajo"
+        else:
+            return "Muy Bajo"
+    
+    def get_risk_level(self):
+        """Obtiene el nivel de riesgo en texto."""
+        if not self.risk_score:
+            return "No evaluado"
+        
+        if self.risk_score <= 0.2:
+            return "Muy Bajo"
+        elif self.risk_score <= 0.4:
+            return "Bajo"
+        elif self.risk_score <= 0.6:
+            return "Medio"
+        elif self.risk_score <= 0.8:
+            return "Alto"
+        else:
+            return "Muy Alto"
+    
+    def calculate_price(self):
+        """Calcula el precio basado en el tipo de verificación."""
+        pricing = {
+            'identity': 50.00,
+            'document': 75.00,
+            'biometric': 100.00,
+            'comprehensive': 150.00,
+            'liveness': 25.00,
+            'face_match': 30.00
+        }
+        return pricing.get(self.verification_type, 50.00)
+
+class BackgroundCheck(models.Model):
+    """
+    Modelo para verificaciones de antecedentes.
+    Freemium en básico, Premium en profundo.
+    """
+    candidate = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='background_checks')
+    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE, related_name='background_checks')
+    
+    # Tipo de verificación
+    check_type = models.CharField(max_length=50, choices=[
+        ('basic', 'Básico (Freemium)'),
+        ('standard', 'Estándar'),
+        ('comprehensive', 'Comprehensivo (Premium)'),
+        ('executive', 'Ejecutivo'),
+        ('compliance', 'Compliance')
+    ], default='basic')
+    
+    # Estado del proceso
+    status = models.CharField(max_length=20, choices=[
+        ('pending', 'Pendiente'),
+        ('in_progress', 'En progreso'),
+        ('completed', 'Completado'),
+        ('failed', 'Fallido'),
+        ('cancelled', 'Cancelado')
+    ], default='pending')
+    
+    # Resultados y métricas
+    risk_score = models.FloatField(null=True, blank=True, help_text="Puntuación de riesgo (0-1)")
+    trust_score = models.FloatField(null=True, blank=True, help_text="Puntuación de confianza (0-1)")
+    results = models.JSONField(default=dict, help_text="Resultados detallados")
+    
+    # Áreas verificadas
+    areas_checked = models.JSONField(default=list, help_text="Áreas verificadas")
+    flags_raised = models.JSONField(default=list, help_text="Alertas encontradas")
+    
+    # Información del candidato para verificación
+    full_name = models.CharField(max_length=255)
+    date_of_birth = models.DateField()
+    national_id = models.CharField(max_length=50, null=True, blank=True)
+    address = models.TextField(null=True, blank=True)
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    # Metadata
+    provider = models.CharField(max_length=100, default='internal', help_text="Proveedor de verificación")
+    reference_id = models.CharField(max_length=255, null=True, blank=True)
+    retry_count = models.PositiveIntegerField(default=0)
+    
+    class Meta:
+        verbose_name = "Verificación de Antecedentes"
+        verbose_name_plural = "Verificaciones de Antecedentes"
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['candidate', 'status']),
+            models.Index(fields=['business_unit', 'check_type']),
+            models.Index(fields=['created_at', 'status']),
+        ]
+    
+    def __str__(self):
+        return f"Background Check {self.check_type} - {self.candidate} ({self.status})"
+    
+    def is_freemium(self):
+        """Verifica si es una verificación freemium."""
+        return self.check_type == 'basic'
+    
+    def is_premium(self):
+        """Verifica si es una verificación premium."""
+        return self.check_type in ['comprehensive', 'executive', 'compliance']
+    
+    def get_risk_level(self):
+        """Obtiene el nivel de riesgo en texto."""
+        if not self.risk_score:
+            return "No evaluado"
+        
+        if self.risk_score <= 0.2:
+            return "Muy Bajo"
+        elif self.risk_score <= 0.4:
+            return "Bajo"
+        elif self.risk_score <= 0.6:
+            return "Medio"
+        elif self.risk_score <= 0.8:
+            return "Alto"
+        else:
+            return "Muy Alto"
+    
+    def get_trust_level(self):
+        """Obtiene el nivel de confianza en texto."""
+        if not self.trust_score:
+            return "No evaluado"
+        
+        if self.trust_score >= 0.8:
+            return "Muy Alto"
+        elif self.trust_score >= 0.6:
+            return "Alto"
+        elif self.trust_score >= 0.4:
+            return "Medio"
+        elif self.trust_score >= 0.2:
+            return "Bajo"
+        else:
+            return "Muy Bajo"
+    
+    def calculate_price(self):
+        """Calcula el precio basado en el tipo de verificación."""
+        pricing = {
+            'basic': 0.00,  # Freemium
+            'standard': 25.00,
+            'comprehensive': 75.00,  # Premium
+            'executive': 150.00,
+            'compliance': 200.00
+        }
+        return pricing.get(self.check_type, 0.00)
+    
+    def get_areas_covered(self):
+        """Obtiene las áreas cubiertas según el tipo de verificación."""
+        coverage = {
+            'basic': ['identity_verification', 'basic_criminal_check'],
+            'standard': ['identity_verification', 'criminal_check', 'employment_verification'],
+            'comprehensive': ['identity_verification', 'criminal_check', 'employment_verification', 'education_verification', 'credit_check'],
+            'executive': ['identity_verification', 'criminal_check', 'employment_verification', 'education_verification', 'credit_check', 'media_check', 'social_media_check'],
+            'compliance': ['identity_verification', 'criminal_check', 'employment_verification', 'education_verification', 'credit_check', 'media_check', 'social_media_check', 'regulatory_check']
+        }
+        return coverage.get(self.check_type, [])
+
+class VerificationPackage(models.Model):
+    """
+    Modelo para paquetes de verificación que combinan INCODE y Background Check.
+    """
+    name = models.CharField(max_length=100)
+    description = models.TextField()
+    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE, related_name='verification_packages')
+    
+    # Componentes del paquete
+    include_incode = models.BooleanField(default=False)
+    incode_type = models.CharField(max_length=50, choices=[
+        ('identity', 'Verificación de Identidad'),
+        ('comprehensive', 'Verificación Integral')
+    ], null=True, blank=True)
+    
+    include_background_check = models.BooleanField(default=False)
+    background_check_type = models.CharField(max_length=50, choices=[
+        ('basic', 'Básico (Freemium)'),
+        ('comprehensive', 'Comprehensivo (Premium)')
+    ], null=True, blank=True)
+    
+    # Pricing
+    base_price = models.DecimalField(max_digits=10, decimal_places=2)
+    currency = models.CharField(max_length=3, default='USD')
+    is_freemium = models.BooleanField(default=False)
+    
+    # Características
+    features = models.JSONField(default=list, help_text="Lista de características incluidas")
+    delivery_time = models.PositiveIntegerField(default=24, help_text="Tiempo de entrega en horas")
+    
+    # Estado
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Paquete de Verificación"
+        verbose_name_plural = "Paquetes de Verificación"
+        ordering = ['base_price']
+    
+    def __str__(self):
+        return f"{self.name} - {self.business_unit}"
+    
+    def get_total_price(self):
+        """Calcula el precio total del paquete."""
+        if self.is_freemium:
+            return 0.00
+        return self.base_price
+    
+    def get_features_list(self):
+        """Obtiene la lista de características en texto."""
+        features = []
+        
+        if self.include_incode:
+            features.append(f"Verificación INCODE: {self.incode_type}")
+        
+        if self.include_background_check:
+            features.append(f"Background Check: {self.background_check_type}")
+        
+        features.extend(self.features)
+        return features

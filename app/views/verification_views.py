@@ -15,7 +15,7 @@ import logging
 from datetime import datetime
 
 from app.models import (
-    Person, CandidateVerification
+    Person, CandidateVerification, INCODEVerification, BackgroundCheck, VerificationPackage
 )
 from app.ats.chatbot.components.risk_analysis import RiskAnalysis
 from app.ats.verification.tasks import process_verification

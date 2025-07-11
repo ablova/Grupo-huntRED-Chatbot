@@ -51,7 +51,7 @@ const Header = () => {
           {/* Logo */}
           <div className="flex items-center space-x-3">
             <img 
-              src="/g_huntred.png" 
+              src="/static/images/g_huntred.png" 
               alt="Grupo huntRED® AI" 
               className="h-12 w-auto object-contain"
             />

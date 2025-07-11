@@ -44,6 +44,8 @@ from app.ml.aura.impact.sustainability_calculator import SustainabilityCalculato
 from app.ml.aura.integration_layer import AuraIntegrationLayer
 # Crear alias para IntegrationLayer
 IntegrationLayer = AuraIntegrationLayer
+from .matchmaker import Matchmaker
+from .chatbot import AdvancedChatbot
 from app.ml.aura.monitoring.aura_monitor import AuraMonitor
 from app.ml.aura.networking.auto_introducer import AutoIntroducer
 from app.ml.aura.networking.event_recommender import EventRecommender
@@ -69,6 +71,8 @@ from app.ml.aura.security.explainable_ai import ExplainableAI
 from app.ml.aura.security.privacy_panel import PrivacyPanel
 from app.ml.aura.social.influence_calculator import InfluenceCalculator
 from app.ml.aura.social.social_verifier import SocialVerifier
+from app.ml.aura.connectors.linkedin_connector import LinkedInConnector
+from app.ml.aura.connectors.icloud_connector import iCloudConnector
 from app.ml.aura.truth.anomaly_detector import AnomalyDetector
 from app.ml.aura.truth.consistency_checker import ConsistencyChecker
 from app.ml.aura.truth.truth_analyzer import TruthAnalyzer
@@ -87,6 +91,7 @@ __description__ = "Sistema de IA ética y responsable para toma de decisiones AU
 __all__ = [
     'AchievementSystem',
     'AdaptiveEngine',
+    'AdvancedChatbot',
     'AnomalyDetector',
     'AuraEngine',
     'AuraGraphBuilder',
@@ -163,4 +168,6 @@ __all__ = [
     'UserSegmenter',
     'VibrationalMatcher',
     'CareerPrediction',
+    'LinkedInConnector',
+    'iCloudConnector',
 ]

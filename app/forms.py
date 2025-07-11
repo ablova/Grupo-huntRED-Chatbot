@@ -1,11 +1,12 @@
-# /Users/pablollh/MEGA/GitHub/Grupo-huntRED-Chatbot/app/forms.py
+# app/forms.py
 
 from django import forms
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 from app.models import (
     WorkflowStage, Application, Vacante,
-    Person, EnhancedNetworkGamificationProfile, UserPermission, LinkedInMessageTemplate
+    Person, EnhancedNetworkGamificationProfile, UserPermission, LinkedInMessageTemplate,
+    DocumentVerification
 )
 from app.ats.accounts.models import CustomUser
 import logging
@@ -114,33 +115,39 @@ class VacancyForm(forms.ModelForm):
     class Meta:
         model = Vacante
         fields = [
-            'title', 'description', 'requirements', 'business_unit',
-            'location', 'salary_range', 'status', 'skills_required',
-            'experience_required', 'education_required', 'languages'
+            'titulo', 'descripcion', 'requisitos', 'business_unit',
+            'ubicacion', 'salario_minimo', 'salario_maximo', 'activa', 'skills_required',
+            'beneficios', 'modalidad', 'remote_friendly'
         ]
         widgets = {
-            'description': forms.Textarea(attrs={'rows': 5}),
-            'requirements': forms.Textarea(attrs={'rows': 4}),
+            'descripcion': forms.Textarea(attrs={'rows': 5}),
+            'requisitos': forms.Textarea(attrs={'rows': 4}),
             'skills_required': forms.Textarea(attrs={'rows': 3}),
-            'salary_range': forms.TextInput(attrs={'placeholder': 'Ej: 30000-50000 MXN'}),
+            'salario_minimo': forms.NumberInput(attrs={'step': '1000', 'placeholder': 'Salario mínimo en MXN'}),
+            'salario_maximo': forms.NumberInput(attrs={'step': '1000', 'placeholder': 'Salario máximo en MXN'}),
         }
 
-    def clean_salary_range(self):
-        """Valida que el rango de salario sea válido."""
-        salary_range = self.cleaned_data['salary_range']
-        if salary_range:
-            try:
-                min_salary, max_salary = map(int, salary_range.split('-'))
-                if min_salary >= max_salary:
-                    raise ValidationError(_(
-                        'El salario mínimo debe ser menor al máximo'
-                    ))
-            except ValueError:
-                raise ValidationError(_(
-                    'Formato de rango de salario inválido. '
-                    'Use el formato: min-max'
-                ))
-        return salary_range
+    def clean(self):
+        """Valida que el rango salarial sea válido."""
+        cleaned_data = super().clean()
+        salario_minimo = cleaned_data.get('salario_minimo')
+        salario_maximo = cleaned_data.get('salario_maximo')
+        
+        if salario_minimo and salario_minimo <= 0:
+            self.add_error('salario_minimo', _('El salario mínimo debe ser un valor positivo'))
+            
+        if salario_maximo and salario_maximo <= 0:
+            self.add_error('salario_maximo', _('El salario máximo debe ser un valor positivo'))
+            
+        if salario_minimo and salario_maximo and salario_minimo > salario_maximo:
+            self.add_error('salario_minimo', _('El salario mínimo no puede ser mayor que el máximo'))
+            
+        # Actualizar el campo salario para mantener compatibilidad
+        if salario_minimo and salario_maximo:
+            # Usar el promedio como valor de compatibilidad
+            cleaned_data['salario'] = (salario_minimo + salario_maximo) / 2
+            
+        return cleaned_data
 
 class PersonForm(forms.ModelForm):
     """Formulario para gestionar perfiles de candidatos."""
@@ -148,16 +155,13 @@ class PersonForm(forms.ModelForm):
     class Meta:
         model = Person
         fields = [
-            'first_name', 'last_name', 'email', 'phone', 'business_unit',
-            'current_position', 'current_company', 'current_salary',
-            'expected_salary', 'skills', 'experience_years', 'education',
-            'languages', 'location', 'availability_date'
+            'nombre', 'apellido_paterno', 'apellido_materno', 'email', 'phone',
+            'linkedin_url', 'skills', 'experience_years', 'job_search_status',
+            'desired_job_types', 'nacionalidad', 'fecha_nacimiento', 'sexo'
         ]
         widgets = {
             'skills': forms.Textarea(attrs={'rows': 3}),
-            'education': forms.Textarea(attrs={'rows': 2}),
-            'languages': forms.Textarea(attrs={'rows': 2}),
-            'availability_date': forms.DateInput(attrs={'type': 'date'}),
+            'fecha_nacimiento': forms.DateInput(attrs={'type': 'date'}),
         }
 
     def clean_email(self):
@@ -183,14 +187,19 @@ class PersonForm(forms.ModelForm):
         if commit:
             person.save()
             
-            # Actualizar perfil de gamificación
-            gamification_profile = person.enhancednetworkgamificationprofile
-            gamification_profile.update_profile(
-                skills=self.cleaned_data['skills'],
-                experience=self.cleaned_data['experience_years'],
-                education=self.cleaned_data['education']
-            )
-            gamification_profile.save()
+            # Actualizar perfil de gamificación si existe
+            try:
+                gamification_profile = person.enhancednetworkgamificationprofile
+                gamification_profile.update_profile(
+                    skills=self.cleaned_data.get('skills', ''),
+                    experience=self.cleaned_data.get('experience_years', 0),
+                    # Ya no tenemos education en el formulario
+                    education=''
+                )
+                gamification_profile.save()
+            except (AttributeError, ObjectDoesNotExist):
+                # Si no existe el perfil de gamificación, continuamos sin error
+                pass
             
         return person
 
@@ -199,7 +208,7 @@ class GamificationProfileForm(forms.ModelForm):
         model = EnhancedNetworkGamificationProfile
         fields = [
             'points', 'level', 'badges', 'achievements',
-            'last_activity', 'engagement_score'
+            'engagement_score'
         ]
         widgets = {
             'achievements': forms.Textarea(attrs={'rows': 3}),
@@ -247,7 +256,7 @@ class CustomUserCreationForm(forms.ModelForm):
         model = CustomUser
         fields = [
             'email', 'first_name', 'last_name', 'role',
-            'business_unit', 'division', 'phone_number'
+            'business_unit', 'division', 'phone'
         ]
 
     def clean_password2(self):
@@ -276,7 +285,7 @@ class CustomUserChangeForm(forms.ModelForm):
         model = CustomUser
         fields = [
             'email', 'first_name', 'last_name', 'role',
-            'business_unit', 'division', 'phone_number',
+            'business_unit', 'division', 'phone',
             'status', 'verification_status'
         ]
 

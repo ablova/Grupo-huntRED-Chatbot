@@ -4,7 +4,7 @@ Tenemos una nueva propuesta para {{ company.name }}.
 
 📋 *Detalles de la Propuesta:*
 • Posición: {{ vacancy.title }}
-• Salario Mensual: ${{ vacancy.salary|floatformat:2 }}
+• Rango Salarial: ${{ vacancy.salario_minimo|floatformat:2 }} - ${{ vacancy.salario_maximo|floatformat:2 }}
 • Honorarios: ${{ proposal.pricing_total|floatformat:2 }}
 
 📊 *Métricas de Éxito:*

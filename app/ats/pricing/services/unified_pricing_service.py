@@ -1,3 +1,4 @@
+# app/ats/pricing/services/unified_pricing_service.py
 """
 Servicio unificado de Pricing & Pagos para Grupo huntRED®.
 
@@ -8,6 +9,7 @@ del sistema de precios y pagos, integrando los diferentes componentes existentes
 import logging
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Dict, Any, List, Optional, Tuple
+import datetime
 from django.utils import timezone
 from django.db import transaction
 from django.core.exceptions import ValidationError
@@ -138,7 +140,7 @@ class UnifiedPricingService:
         client: Person,
         total_amount: Decimal,
         payment_structure: str = 'standard',
-        start_date: Optional[timezone.date] = None,
+        start_date: Optional[datetime.date] = None,
         custom_milestones: Optional[List[Dict]] = None
     ) -> PaymentSchedule:
         """
@@ -247,8 +249,8 @@ class UnifiedPricingService:
     def get_payment_dashboard_data(
         self,
         business_unit: Optional[BusinessUnit] = None,
-        date_from: Optional[timezone.date] = None,
-        date_to: Optional[timezone.date] = None
+        date_from: Optional[datetime.date] = None,
+        date_to: Optional[datetime.date] = None
     ) -> Dict[str, Any]:
         """
         Obtiene datos para el dashboard de pagos.

@@ -15,7 +15,7 @@ from django.core.cache import cache
 from asgiref.sync import sync_to_async
 from tenacity import retry, stop_after_attempt, wait_exponential
 from app.models import SlackAPI, BusinessUnit, Person
-from app.ats.chatbot.chatbot import ChatBotHandler
+from app.ats.chatbot.core.chatbot import ChatBotHandler
 from app.ats.chatbot.components.chat_state_manager import ChatStateManager
 from app.ats.chatbot.components.rate_limiter import RateLimiter
 from app.ats.integrations.services.message import (

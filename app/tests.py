@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from django.test import TestCase, Client, override_settings
 from unittest.mock import patch, MagicMock, AsyncMock
 from app.models import BusinessUnit, Person, ChatState, GptApi
-from app.ats.chatbot.chatbot import ChatBotHandler
+from app.ats.chatbot.core.chatbot import ChatBotHandler
 from app.ats.chatbot.core.gpt import GPTHandler
 from app.ats.chatbot.utils.chatbot_utils import ChatbotUtils
 get_nlp_processor = ChatbotUtils.get_nlp_processor  # Reemplazar importación

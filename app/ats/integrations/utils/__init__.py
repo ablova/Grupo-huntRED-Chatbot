@@ -30,9 +30,17 @@ def log_integration_event(integration, event_type, payload=None, error=None):
 # Nota: Estas funciones deben estar definidas en otros módulos del paquete
 # y ser importadas explícitamente aquí si son necesarias
 
-# Ejemplo de cómo importar correctamente:
-# from .webhook_utils import format_webhook_payload, parse_webhook_payload
-# from .config_utils import get_integration_config, set_integration_config
+# Importar utilidades de webhook
+from .webhook_utils import format_webhook_payload, parse_webhook_payload
+# Importar utilidades de configuración
+from .config_utils import get_integration_config, set_integration_config, delete_integration_config
 
-# Asegurar que log_integration_event esté disponible para importación
-__all__ = ['log_integration_event']
+# Asegurar que todas las funciones estén disponibles para importación
+__all__ = [
+    'log_integration_event',
+    'format_webhook_payload',
+    'parse_webhook_payload',
+    'get_integration_config',
+    'set_integration_config',
+    'delete_integration_config'
+]

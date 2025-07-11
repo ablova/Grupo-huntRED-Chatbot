@@ -75,6 +75,36 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     date_joined = models.DateTimeField(_('date joined'), default=timezone.now)
     last_login = models.DateTimeField(_('last login'), blank=True, null=True)
 
+    # Campos adicionales para consultores
+    phone = models.CharField(_('teléfono'), max_length=20, blank=True, null=True)
+    
+    # Estados y verificación
+    STATUS_CHOICES = [
+        ('ACTIVE', _('Activo')),
+        ('INACTIVE', _('Inactivo')),
+        ('SUSPENDED', _('Suspendido')),
+        ('PENDING', _('Pendiente')),
+    ]
+    status = models.CharField(
+        _('estado'),
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='ACTIVE'
+    )
+    
+    VERIFICATION_STATUS_CHOICES = [
+        ('VERIFIED', _('Verificado')),
+        ('UNVERIFIED', _('No verificado')),
+        ('PENDING', _('Pendiente')),
+        ('REJECTED', _('Rechazado')),
+    ]
+    verification_status = models.CharField(
+        _('estado de verificación'),
+        max_length=20,
+        choices=VERIFICATION_STATUS_CHOICES,
+        default='UNVERIFIED'
+    )
+    
     # Relaciones
     business_units = models.ManyToManyField(
         'app.BusinessUnit',
@@ -82,6 +112,40 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         related_name='users',
         blank=True,
         help_text=_('Unidades de negocio a las que tiene acceso este usuario')
+    )
+    business_unit = models.ForeignKey(
+        'app.BusinessUnit',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_('unidad de negocio principal'),
+        related_name='primary_users'
+    )
+    division = models.ForeignKey(
+        'app.Division',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_('división'),
+        related_name='users'
+    )
+    
+    # Roles y permisos
+    ROLE_CHOICES = [
+        ('SUPER_ADMIN', _('Super Admin')),
+        ('BU_ADMIN', _('Business Unit Admin')),
+        ('BU_DIVISION', _('Business Unit Division')),
+    ]
+    role = models.CharField(
+        _('rol'),
+        max_length=20,
+        choices=ROLE_CHOICES,
+        default='BU_DIVISION'
+    )
+    permissions = models.JSONField(
+        _('permisos'),
+        default=dict,
+        blank=True
     )
 
     objects = CustomUserManager()

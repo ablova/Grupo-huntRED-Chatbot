@@ -1,3 +1,4 @@
+# app/ats/dashboard/super_admin_dashboard.py
 """
 🧠 SUPER ADMIN DASHBOARD - BRUCE ALMIGHTY MODE 🚀
 
@@ -3325,7 +3326,7 @@ class SuperAdminDashboard:
             
             # Importar modelos necesarios
             from app.models import Invoice
-            from app.ats.models import ExternalService
+            from app.ats.pricing.models.external_services import ExternalService
             
             # Ingresos por mes
             monthly_revenue = await sync_to_async(list)(Invoice.objects.filter(

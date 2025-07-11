@@ -1,3 +1,4 @@
+# app/ats/pricing/integrations/automation/workflow_engine.py
 """
 Integración con automatización y workflows para pricing y pagos.
 """
@@ -10,7 +11,7 @@ from enum import Enum
 from dataclasses import dataclass
 
 from app.models import BusinessUnit, Person
-from app.ats.models import ExternalService, ExternalServiceInvoice
+from app.ats.pricing.models.external_services import ExternalService, ExternalServiceInvoice
 from app.ats.pricing.models.payments import ScheduledPayment, PaymentTransaction
 
 logger = logging.getLogger(__name__)

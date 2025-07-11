@@ -1,4 +1,4 @@
-# /home/pablo/app/views/auth_views.py
+# app/views/auth_views.py
 #
 # Vista para el módulo. Implementa la lógica de presentación y manejo de peticiones HTTP.
 
@@ -16,7 +16,7 @@ from django.utils import timezone
 
 from app.ats.accounts.models import CustomUser
 from app.models import UserPermission, DocumentVerification
-from app.ats.accounts.forms import CustomUserCreationForm, CustomUserChangeForm
+from app.forms import CustomUserCreationForm, CustomUserChangeForm
 
 # Import FailedLoginAttempt or define it if missing
 try:

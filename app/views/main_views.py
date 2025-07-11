@@ -1,4 +1,4 @@
-# /home/pablo/app/views/main_views.py
+# app/views/main_views.py
 
 from django.shortcuts import render, get_object_or_404, redirect
 from django.views import View
@@ -18,7 +18,7 @@ from app.models import (
 )
 from app.ats.chatbot.utils.nlp_utils import NLPUtils
 from app.ats.chatbot.core.gpt import GPTHandler
-from app.ats.chatbot.chatbot import ChatBotHandler
+from app.ats.chatbot.core.chatbot import ChatBotHandler
 from app.ats.integrations.services import MessageService, get_business_unit
 
 import json

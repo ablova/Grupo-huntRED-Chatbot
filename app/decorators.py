@@ -1,3 +1,4 @@
+# app/decorators.py
 from functools import wraps
 from django.http import HttpResponseForbidden, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
@@ -15,6 +16,69 @@ ROLES = {
     'consultant_bu_complete': 'Consultant (BU Complete)',
     'consultant_bu_division': 'Consultant (BU Division)'
 }
+
+# Decorador específico para super admin
+def super_admin_required(view_func):
+    """
+    Decorador para restringir el acceso a vistas solo para super administradores.
+    
+    Args:
+        view_func: Vista a restringir
+        
+    Returns:
+        Vista decorada con restricción de super administrador
+    """
+    return role_required('super_admin')(view_func)
+
+# Decorador para verificar si un usuario está activo
+def active_user_required(view_func):
+    """
+    Decorador para restringir el acceso a vistas solo para usuarios activos.
+    Verifica que el usuario tenga el atributo is_active en True.
+    
+    Args:
+        view_func: Vista a restringir
+        
+    Returns:
+        Vista decorada con restricción de usuario activo
+    """
+    @wraps(view_func)
+    @login_required(login_url='login')
+    def _wrapped_view(request, *args, **kwargs):
+        if not request.user.is_active:
+            logger.warning(f"Access denied for inactive user {request.user.username}")
+            return HttpResponseForbidden("Tu cuenta está inactiva. Contacta a un administrador.")
+        logger.info(f"Access granted for active user {request.user.username}")
+        return view_func(request, *args, **kwargs)
+    return _wrapped_view
+
+# Decorador específico para consultores con acceso completo a unidad de negocio
+def bu_complete_required(view_func):
+    """
+    Decorador para restringir el acceso a vistas solo para consultores con acceso
+    completo a una unidad de negocio.
+    
+    Args:
+        view_func: Vista a restringir
+        
+    Returns:
+        Vista decorada con restricción de rol
+    """
+    return role_required('consultant_bu_complete')(view_func)
+
+# Decorador específico para consultores con acceso limitado a división
+def bu_division_required(view_func):
+    """
+    Decorador para restringir el acceso a vistas solo para consultores con acceso
+    limitado a una división de unidad de negocio.
+    
+    Args:
+        view_func: Vista a restringir
+        
+    Returns:
+        Vista decorada con restricción de rol
+    """
+    return role_required('consultant_bu_division')(view_func)
 
 def role_required(*required_roles):
     """

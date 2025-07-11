@@ -25,7 +25,7 @@ from app.models import (
     ChatState, Person, BusinessUnit,
     Application, Interview
 )
-from app.ats.chatbot.conversational_flow import ConversationalFlowManager
+from app.ats.chatbot.flow.conversational_flow_manager import ConversationalFlowManager
 from app.ats.integrations.services import MessageService
 from app.ats.chatbot.utils import analyze_text
 from app.decorators import *

@@ -1,4 +1,4 @@
-# /home/pablo/app/views/preview_views.py
+# app/views/preview_views.py
 #
 # Vista para el módulo. Implementa la lógica de presentación y manejo de peticiones HTTP.
 
@@ -11,7 +11,7 @@ import json
 import logging
 
 from app.models import CartaOferta, Person, Vacante, BusinessUnit
-from app.ats.utils.signature.pdf_generator import generate_pdf
+from app.ats.utils.signature.pdf_generator import generate_contract_pdf
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +53,7 @@ def generar_preview(request):
             }
             
             # Generar PDF
-            pdf_path = generate_pdf('preview_carta_oferta', context)
+            pdf_path = generate_contract_pdf(user, vacancy.business_unit, vacancy)
             
             # Leer el PDF generado
             with open(pdf_path, 'rb') as pdf_file:

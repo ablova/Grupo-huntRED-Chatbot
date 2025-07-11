@@ -28,7 +28,7 @@
 <h3>Detalles de la Propuesta</h3>
 <ul>
     <li><strong>Posición:</strong> {{ vacancy.title }}</li>
-    <li><strong>Salario Mensual:</strong> ${{ vacancy.salary|floatformat:2 }}</li>
+    <li><strong>Rango Salarial:</strong> ${{ vacancy.salario_minimo|floatformat:2 }} - ${{ vacancy.salario_maximo|floatformat:2 }}</li>
     <li><strong>Meses de Bono:</strong> {{ vacancy.bonus_months }}</li>
     <li><strong>Honorarios:</strong> ${{ pricing_details.total|floatformat:2 }}</li>
 </ul>

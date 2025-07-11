@@ -1,3 +1,4 @@
+# app/ats/pricing/services/notification_service.py
 """
 Servicio de notificaciones integrado con el sistema existente.
 Utiliza los módulos de notificaciones ya implementados en huntRED.
@@ -8,7 +9,8 @@ from datetime import datetime
 from django.utils import timezone
 
 from app.models import Person, BusinessUnit
-from app.ats.models import PaymentTransaction, ScheduledPayment, ExternalServiceInvoice
+from app.ats.pricing.models.payments import PaymentTransaction, ScheduledPayment
+from app.ats.pricing.models.external_services import ExternalServiceInvoice
 
 logger = logging.getLogger(__name__)
 

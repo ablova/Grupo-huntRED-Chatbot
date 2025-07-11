@@ -1,3 +1,4 @@
+# app/ats/pricing/services/integrations/wordpress_sync_service.py
 """
 Servicio de sincronización con WordPress (migrado del módulo antiguo).
 """
@@ -13,7 +14,7 @@ from django.core.mail import EmailMessage
 from django.db import transaction
 
 from app.ats.models import Oportunidad, Empleador, SincronizacionError, SincronizacionLog
-from app.models import ConfiguracionBU, BusinessUnit, User, PricingBaseline, Addons, Coupons, PaymentMilestones
+from app.models import ConfiguracionBU, BusinessUnit, User, PricingBaseline, Addons, Coupons, PaymentMilestone
 
 logger = logging.getLogger('wordpress_sync')
 
@@ -299,7 +300,7 @@ class WordPressSyncService:
         Sincroniza los milestones con WordPress.
         
         Args:
-            milestones: QuerySet de PaymentMilestones
+            milestones: QuerySet de PaymentMilestone
             
         Returns:
             Dict con estadísticas de la sincronización
@@ -469,7 +470,7 @@ class WordPressSyncService:
                 'baselines': PricingBaseline.objects.filter(bu=self.business_unit),
                 'addons': Addons.objects.filter(bu=self.business_unit),
                 'coupons': Coupons.objects.filter(bu=self.business_unit),
-                'milestones': PaymentMilestones.objects.filter(bu=self.business_unit)
+                'milestones': PaymentMilestone.objects.filter(bu=self.business_unit)
             }
             
             # Sincronizar cada tipo de configuración

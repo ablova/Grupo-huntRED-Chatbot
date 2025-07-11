@@ -1,3 +1,4 @@
+# app/ats/pricing/__init__.py
 """
 Módulo de pricing unificado para huntRED.
 
@@ -57,11 +58,14 @@ from .services import (
     
     # Servicios de integración
     WordPressSyncService,
-    PayPalGateway,
-    StripeGateway,
-    ConektaGateway,
-    ClipGateway,
+    UnifiedPricingService,
 )
+
+# Importamos los gateways de pago desde el módulo correcto
+from .gateways.paypal import PayPalGateway
+from .gateways.stripe import StripeGateway
+from .gateways.conekta import ConektaGateway
+from .gateways.clip import ClipGateway
 
 # ============================================================================
 # TAREAS

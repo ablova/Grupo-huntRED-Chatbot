@@ -16,7 +16,7 @@ from django.utils import timezone
 from django.db.models import Q
 
 from app.models import ChatState, Person, BusinessUnit
-from app.ats.chatbot.chatbot import ChatBotHandler
+from app.ats.chatbot.core.chatbot import ChatBotHandler
 from app.ats.integrations.services import MessageService
 
 logger = logging.getLogger('middleware')

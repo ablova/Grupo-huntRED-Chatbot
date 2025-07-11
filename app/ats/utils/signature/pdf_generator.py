@@ -1,4 +1,4 @@
-# /home/pablo/app/com/utils/signature/pdf_generator.py
+# app/ats/utils/signature/pdf_generator.py
 import os
 import json
 import datetime
