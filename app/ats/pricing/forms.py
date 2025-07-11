@@ -14,10 +14,9 @@ from django.forms.widgets import TextInput, Textarea, Select, CheckboxInput, Num
 from django.db.models import Q
 
 from app.models import (
-    BusinessUnit, Opportunity, Person, 
+    BusinessUnit, Opportunity, Person, Company, 
     TalentAnalysisRequest
 )
-from app.payroll.models import PayrollCompany
 from app.ats.pricing.models import (
     PricingStrategy, PricePoint, DiscountRule, ReferralFee,
     PricingCalculation, PricingPayment, PricingProposal,
@@ -30,7 +29,7 @@ class Talent360RequestForm(forms.ModelForm):
     
     # Campos adicionales para crear una oportunidad si no existe
     company = forms.ModelChoiceField(
-        queryset=PayrollCompany.objects.all(),
+        queryset=Company.objects.all(),
         label="Empresa",
         required=True,
         widget=Select(attrs={'class': 'form-select select2'})
@@ -163,16 +162,28 @@ class Talent360RequestForm(forms.ModelForm):
 class CompanyForm(forms.ModelForm):
     """Formulario para crear/editar empresas."""
     
+    signer = forms.ModelChoiceField(queryset=Person.objects.all(), required=False, label="Firmante de propuesta")
+    payment_responsible = forms.ModelChoiceField(queryset=Person.objects.all(), required=False, label="Responsable de pagos")
+    fiscal_responsible = forms.ModelChoiceField(queryset=Person.objects.all(), required=False, label="Responsable fiscal")
+    process_responsible = forms.ModelChoiceField(queryset=Person.objects.all(), required=False, label="Responsable del proceso")
+    report_invitees = forms.ModelMultipleChoiceField(queryset=Person.objects.all(), required=False, label="Invitados a reportes")
+    notification_preferences = forms.CharField(required=False, label="Preferencias de notificación", widget=Textarea(attrs={'class': 'form-control', 'rows': 2}))
+
     class Meta:
-        model = PayrollCompany
-        fields = ['name', 'business_unit', 'country_code', 'currency', 'pricing_tier', 'price_per_employee']
+        model = Company
+        fields = ['name', 'legal_name', 'tax_id', 'industry', 'size', 'website', 'address', 'city', 'state', 'country',
+                  'signer', 'payment_responsible', 'fiscal_responsible', 'process_responsible', 'report_invitees', 'notification_preferences']
         widgets = {
             'name': TextInput(attrs={'class': 'form-control'}),
-            'business_unit': Select(attrs={'class': 'form-select'}),
-            'country_code': Select(attrs={'class': 'form-select'}),
-            'currency': Select(attrs={'class': 'form-select'}),
-            'pricing_tier': Select(attrs={'class': 'form-select'}),
-            'price_per_employee': NumberInput(attrs={'class': 'form-control'}),
+            'legal_name': TextInput(attrs={'class': 'form-control'}),
+            'tax_id': TextInput(attrs={'class': 'form-control'}),
+            'industry': TextInput(attrs={'class': 'form-control'}),
+            'size': TextInput(attrs={'class': 'form-control'}),
+            'website': TextInput(attrs={'class': 'form-control'}),
+            'address': Textarea(attrs={'class': 'form-control', 'rows': 2}),
+            'city': TextInput(attrs={'class': 'form-control'}),
+            'state': TextInput(attrs={'class': 'form-control'}),
+            'country': TextInput(attrs={'class': 'form-control'}),
         }
 
 
