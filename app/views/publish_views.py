@@ -18,7 +18,7 @@ from app.models import (
     MessengerAPI, InstagramAPI, SlackAPI
 )
 from app.ats.publish.models import Channel
-from app.ats.publish.tasks import process_new_job_opportunity
+from app.ats.publish.tasks import process_new_opportunity
 from app.ats.publish.utils import get_channel_processor
 
 logger = logging.getLogger(__name__)
@@ -71,7 +71,7 @@ def create_job_opportunity(request):
             )
             
             # Procesar oportunidad en segundo plano
-            process_new_job_opportunity.delay(opportunity.id)
+            process_new_opportunity.delay(opportunity.id)
             
             return JsonResponse({
                 'status': 'success',
