@@ -30,7 +30,7 @@ from django.core.paginator import Paginator
 
 from app.models import (
     BusinessUnit, Opportunity, Contract, Company, 
-    TalentAnalysisRequest, ProposalTemplate, Invoice
+    TalentAnalysisRequest, Invoice
 )
 from app.ats.pricing.talent_360_pricing import Talent360Pricing
 from app.ats.pricing.proposal_renderer import generate_proposal
