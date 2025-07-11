@@ -65,6 +65,7 @@ INSTALLED_APPS = [
     # Aplicaciones locales
     'app.ats.accounts.apps.AccountsConfig',
     'app.apps.AppConfig',  # Incluye todos los modelos incluyendo sexsi
+    'app.ats.publish.apps.PublishConfig',  # Módulo de publicación estratégica
     
     # Celery apps (deben ir al final)
     'django_celery_results',
