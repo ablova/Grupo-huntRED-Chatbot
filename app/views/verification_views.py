@@ -1,4 +1,4 @@
-# /home/pablo/app/views/verification_views.py
+# app/views/verification_views.py
 #
 # Vista para el módulo. Implementa la lógica de presentación y manejo de peticiones HTTP.
 
@@ -15,7 +15,7 @@ import logging
 from datetime import datetime
 
 from app.models import (
-    Person, CandidateVerification, INCODEVerification
+    Person, CandidateVerification
 )
 from app.ats.chatbot.components.risk_analysis import RiskAnalysis
 from app.ats.verification.tasks import process_verification
