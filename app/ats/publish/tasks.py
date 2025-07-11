@@ -1,7 +1,7 @@
 from celery import shared_task
 from django.utils import timezone
 from app.models import JobOpportunity
-from app.ats.publish.models import JobChannel, Channel, ChannelAnalytics
+from app.ats.publish.models import CampaignChannel, Channel, ChannelAnalytics
 from app.ats.publish.processors import get_processor
 from app.ats.publish.utils.content_adapters import ContentAdapter
 import logging
@@ -25,7 +25,7 @@ async def process_new_opportunity(job_id: int):
             
             for channel in relevant_channels:
                 # Crear registro de canal de trabajo
-                job_channel = await JobChannel.objects.acreate(
+                job_channel = await CampaignChannel.objects.acreate(
                     opportunity=opportunity,
                     channel=channel,
                     status='pending'
@@ -43,7 +43,7 @@ async def publish_job_opportunity(job_channel_id: int):
     Publica una oportunidad laboral en un canal específico
     """
     try:
-        job_channel = await JobChannel.objects.aget(id=job_channel_id)
+        job_channel = await CampaignChannel.objects.aget(id=job_channel_id)
         
         # Obtener procesador específico para el canal
         processor = get_processor(job_channel.channel.type.name)
