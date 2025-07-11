@@ -1,6 +1,7 @@
 from celery import shared_task
 from django.utils import timezone
-from app.models import JobChannel, JobOpportunity, Channel, ChannelAnalytics
+from app.models import JobOpportunity
+from app.ats.publish.models import JobChannel, Channel, ChannelAnalytics
 from app.ats.publish.processors import get_processor
 from app.ats.publish.utils.content_adapters import ContentAdapter
 import logging
