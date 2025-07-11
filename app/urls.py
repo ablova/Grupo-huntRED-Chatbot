@@ -57,9 +57,9 @@ from app.views.workflow_views import (
 
 # IMPORTACIONES DE SEXSI (GESTIÓN DE ACUERDOS)
 from app.ats.sexsi.views import (
-    create_agreement, agreement_detail, sign_agreement,
-    download_pdf, upload_signature_and_selfie, finalize_agreement,
-    request_revision, revoke_agreement, paypal_webhook
+    sexsi_dashboard, create_agreement, sign_agreement, agreement_status,
+    legal_compliance, process_payment, consent_form, mutual_agreement,
+    agreement_detail, preference_selection
 )
 from django.urls import path
 from app.views.publish_views import (
@@ -226,15 +226,16 @@ urlpatterns += [
 # 📌 RUTAS DE SEXSI (GESTIÓN DE ACUERDOS)
 # ----------------------------------------
 urlpatterns += [
+    path('sexsi/', sexsi_dashboard, name='sexsi_dashboard'),
     path('sexsi/create/', create_agreement, name='create_agreement'),
+    path('sexsi/sign/', sign_agreement, name='sign_agreement'),
+    path('sexsi/status/', agreement_status, name='agreement_status'),
+    path('sexsi/compliance/', legal_compliance, name='legal_compliance'),
+    path('sexsi/payment/', process_payment, name='process_payment'),
+    path('sexsi/consent/', consent_form, name='consent_form'),
+    path('sexsi/mutual/', mutual_agreement, name='mutual_agreement'),
     path('sexsi/agreement/<int:agreement_id>/', agreement_detail, name='agreement_detail'),
-    path('sexsi/sign/<int:agreement_id>/<str:signer>/<uuid:token>/', sign_agreement, name='sign_agreement'),
-    path('sexsi/download/<int:agreement_id>/', download_pdf, name='download_pdf'),
-    path('sexsi/sign/save/<int:agreement_id>/', upload_signature_and_selfie, name='save_signature'),
-    path('sexsi/sign/finalize/<int:agreement_id>/<str:signer>/<uuid:token>/', finalize_agreement, name='finalize_agreement'),
-    path('sexsi/sign/revision/<int:agreement_id>/', request_revision, name='request_revision'),
-    path('sexsi/sign/revoke/<int:agreement_id>/', revoke_agreement, name='revoke_agreement'),
-    path('sexsi/webhook/paypal/', paypal_webhook, name='paypal_webhook'),
+    path('sexsi/preferences/', preference_selection, name='preference_selection'),
 ]
 
 # ------------------------
