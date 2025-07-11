@@ -15,7 +15,7 @@ from django.conf import settings
 from django.template.loader import render_to_string
 from django.utils import timezone
 from weasyprint import HTML
-from app.ats.models import PricingProposal, ProposalSection, ProposalTemplate
+from app.ats.pricing.models.proposal import PricingProposal, ProposalSection, ProposalTemplate
 
 logger = logging.getLogger(__name__)
 
