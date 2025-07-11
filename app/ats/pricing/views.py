@@ -32,6 +32,7 @@ from app.models import (
     BusinessUnit, Opportunity, Contract, Company, 
     TalentAnalysisRequest, Invoice
 )
+from app.ats.pricing.models.proposal import ProposalTemplate
 from app.ats.pricing.talent_360_pricing import Talent360Pricing
 from app.ats.pricing.proposal_renderer import generate_proposal
 from app.ats.pricing.forms import (
