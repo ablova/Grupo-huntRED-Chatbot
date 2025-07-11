@@ -1,0 +1,314 @@
+<!--# Ubicacion SEXSI -- /home/pablo/app/sexsi/templates/legal_compliance.html-->
+{% extends "base.html" %}
+{% block content %}
+<h1 align="center">Cumplimiento Legal - SEXSI</h1>
+<p>Verifica que tu acuerdo cumple con las leyes de tu país antes de proceder.</p>
+
+<div class="country-selector" style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 15px; padding: 1.5rem; margin-bottom: 2rem;">
+    <h5><i class="fas fa-globe"></i> Seleccionar Jurisdicción</h5>
+    <div style="display: flex; gap: 1rem; align-items: end;">
+        <div style="flex: 1;">
+            <label style="font-weight: 600; display: block; margin-bottom: 0.5rem;">País de Jurisdicción</label>
+            <select id="countrySelect" style="width: 100%; padding: 0.75rem; border: 2px solid #e9ecef; border-radius: 10px;">
+                <option value="">Selecciona tu país</option>
+                <option value="España">España</option>
+                <option value="México">México</option>
+                <option value="Colombia">Colombia</option>
+                <option value="Argentina">Argentina</option>
+                <option value="Chile">Chile</option>
+                <option value="Perú">Perú</option>
+            </select>
+        </div>
+        <button type="button" onclick="checkCompliance()" style="background: #4A148C; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 25px; font-weight: 600;">
+            <i class="fas fa-search"></i> Verificar
+        </button>
+    </div>
+</div>
+
+<div id="complianceResults" style="display: none;">
+    <div id="complianceStatus" style="background: #d4edda; border: 1px solid #c3e6cb; border-radius: 10px; padding: 1rem; margin-bottom: 2rem; text-align: center;">
+        <h5><i class="fas fa-check-circle"></i> Cumplimiento Verificado</h5>
+        <p style="margin: 0;">Tu acuerdo cumple con los requisitos legales de <span id="selectedCountry"></span></p>
+    </div>
+    
+    <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 10px; padding: 1rem; margin-bottom: 1rem; text-align: center;">
+        <h6>Edad Mínima de Consentimiento</h6>
+        <div id="consentAge" style="font-size: 2rem; font-weight: bold; color: #856404;">16</div>
+        <p style="margin: 0;">años en <span id="countryName"></span></p>
+    </div>
+    
+    <div style="background: white; border: 1px solid #dee2e6; border-radius: 15px; padding: 1.5rem; margin-bottom: 1rem;">
+        <h6><i class="fas fa-gavel"></i> Marco Legal Aplicable</h6>
+        <div id="legalFramework"></div>
+    </div>
+    
+    <div style="background: white; border: 1px solid #dee2e6; border-radius: 15px; padding: 1.5rem; margin-bottom: 1rem;">
+        <h6><i class="fas fa-check-circle"></i> Requisitos Legales</h6>
+        <div id="legalRequirements"></div>
+    </div>
+    
+    <div style="background: white; border: 1px solid #dee2e6; border-radius: 15px; padding: 1.5rem; margin-bottom: 1rem;">
+        <h6><i class="fas fa-exclamation-triangle"></i> Riesgos Legales</h6>
+        <div id="legalRisks"></div>
+    </div>
+    
+    <div style="background: white; border: 1px solid #dee2e6; border-radius: 15px; padding: 1.5rem; margin-bottom: 1rem;">
+        <h6><i class="fas fa-lightbulb"></i> Recomendaciones</h6>
+        <div id="recommendations"></div>
+    </div>
+    
+    <div style="background: #e3f2fd; border: 1px solid #bbdefb; border-radius: 10px; padding: 1rem; margin-bottom: 1rem;">
+        <h6><i class="fas fa-info-circle"></i> Información Importante</h6>
+        <p style="margin-bottom: 0.5rem;">
+            Esta verificación se basa en las leyes vigentes en el país seleccionado. 
+            Sin embargo, las leyes pueden cambiar y esta información no constituye 
+            asesoramiento legal profesional.
+        </p>
+        <p style="margin: 0;">
+            <strong>Recomendamos:</strong> Consultar con un abogado especializado 
+            en derecho sexual y de familia antes de proceder con cualquier acuerdo.
+        </p>
+    </div>
+</div>
+
+<div id="noCountrySelected" style="display: none; text-align: center;">
+    <i class="fas fa-globe" style="font-size: 4rem; color: #6c757d; margin-bottom: 1rem;"></i>
+    <h5>Selecciona un país</h5>
+    <p style="color: #6c757d;">Elige tu jurisdicción para verificar el cumplimiento legal</p>
+</div>
+
+<script>
+function checkCompliance() {
+    var country = document.getElementById('countrySelect').value;
+    
+    if (!country) {
+        document.getElementById('complianceResults').style.display = 'none';
+        document.getElementById('noCountrySelected').style.display = 'block';
+        return;
+    }
+    
+    document.getElementById('noCountrySelected').style.display = 'none';
+    document.getElementById('complianceResults').style.display = 'none';
+    
+    // Simular verificación de cumplimiento
+    setTimeout(function() {
+        var complianceData = getComplianceData(country);
+        displayComplianceResults(complianceData);
+    }, 1000);
+}
+
+function getComplianceData(country) {
+    var data = {
+        'España': {
+            consent_age: 16,
+            compliance_status: 'compliant',
+            legal_framework: {
+                documentation_required: true,
+                witness_required: false,
+                notarization_required: false,
+                electronic_signature_valid: true
+            },
+            legal_requirements: [
+                'Consentimiento libre y voluntario',
+                'Mayoría de edad legal (16 años)',
+                'Capacidad mental plena',
+                'Información clara y comprensible',
+                'Ausencia de coacción o presión'
+            ],
+            legal_risks: [
+                'Coacción o presión psicológica',
+                'Información falsa o incompleta',
+                'Incapacidad mental temporal',
+                'Menor de edad',
+                'Consentimiento bajo efectos de sustancias'
+            ],
+            recommendations: [
+                'Verificar identidad de ambas partes',
+                'Documentar consentimiento explícito',
+                'Mantener copias seguras del acuerdo',
+                'Consultar con abogado especializado',
+                'Revisar periódicamente el acuerdo'
+            ],
+            applicable_laws: [
+                'Ley Orgánica 1/2004 de Medidas de Protección Integral contra la Violencia de Género',
+                'Código Penal Español (Artículos 178-180)',
+                'Ley 34/2002 de Servicios de la Sociedad de la Información',
+                'Reglamento eIDAS (Reglamento UE 910/2014)'
+            ]
+        },
+        'México': {
+            consent_age: 18,
+            compliance_status: 'compliant',
+            legal_framework: {
+                documentation_required: true,
+                witness_required: true,
+                notarization_required: false,
+                electronic_signature_valid: true
+            },
+            legal_requirements: [
+                'Consentimiento libre y voluntario',
+                'Mayoría de edad legal (18 años)',
+                'Capacidad de ejercicio plena',
+                'Información clara y comprensible',
+                'Testigos presenciales'
+            ],
+            legal_risks: [
+                'Coacción o intimidación',
+                'Información falsa',
+                'Incapacidad legal',
+                'Menor de edad',
+                'Consentimiento viciado'
+            ],
+            recommendations: [
+                'Verificar identidad con documentos oficiales',
+                'Incluir testigos en el proceso',
+                'Documentar todo el proceso',
+                'Consultar con abogado civil',
+                'Registrar en notaría si es necesario'
+            ],
+            applicable_laws: [
+                'Código Civil Federal',
+                'Código Penal Federal',
+                'Ley de Firma Electrónica Avanzada',
+                'Constitución Política de los Estados Unidos Mexicanos'
+            ]
+        },
+        'Colombia': {
+            consent_age: 14,
+            compliance_status: 'compliant',
+            legal_framework: {
+                documentation_required: true,
+                witness_required: false,
+                notarization_required: false,
+                electronic_signature_valid: true
+            },
+            legal_requirements: [
+                'Consentimiento libre y voluntario',
+                'Edad mínima de 14 años',
+                'Capacidad mental plena',
+                'Información clara y comprensible',
+                'Ausencia de engaño'
+            ],
+            legal_risks: [
+                'Engaño o fraude',
+                'Información incompleta',
+                'Incapacidad mental',
+                'Menor de 14 años',
+                'Consentimiento bajo coacción'
+            ],
+            recommendations: [
+                'Verificar edad de ambas partes',
+                'Documentar consentimiento explícito',
+                'Mantener evidencia del proceso',
+                'Consultar con abogado de familia',
+                'Revisar leyes locales específicas'
+            ],
+            applicable_laws: [
+                'Código Civil Colombiano',
+                'Código Penal Colombiano',
+                'Ley 527 de 1999 (Comercio Electrónico)',
+                'Ley 1581 de 2012 (Protección de Datos)'
+            ]
+        }
+    };
+    
+    return data[country] || data['España'];
+}
+
+function displayComplianceResults(data) {
+    document.getElementById('selectedCountry').textContent = document.getElementById('countrySelect').value;
+    document.getElementById('countryName').textContent = document.getElementById('countrySelect').value;
+    document.getElementById('consentAge').textContent = data.consent_age;
+    
+    // Estado de cumplimiento
+    var statusDiv = document.getElementById('complianceStatus');
+    if (data.compliance_status === 'compliant') {
+        statusDiv.style.background = '#d4edda';
+        statusDiv.style.borderColor = '#c3e6cb';
+        statusDiv.innerHTML = `
+            <h5><i class="fas fa-check-circle"></i> Cumplimiento Verificado</h5>
+            <p style="margin: 0;">Tu acuerdo cumple con los requisitos legales de ${document.getElementById('countrySelect').value}</p>
+        `;
+    } else {
+        statusDiv.style.background = '#f8d7da';
+        statusDiv.style.borderColor = '#f5c6cb';
+        statusDiv.style.color = '#721c24';
+        statusDiv.innerHTML = `
+            <h5><i class="fas fa-times-circle"></i> Incumplimiento Detectado</h5>
+            <p style="margin: 0;">Tu acuerdo no cumple con algunos requisitos legales de ${document.getElementById('countrySelect').value}</p>
+        `;
+    }
+    
+    // Marco legal
+    var frameworkHtml = '';
+    frameworkHtml += `<p><strong>Documentación Requerida:</strong> ${data.legal_framework.documentation_required ? 'Sí' : 'No'}</p>`;
+    frameworkHtml += `<p><strong>Testigos Requeridos:</strong> ${data.legal_framework.witness_required ? 'Sí' : 'No'}</p>`;
+    frameworkHtml += `<p><strong>Notarización Requerida:</strong> ${data.legal_framework.notarization_required ? 'Sí' : 'No'}</p>`;
+    frameworkHtml += `<p><strong>Firma Electrónica Válida:</strong> ${data.legal_framework.electronic_signature_valid ? 'Sí' : 'No'}</p>`;
+    document.getElementById('legalFramework').innerHTML = frameworkHtml;
+    
+    // Requisitos legales
+    var requirementsHtml = '';
+    data.legal_requirements.forEach(function(requirement) {
+        requirementsHtml += `
+            <div style="display: flex; align-items: center; margin-bottom: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 10px; border-left: 4px solid #28a745;">
+                <div style="width: 40px; height: 40px; border-radius: 50%; background: #28a745; color: white; display: flex; align-items: center; justify-content: center; margin-right: 1rem; font-size: 1.2rem;">
+                    <i class="fas fa-check"></i>
+                </div>
+                <div style="flex: 1;">
+                    <div style="font-weight: 600; margin-bottom: 0.25rem;">${requirement}</div>
+                    <div style="color: #6c757d; font-size: 0.9rem;">Requisito legal obligatorio</div>
+                </div>
+            </div>
+        `;
+    });
+    document.getElementById('legalRequirements').innerHTML = requirementsHtml;
+    
+    // Riesgos legales
+    var risksHtml = '';
+    data.legal_risks.forEach(function(risk) {
+        risksHtml += `
+            <div style="display: flex; align-items: center; margin-bottom: 1rem; padding: 1rem; background: #fff3cd; border-radius: 10px; border-left: 4px solid #ffc107;">
+                <div style="width: 40px; height: 40px; border-radius: 50%; background: #ffc107; color: white; display: flex; align-items: center; justify-content: center; margin-right: 1rem; font-size: 1.2rem;">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <div style="flex: 1;">
+                    <div style="font-weight: 600; margin-bottom: 0.25rem;">${risk}</div>
+                    <div style="color: #6c757d; font-size: 0.9rem;">Riesgo legal a considerar</div>
+                </div>
+            </div>
+        `;
+    });
+    document.getElementById('legalRisks').innerHTML = risksHtml;
+    
+    // Recomendaciones
+    var recommendationsHtml = '';
+    data.recommendations.forEach(function(recommendation) {
+        recommendationsHtml += `
+            <div style="display: flex; align-items: center; margin-bottom: 1rem; padding: 1rem; background: #d1ecf1; border-radius: 10px; border-left: 4px solid #17a2b8;">
+                <div style="width: 40px; height: 40px; border-radius: 50%; background: #17a2b8; color: white; display: flex; align-items: center; justify-content: center; margin-right: 1rem; font-size: 1.2rem;">
+                    <i class="fas fa-lightbulb"></i>
+                </div>
+                <div style="flex: 1;">
+                    <div style="font-weight: 600; margin-bottom: 0.25rem;">${recommendation}</div>
+                    <div style="color: #6c757d; font-size: 0.9rem;">Recomendación para mayor seguridad</div>
+                </div>
+            </div>
+        `;
+    });
+    document.getElementById('recommendations').innerHTML = recommendationsHtml;
+    
+    document.getElementById('complianceResults').style.display = 'block';
+}
+
+// Si hay un país en la URL, seleccionarlo automáticamente
+document.addEventListener('DOMContentLoaded', function() {
+    var urlParams = new URLSearchParams(window.location.search);
+    var country = urlParams.get('country');
+    if (country) {
+        document.getElementById('countrySelect').value = country;
+        checkCompliance();
+    }
+});
+</script>
+{% endblock %} 

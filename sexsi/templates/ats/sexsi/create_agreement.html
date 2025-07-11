@@ -1,0 +1,361 @@
+{% extends 'base_unified.html' %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .create-agreement {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 2rem 0;
+    }
+    
+    .agreement-form-card {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 20px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .form-header {
+        background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+        color: white;
+        padding: 2rem;
+        border-radius: 20px 20px 0 0;
+        text-align: center;
+    }
+    
+    .form-content {
+        padding: 2rem;
+    }
+    
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+    
+    .form-label {
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 0.5rem;
+    }
+    
+    .form-control {
+        border: 2px solid #e9ecef;
+        border-radius: 10px;
+        padding: 0.75rem 1rem;
+        transition: all 0.3s ease;
+    }
+    
+    .form-control:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    }
+    
+    .btn-create {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        border: none;
+        padding: 1rem 2rem;
+        border-radius: 50px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-create:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        color: white;
+    }
+    
+    .legal-info {
+        background: rgba(255, 193, 7, 0.1);
+        border: 1px solid #ffc107;
+        border-radius: 10px;
+        padding: 1rem;
+        margin-bottom: 2rem;
+    }
+    
+    .step-indicator {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 2rem;
+    }
+    
+    .step {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: #e9ecef;
+        color: #6c757d;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 0.5rem;
+        font-weight: bold;
+    }
+    
+    .step.active {
+        background: #667eea;
+        color: white;
+    }
+    
+    .step.completed {
+        background: #28a745;
+        color: white;
+    }
+    
+    .agreement-preview {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-top: 1rem;
+    }
+    
+    .terms-checklist {
+        max-height: 200px;
+        overflow-y: auto;
+        border: 1px solid #dee2e6;
+        border-radius: 10px;
+        padding: 1rem;
+    }
+    
+    .checklist-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 0.5rem;
+        padding: 0.5rem;
+        border-radius: 5px;
+        transition: background-color 0.3s ease;
+    }
+    
+    .checklist-item:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .checklist-item input[type="checkbox"] {
+        margin-right: 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="create-agreement">
+    <div class="container">
+        <div class="agreement-form-card">
+            <div class="form-header">
+                <h1><i class="fas fa-file-contract"></i> Crear Acuerdo Íntimo Consensuado</h1>
+                <p class="mb-0">Define los términos y condiciones de tu acuerdo de manera clara y específica</p>
+            </div>
+            
+            <div class="form-content">
+                <div class="step-indicator">
+                    <div class="step active">1</div>
+                    <div class="step">2</div>
+                    <div class="step">3</div>
+                    <div class="step">4</div>
+                </div>
+                
+                <div class="legal-info">
+                    <h6><i class="fas fa-exclamation-triangle"></i> Información Legal Importante</h6>
+                    <small>
+                        Este acuerdo debe ser creado de manera libre y voluntaria por ambas partes. 
+                        Asegúrate de que todos los términos sean claros, específicos y legalmente válidos 
+                        en tu jurisdicción. Recomendamos consultar con un abogado especializado.
+                    </small>
+                </div>
+                
+                <form id="agreementForm" method="POST">
+                    {% csrf_token %}
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Tipo de Acuerdo *</label>
+                                <select name="agreement_type" class="form-control" required>
+                                    <option value="">Selecciona el tipo de acuerdo</option>
+                                    {% for type in agreement_types %}
+                                    <option value="{{ type }}">{{ type }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">País de Jurisdicción *</label>
+                                <select name="country" class="form-control" required>
+                                    <option value="">Selecciona tu país</option>
+                                    {% for country in countries %}
+                                    <option value="{{ country }}">{{ country }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Partes del Acuerdo *</label>
+                        <input type="text" name="parties" class="form-control" 
+                               placeholder="Email de las partes separados por comas (ej: persona1@email.com, persona2@email.com)" 
+                               required>
+                        <small class="form-text text-muted">
+                            Incluye los emails de todas las partes que firmarán el acuerdo
+                        </small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Términos y Condiciones *</label>
+                        <textarea name="terms" class="form-control" rows="8" 
+                                  placeholder="Describe detalladamente los términos del acuerdo..." required></textarea>
+                        <small class="form-text text-muted">
+                            Sé específico y claro sobre los términos, límites y expectativas
+                        </small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Duración del Acuerdo</label>
+                        <select name="duration" class="form-control">
+                            <option value="temporary">Temporal (especificar fecha)</option>
+                            <option value="ongoing">Continuo</option>
+                            <option value="renewable">Renovable</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Confidencialidad</label>
+                        <div class="terms-checklist">
+                            <div class="checklist-item">
+                                <input type="checkbox" name="confidentiality_terms" value="strict">
+                                <label>Acuerdo estrictamente confidencial</label>
+                            </div>
+                            <div class="checklist-item">
+                                <input type="checkbox" name="confidentiality_terms" value="limited">
+                                <label>Compartir solo con asesores legales</label>
+                            </div>
+                            <div class="checklist-item">
+                                <input type="checkbox" name="confidentiality_terms" value="emergency">
+                                <label>Revelar en caso de emergencia médica</label>
+                            </div>
+                            <div class="checklist-item">
+                                <input type="checkbox" name="confidentiality_terms" value="legal">
+                                <label>Revelar si es requerido por ley</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Revocación</label>
+                        <textarea name="revocation_terms" class="form-control" rows="3" 
+                                  placeholder="Términos para revocar o modificar el acuerdo..."></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Notas Adicionales</label>
+                        <textarea name="additional_notes" class="form-control" rows="3" 
+                                  placeholder="Cualquier información adicional relevante..."></textarea>
+                    </div>
+                    
+                    <div class="agreement-preview" id="agreementPreview" style="display: none;">
+                        <h6><i class="fas fa-eye"></i> Vista Previa del Acuerdo</h6>
+                        <div id="previewContent"></div>
+                    </div>
+                    
+                    <div class="text-center mt-4">
+                        <button type="button" class="btn btn-secondary me-2" onclick="showPreview()">
+                            <i class="fas fa-eye"></i> Vista Previa
+                        </button>
+                        <button type="submit" class="btn btn-create">
+                            <i class="fas fa-save"></i> Crear Acuerdo
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Validación del formulario
+    $('#agreementForm').on('submit', function(e) {
+        var requiredFields = ['agreement_type', 'parties', 'terms', 'country'];
+        var isValid = true;
+        
+        requiredFields.forEach(function(field) {
+            var value = $('[name="' + field + '"]').val();
+            if (!value || value.trim() === '') {
+                isValid = false;
+                $('[name="' + field + '"]').addClass('is-invalid');
+            } else {
+                $('[name="' + field + '"]').removeClass('is-invalid');
+            }
+        });
+        
+        if (!isValid) {
+            e.preventDefault();
+            alert('Por favor, completa todos los campos requeridos.');
+            return false;
+        }
+        
+        // Mostrar loading
+        $('button[type="submit"]').html('<i class="fas fa-spinner fa-spin"></i> Creando...');
+        $('button[type="submit"]').prop('disabled', true);
+    });
+    
+    // Validación de email
+    $('[name="parties"]').on('blur', function() {
+        var emails = $(this).val().split(',').map(function(email) {
+            return email.trim();
+        });
+        
+        var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        var validEmails = emails.every(function(email) {
+            return emailRegex.test(email);
+        });
+        
+        if (!validEmails && $(this).val()) {
+            $(this).addClass('is-invalid');
+            $(this).next('.form-text').html('<span class="text-danger">Formato de email inválido</span>');
+        } else {
+            $(this).removeClass('is-invalid');
+            $(this).next('.form-text').html('Incluye los emails de todas las partes que firmarán el acuerdo');
+        }
+    });
+});
+
+function showPreview() {
+    var formData = new FormData(document.getElementById('agreementForm'));
+    var preview = '';
+    
+    // Construir vista previa
+    preview += '<h5>' + formData.get('agreement_type') + '</h5>';
+    preview += '<p><strong>Partes:</strong> ' + formData.get('parties') + '</p>';
+    preview += '<p><strong>País:</strong> ' + formData.get('country') + '</p>';
+    preview += '<p><strong>Términos:</strong></p>';
+    preview += '<div style="background: white; padding: 1rem; border-radius: 5px; margin: 1rem 0;">';
+    preview += formData.get('terms').replace(/\n/g, '<br>');
+    preview += '</div>';
+    
+    if (formData.get('duration')) {
+        preview += '<p><strong>Duración:</strong> ' + formData.get('duration') + '</p>';
+    }
+    
+    if (formData.get('revocation_terms')) {
+        preview += '<p><strong>Revocación:</strong> ' + formData.get('revocation_terms') + '</p>';
+    }
+    
+    $('#previewContent').html(preview);
+    $('#agreementPreview').show();
+    
+    // Scroll a la vista previa
+    $('html, body').animate({
+        scrollTop: $('#agreementPreview').offset().top - 100
+    }, 500);
+}
+</script>
+{% endblock %} 

@@ -1,0 +1,144 @@
+<!--# Ubicacion SEXSI -- /home/pablo/app/sexsi/templates/dashboard.html-->
+{% extends "base.html" %}
+{% block content %}
+<h1 align="center">SEXSI - Sistema de Acuerdos Íntimos Consensuados</h1>
+<p align="center">Protección legal simplificada con tecnología de firma electrónica y blockchain</p>
+
+<div style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 15px; padding: 2rem; margin-bottom: 2rem;">
+    <h3><i class="fas fa-shield-alt"></i> Protección Legal Simplificada</h3>
+    <p>
+        SEXSI te permite crear y firmar acuerdos íntimos consensuados de manera rápida, 
+        segura y legalmente válida. Utilizamos tecnología blockchain y firma electrónica 
+        para garantizar la protección de ambas partes.
+    </p>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; margin-bottom: 2rem;">
+    <div style="background: white; padding: 1.5rem; border-radius: 15px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1); text-align: center;">
+        <div style="font-size: 3rem; margin-bottom: 1rem; color: #4A148C;">
+            <i class="fas fa-file-contract"></i>
+        </div>
+        <h5>Crear Acuerdo</h5>
+        <p>Define los términos y condiciones de tu acuerdo de manera clara y específica.</p>
+        <a href="{% url 'create_agreement' %}" style="background: #4A148C; color: white; border: none; padding: 1rem 2rem; border-radius: 50px; font-weight: 600; text-decoration: none; display: inline-block; margin-top: 1rem;">
+            <i class="fas fa-plus"></i> Nuevo Acuerdo
+        </a>
+    </div>
+    
+    <div style="background: white; padding: 1.5rem; border-radius: 15px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1); text-align: center;">
+        <div style="font-size: 3rem; margin-bottom: 1rem; color: #4A148C;">
+            <i class="fas fa-signature"></i>
+        </div>
+        <h5>Firma Electrónica</h5>
+        <p>Firma digitalmente con verificación de identidad y registro en blockchain.</p>
+        <a href="{% url 'sign_agreement' %}" style="background: #4A148C; color: white; border: none; padding: 1rem 2rem; border-radius: 50px; font-weight: 600; text-decoration: none; display: inline-block; margin-top: 1rem;">
+            <i class="fas fa-pen"></i> Firmar
+        </a>
+    </div>
+    
+    <div style="background: white; padding: 1.5rem; border-radius: 15px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1); text-align: center;">
+        <div style="font-size: 3rem; margin-bottom: 1rem; color: #4A148C;">
+            <i class="fas fa-search"></i>
+        </div>
+        <h5>Verificar Estado</h5>
+        <p>Consulta el estado y validez legal de tus acuerdos en tiempo real.</p>
+        <a href="{% url 'agreement_status' %}" style="background: #4A148C; color: white; border: none; padding: 1rem 2rem; border-radius: 50px; font-weight: 600; text-decoration: none; display: inline-block; margin-top: 1rem;">
+            <i class="fas fa-eye"></i> Verificar
+        </a>
+    </div>
+    
+    <div style="background: white; padding: 1.5rem; border-radius: 15px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1); text-align: center;">
+        <div style="font-size: 3rem; margin-bottom: 1rem; color: #4A148C;">
+            <i class="fas fa-balance-scale"></i>
+        </div>
+        <h5>Cumplimiento Legal</h5>
+        <p>Verifica que tu acuerdo cumple con las leyes de tu país.</p>
+        <a href="{% url 'legal_compliance' %}" style="background: #4A148C; color: white; border: none; padding: 1rem 2rem; border-radius: 50px; font-weight: 600; text-decoration: none; display: inline-block; margin-top: 1rem;">
+            <i class="fas fa-gavel"></i> Verificar
+        </a>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+    <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 1.5rem; border-radius: 15px; text-align: center;">
+        <div style="font-size: 2rem; font-weight: bold; margin-bottom: 0.5rem;">1,247</div>
+        <div>Acuerdos Creados</div>
+    </div>
+    <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 1.5rem; border-radius: 15px; text-align: center;">
+        <div style="font-size: 2rem; font-weight: bold; margin-bottom: 0.5rem;">98.5%</div>
+        <div>Tasa de Éxito</div>
+    </div>
+    <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 1.5rem; border-radius: 15px; text-align: center;">
+        <div style="font-size: 2rem; font-weight: bold; margin-bottom: 0.5rem;">24/7</div>
+        <div>Soporte Legal</div>
+    </div>
+    <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 1.5rem; border-radius: 15px; text-align: center;">
+        <div style="font-size: 2rem; font-weight: bold; margin-bottom: 0.5rem;">6</div>
+        <div>Países Soportados</div>
+    </div>
+</div>
+
+<div style="background: rgba(255, 193, 7, 0.1); border: 1px solid #ffc107; border-radius: 10px; padding: 1rem; margin-bottom: 2rem; text-align: center;">
+    <h6><i class="fas fa-exclamation-triangle"></i> Aviso Legal</h6>
+    <small>
+        SEXSI facilita la creación de acuerdos íntimos consensuados, pero no sustituye 
+        el asesoramiento legal profesional. Recomendamos consultar con un abogado 
+        especializado en derecho sexual y de familia.
+    </small>
+</div>
+
+<div style="text-align: center;">
+    <h4>¿Cómo funciona SEXSI?</h4>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 1rem;">
+        <div style="text-align: center;">
+            <div style="font-size: 3rem; margin-bottom: 1rem; color: #4A148C;">
+                <i class="fas fa-edit"></i>
+            </div>
+            <h6>1. Crear</h6>
+            <small>Define los términos del acuerdo</small>
+        </div>
+        <div style="text-align: center;">
+            <div style="font-size: 3rem; margin-bottom: 1rem; color: #4A148C;">
+                <i class="fas fa-share"></i>
+            </div>
+            <h6>2. Compartir</h6>
+            <small>Envía el acuerdo a la otra parte</small>
+        </div>
+        <div style="text-align: center;">
+            <div style="font-size: 3rem; margin-bottom: 1rem; color: #4A148C;">
+                <i class="fas fa-signature"></i>
+            </div>
+            <h6>3. Firmar</h6>
+            <small>Ambas partes firman digitalmente</small>
+        </div>
+        <div style="text-align: center;">
+            <div style="font-size: 3rem; margin-bottom: 1rem; color: #4A148C;">
+                <i class="fas fa-lock"></i>
+            </div>
+            <h6>4. Proteger</h6>
+            <small>Documento legalmente válido</small>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Contador animado
+    var counters = document.querySelectorAll('[style*="font-size: 2rem"]');
+    counters.forEach(function(counter) {
+        var target = parseInt(counter.textContent.replace(/[^\d]/g, ''));
+        var current = 0;
+        var increment = target / 50;
+        
+        var timer = setInterval(function() {
+            current += increment;
+            if (current >= target) {
+                current = target;
+                clearInterval(timer);
+            }
+            counter.textContent = Math.floor(current) + (counter.textContent.includes('%') ? '%' : '');
+        }, 50);
+    });
+});
+</script>
+{% endblock %} 

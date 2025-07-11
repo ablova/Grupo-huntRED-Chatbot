@@ -1,0 +1,471 @@
+{% extends 'base_unified.html' %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .sign-agreement {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 2rem 0;
+    }
+    
+    .signature-card {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 20px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .signature-header {
+        background: linear-gradient(135deg, #28a745, #20c997);
+        color: white;
+        padding: 2rem;
+        border-radius: 20px 20px 0 0;
+        text-align: center;
+    }
+    
+    .signature-content {
+        padding: 2rem;
+    }
+    
+    .agreement-details {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .signature-pad {
+        border: 2px dashed #dee2e6;
+        border-radius: 15px;
+        padding: 2rem;
+        text-align: center;
+        margin: 2rem 0;
+        min-height: 200px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: white;
+        cursor: crosshair;
+    }
+    
+    .signature-pad canvas {
+        border: 1px solid #dee2e6;
+        border-radius: 10px;
+        background: white;
+    }
+    
+    .btn-sign {
+        background: linear-gradient(135deg, #28a745, #20c997);
+        color: white;
+        border: none;
+        padding: 1rem 2rem;
+        border-radius: 50px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-sign:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 20px rgba(40, 167, 69, 0.3);
+        color: white;
+    }
+    
+    .verification-steps {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 2rem;
+    }
+    
+    .verification-step {
+        text-align: center;
+        flex: 1;
+        margin: 0 0.5rem;
+    }
+    
+    .step-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: #e9ecef;
+        color: #6c757d;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1rem;
+        font-size: 1.5rem;
+        transition: all 0.3s ease;
+    }
+    
+    .step-icon.active {
+        background: #28a745;
+        color: white;
+    }
+    
+    .step-icon.completed {
+        background: #20c997;
+        color: white;
+    }
+    
+    .identity-verification {
+        background: #fff3cd;
+        border: 1px solid #ffeaa7;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .legal-consent {
+        background: #d1ecf1;
+        border: 1px solid #bee5eb;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .signature-preview {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 10px;
+        padding: 1rem;
+        margin-top: 1rem;
+        text-align: center;
+    }
+    
+    .btn-clear {
+        background: #6c757d;
+        color: white;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 25px;
+        margin-left: 1rem;
+    }
+    
+    .btn-clear:hover {
+        background: #5a6268;
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="sign-agreement">
+    <div class="container">
+        <div class="signature-card">
+            <div class="signature-header">
+                <h1><i class="fas fa-signature"></i> Firmar Acuerdo Íntimo Consensuado</h1>
+                <p class="mb-0">Verificación de identidad y firma electrónica segura</p>
+            </div>
+            
+            <div class="signature-content">
+                <div class="verification-steps">
+                    <div class="verification-step">
+                        <div class="step-icon active">
+                            <i class="fas fa-user-check"></i>
+                        </div>
+                        <h6>Verificación</h6>
+                        <small>Identidad</small>
+                    </div>
+                    <div class="verification-step">
+                        <div class="step-icon">
+                            <i class="fas fa-file-alt"></i>
+                        </div>
+                        <h6>Revisión</h6>
+                        <small>Acuerdo</small>
+                    </div>
+                    <div class="verification-step">
+                        <div class="step-icon">
+                            <i class="fas fa-signature"></i>
+                        </div>
+                        <h6>Firma</h6>
+                        <small>Electrónica</small>
+                    </div>
+                    <div class="verification-step">
+                        <div class="step-icon">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <h6>Confirmación</h6>
+                        <small>Completado</small>
+                    </div>
+                </div>
+                
+                {% if agreement_id %}
+                <div class="agreement-details">
+                    <h5><i class="fas fa-file-contract"></i> Detalles del Acuerdo</h5>
+                    <p><strong>ID del Acuerdo:</strong> <code>{{ agreement_id }}</code></p>
+                    <p><strong>Estado:</strong> <span class="badge bg-warning">Pendiente de Firma</span></p>
+                    <p><strong>Fecha de Creación:</strong> <span id="creationDate"></span></p>
+                </div>
+                {% endif %}
+                
+                <div class="identity-verification">
+                    <h6><i class="fas fa-shield-alt"></i> Verificación de Identidad</h6>
+                    <p class="mb-2">Para proceder con la firma, necesitamos verificar tu identidad:</p>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Email de Verificación</label>
+                                <input type="email" id="verificationEmail" class="form-control" 
+                                       placeholder="tu@email.com" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Código de Verificación</label>
+                                <input type="text" id="verificationCode" class="form-control" 
+                                       placeholder="Código de 6 dígitos" maxlength="6">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button type="button" class="btn btn-primary" onclick="sendVerificationCode()">
+                        <i class="fas fa-paper-plane"></i> Enviar Código
+                    </button>
+                    <button type="button" class="btn btn-success" onclick="verifyCode()" style="display: none;" id="verifyBtn">
+                        <i class="fas fa-check"></i> Verificar Código
+                    </button>
+                </div>
+                
+                <div class="legal-consent">
+                    <h6><i class="fas fa-gavel"></i> Consentimiento Legal</h6>
+                    <p class="mb-2">Al firmar este acuerdo, confirmas que:</p>
+                    
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="consent1" required>
+                        <label class="form-check-label" for="consent1">
+                            Has leído y comprendido completamente todos los términos del acuerdo
+                        </label>
+                    </div>
+                    
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="consent2" required>
+                        <label class="form-check-label" for="consent2">
+                            Firmas este acuerdo de manera libre y voluntaria, sin coacción
+                        </label>
+                    </div>
+                    
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="consent3" required>
+                        <label class="form-check-label" for="consent3">
+                            Eres mayor de edad y tienes capacidad legal para firmar
+                        </label>
+                    </div>
+                    
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="consent4" required>
+                        <label class="form-check-label" for="consent4">
+                            Entiendes que esta firma electrónica tiene la misma validez legal que una firma física
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="signature-section">
+                    <h5><i class="fas fa-pen"></i> Firma Electrónica</h5>
+                    <p class="text-muted">Dibuja tu firma en el área de abajo:</p>
+                    
+                    <div class="signature-pad" id="signaturePad">
+                        <canvas id="signatureCanvas" width="500" height="200"></canvas>
+                    </div>
+                    
+                    <div class="text-center">
+                        <button type="button" class="btn btn-clear" onclick="clearSignature()">
+                            <i class="fas fa-eraser"></i> Limpiar Firma
+                        </button>
+                    </div>
+                    
+                    <div class="signature-preview" id="signaturePreview" style="display: none;">
+                        <h6>Vista Previa de la Firma</h6>
+                        <img id="signatureImage" src="" alt="Firma" style="max-width: 100%; height: auto;">
+                    </div>
+                </div>
+                
+                <form id="signatureForm" method="POST" style="display: none;">
+                    {% csrf_token %}
+                    <input type="hidden" name="agreement_id" value="{{ agreement_id }}">
+                    <input type="hidden" name="signature_data" id="signatureData">
+                    
+                    <div class="text-center mt-4">
+                        <button type="submit" class="btn btn-sign" id="submitSignature">
+                            <i class="fas fa-lock"></i> Firmar Acuerdo
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Configurar canvas para firma
+    var canvas = document.getElementById('signatureCanvas');
+    var ctx = canvas.getContext('2d');
+    var isDrawing = false;
+    var lastX = 0;
+    var lastY = 0;
+    
+    // Configurar canvas
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    
+    // Eventos del mouse
+    canvas.addEventListener('mousedown', startDrawing);
+    canvas.addEventListener('mousemove', draw);
+    canvas.addEventListener('mouseup', stopDrawing);
+    canvas.addEventListener('mouseout', stopDrawing);
+    
+    // Eventos táctiles
+    canvas.addEventListener('touchstart', handleTouch);
+    canvas.addEventListener('touchmove', handleTouch);
+    canvas.addEventListener('touchend', stopDrawing);
+    
+    function startDrawing(e) {
+        isDrawing = true;
+        var pos = getPosition(e);
+        lastX = pos.x;
+        lastY = pos.y;
+    }
+    
+    function draw(e) {
+        if (!isDrawing) return;
+        e.preventDefault();
+        
+        var pos = getPosition(e);
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(pos.x, pos.y);
+        ctx.stroke();
+        
+        lastX = pos.x;
+        lastY = pos.y;
+    }
+    
+    function stopDrawing() {
+        isDrawing = false;
+        checkSignature();
+    }
+    
+    function getPosition(e) {
+        var rect = canvas.getBoundingClientRect();
+        var x, y;
+        
+        if (e.type.includes('touch')) {
+            x = e.touches[0].clientX - rect.left;
+            y = e.touches[0].clientY - rect.top;
+        } else {
+            x = e.clientX - rect.left;
+            y = e.clientY - rect.top;
+        }
+        
+        return { x: x, y: y };
+    }
+    
+    function handleTouch(e) {
+        e.preventDefault();
+        var touch = e.type === 'touchstart' ? startDrawing : draw;
+        touch(e);
+    }
+    
+    function checkSignature() {
+        var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        var hasSignature = false;
+        
+        for (var i = 3; i < imageData.data.length; i += 4) {
+            if (imageData.data[i] > 0) {
+                hasSignature = true;
+                break;
+            }
+        }
+        
+        if (hasSignature) {
+            $('#signatureForm').show();
+            updateStep(2);
+        }
+    }
+    
+    // Verificación de identidad
+    window.sendVerificationCode = function() {
+        var email = $('#verificationEmail').val();
+        if (!email) {
+            alert('Por favor, ingresa tu email');
+            return;
+        }
+        
+        // Simular envío de código
+        $('#verifyBtn').show();
+        alert('Código de verificación enviado a ' + email);
+        updateStep(0);
+    };
+    
+    window.verifyCode = function() {
+        var code = $('#verificationCode').val();
+        if (!code || code.length !== 6) {
+            alert('Por favor, ingresa un código válido de 6 dígitos');
+            return;
+        }
+        
+        // Simular verificación
+        alert('Código verificado correctamente');
+        updateStep(1);
+    };
+    
+    window.clearSignature = function() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        $('#signatureForm').hide();
+    };
+    
+    function updateStep(step) {
+        $('.step-icon').removeClass('active completed');
+        for (var i = 0; i <= step; i++) {
+            if (i < step) {
+                $('.step-icon').eq(i).addClass('completed');
+            } else {
+                $('.step-icon').eq(i).addClass('active');
+            }
+        }
+    }
+    
+    // Envío del formulario
+    $('#signatureForm').on('submit', function(e) {
+        e.preventDefault();
+        
+        // Verificar consentimientos
+        var consents = ['consent1', 'consent2', 'consent3', 'consent4'];
+        var allConsented = consents.every(function(id) {
+            return $('#' + id).is(':checked');
+        });
+        
+        if (!allConsented) {
+            alert('Por favor, acepta todos los consentimientos legales');
+            return;
+        }
+        
+        // Convertir firma a base64
+        var signatureData = canvas.toDataURL();
+        $('#signatureData').val(signatureData);
+        
+        // Mostrar loading
+        $('#submitSignature').html('<i class="fas fa-spinner fa-spin"></i> Firmando...');
+        $('#submitSignature').prop('disabled', true);
+        
+        // Simular envío
+        setTimeout(function() {
+            updateStep(3);
+            alert('Acuerdo firmado exitosamente');
+            window.location.href = '/sexsi/dashboard/';
+        }, 2000);
+    });
+    
+    // Fecha de creación
+    $('#creationDate').text(new Date().toLocaleDateString('es-ES'));
+});
+</script>
+{% endblock %} 
