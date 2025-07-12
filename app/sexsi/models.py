@@ -81,6 +81,53 @@ class ConsentAgreement(models.Model):
     creator_id_document = models.ImageField(upload_to='id_documents/', null=True, blank=True)
     invitee_id_document = models.ImageField(upload_to='id_documents/', null=True, blank=True)
     
+    # Campos de validación de identidad y consentimiento
+    creator_full_name_verified = models.CharField(max_length=255, blank=True, null=True, help_text="Nombre completo verificado del creador")
+    creator_birthdate_verified = models.DateField(null=True, blank=True, help_text="Fecha de nacimiento verificada del creador")
+    creator_age_verified = models.BooleanField(default=False, help_text="Edad verificada del creador")
+    creator_age_verification_date = models.DateTimeField(null=True, blank=True, help_text="Fecha de verificación de edad del creador")
+    
+    invitee_full_name_verified = models.CharField(max_length=255, blank=True, null=True, help_text="Nombre completo verificado del invitado")
+    invitee_birthdate_verified = models.DateField(null=True, blank=True, help_text="Fecha de nacimiento verificada del invitado")
+    invitee_age_verified = models.BooleanField(default=False, help_text="Edad verificada del invitado")
+    invitee_age_verification_date = models.DateTimeField(null=True, blank=True, help_text="Fecha de verificación de edad del invitado")
+    
+    # Campos de consentimiento y estado mental
+    creator_is_conscious = models.BooleanField(default=False, help_text="Creador confirma estar en pleno uso de facultades")
+    creator_is_sober = models.BooleanField(default=False, help_text="Creador confirma no haber consumido alcohol/drogas")
+    invitee_is_conscious = models.BooleanField(default=False, help_text="Invitado confirma estar en pleno uso de facultades")
+    invitee_is_sober = models.BooleanField(default=False, help_text="Invitado confirma no haber consumido alcohol/drogas")
+    
+    # Campos de duración del acuerdo
+    duration_type = models.CharField(
+        max_length=20, 
+        choices=[
+            ('single', 'Una Sola Vez'),
+            ('short_term', 'Corto Plazo'),
+            ('long_term', 'Largo Plazo')
+        ],
+        default='single',
+        help_text="Tipo de duración del acuerdo"
+    )
+    duration_amount = models.PositiveIntegerField(null=True, blank=True, help_text="Cantidad de duración")
+    duration_unit = models.CharField(
+        max_length=20,
+        choices=[
+            ('hours', 'Horas'),
+            ('days', 'Días'),
+            ('weeks', 'Semanas'),
+            ('months', 'Meses')
+        ],
+        null=True, blank=True,
+        help_text="Unidad de duración"
+    )
+    
+    # Campos de contacto del invitado
+    invitee_contact = models.CharField(max_length=255, blank=True, null=True, help_text="Información de contacto del invitado")
+    
+    # Campos de actividades consensuales
+    consensual_activities = models.JSONField(default=list, blank=True, help_text="Lista de actividades consensuales acordadas")
+    
     # Seguridad y control de token
     token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     

@@ -5,10 +5,11 @@
  # Ubicacion SEXSI -- /home/pablo/app/sexsi/views.py
 import paypalrestsdk
 from django.shortcuts import redirect
-from django.views.generic import ListView
+from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
 from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse, HttpResponse
 from django.utils.timezone import now
@@ -422,3 +423,71 @@ def validate_token(agreement, token):
 async def process_incoming_message(message, user_id):
     # Implementa la lógica de procesamiento aquí
     pass
+
+# Vistas para manejo de preferencias
+class PreferenceSelectionView(LoginRequiredMixin, ListView):
+    """Vista para seleccionar preferencias antes de crear un acuerdo."""
+    model = Preference
+    template_name = 'sexsi/preference_selection.html'
+    context_object_name = 'preferences'
+    
+    def get_queryset(self):
+        return Preference.objects.all().order_by('category', 'name')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['categories'] = Preference.PREFERENCE_TYPES
+        return context
+
+class PreferenceUpdateView(LoginRequiredMixin, UpdateView):
+    """Vista para actualizar preferencias de un acuerdo existente."""
+    model = ConsentAgreement
+    template_name = 'sexsi/preference_update.html'
+    fields = ['preferences']
+    
+    def get_success_url(self):
+        return reverse('sexsi:agreement_detail', kwargs={'pk': self.object.pk})
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['all_preferences'] = Preference.objects.all().order_by('category', 'name')
+        context['categories'] = Preference.PREFERENCE_TYPES
+        return context
+
+# Vistas para notificaciones
+@login_required
+def mark_notification_as_read(request, pk):
+    """Marca una notificación como leída."""
+    # Implementar lógica de notificaciones
+    messages.success(request, 'Notificación marcada como leída.')
+    return redirect('sexsi:agreement_list')
+
+@login_required
+def delete_notification(request, pk):
+    """Elimina una notificación."""
+    # Implementar lógica de notificaciones
+    messages.success(request, 'Notificación eliminada.')
+    return redirect('sexsi:agreement_list')
+
+# Vista para chatbot
+@login_required
+def chatbot_view(request):
+    """Vista para el chatbot de SEXSI."""
+    return render(request, 'sexsi/chatbot.html')
+
+# Vistas para documentos
+@login_required
+def document_view(request, document_type, token):
+    """Vista para mostrar documentos."""
+    # Implementar lógica de documentos
+    return render(request, 'sexsi/document_view.html', {
+        'document_type': document_type,
+        'token': token
+    })
+
+@login_required
+def sign_document(request, document_type, token):
+    """Vista para firmar documentos."""
+    # Implementar lógica de firma de documentos
+    messages.success(request, 'Documento firmado exitosamente.')
+    return redirect('sexsi:agreement_list')

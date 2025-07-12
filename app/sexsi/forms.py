@@ -16,26 +16,34 @@ class ConsentAgreementForm(forms.ModelForm):
         fields = [
             'date_of_encounter', 
             'location', 
-            'agreement_text'
+            'agreement_text',
+            'duration_type',
+            'duration_amount',
+            'duration_unit',
+            'creator_full_name_verified',
+            'creator_birthdate_verified',
+            'creator_is_conscious',
+            'creator_is_sober',
+            'invitee_contact',
+            'consensual_activities'
         ]
         widgets = {
             'date_of_encounter': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
             'agreement_text': forms.Textarea(attrs={'rows': 4}),
+            'creator_birthdate_verified': forms.DateInput(attrs={'type': 'date'}),
+            'consensual_activities': forms.SelectMultiple(attrs={'class': 'form-control'}),
         }
 
-    # Campos adicionales para el formulario que no están en el modelo
+    # Campos adicionales para validación
     accept_tos = forms.BooleanField(required=True, label="Acepto los Términos de Servicio y la Política de Privacidad.")
     identity_document = forms.ImageField(required=True, label="Sube tu INE, Licencia o Pasaporte")
-    full_name_verified = forms.CharField(max_length=255, required=True, label="Nombre Completo (como en tu Identificacion Oficial)")
-    birthdate_verified = forms.DateField(required=True, label="Fecha de Nacimiento (DD/MM/AAAA)")
-    is_conscious = forms.BooleanField(required=True, label="Confirmo que estoy en pleno uso de mis facultades")
-    is_sober = forms.BooleanField(required=True, label="Confirmo que no he consumido alcohol o drogas en las últimas 6 horas")
 
-    def clean_birthdate_verified(self):
+    def clean_creator_birthdate_verified(self):
         """Validar que el usuario sea mayor de edad."""
         from datetime import datetime
-        birth_date = self.cleaned_data['birthdate_verified']
-        age = (datetime.now().date() - birth_date).days // 365
-        if age < 18:
-            raise forms.ValidationError("Debes ser mayor de edad para firmar este acuerdo.")
+        birth_date = self.cleaned_data['creator_birthdate_verified']
+        if birth_date:
+            age = (datetime.now().date() - birth_date).days // 365
+            if age < 18:
+                raise forms.ValidationError("Debes ser mayor de edad para firmar este acuerdo.")
         return birth_date
