@@ -1,4 +1,4 @@
-# Ubicacion SEXSI -- /home/pablo/app/sexsi/tasks.py
+# Ubicacion SEXSI -- app/sexsi/tasks.py
 
 from celery import shared_task
 from django.utils.timezone import now, timedelta

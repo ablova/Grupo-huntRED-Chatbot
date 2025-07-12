@@ -187,7 +187,7 @@ def process_pending_agreements():
 
 def apply_discount_coupon(user, original_price):
     """Aplica un cupón de descuento válido al precio original."""
-            valid_coupons = SexsiDiscountCoupon.objects.filter(user=user, is_used=False, expiration_date__gt=now()).order_by('-discount_percentage')
+    valid_coupons = SexsiDiscountCoupon.objects.filter(user=user, is_used=False, expiration_date__gt=now()).order_by('-discount_percentage')
     
     if valid_coupons.exists():
         coupon = valid_coupons.first()
@@ -202,7 +202,7 @@ def generate_discount_coupon(user, discount_percentage):
     """Genera un cupón con un porcentaje de descuento específico y una validez definida."""
     coupon_code = str(uuid.uuid4())[:8].upper()
     expiration_date = now() + timedelta(days=30)
-            coupon = SexsiDiscountCoupon.objects.create(
+    coupon = SexsiDiscountCoupon.objects.create(
         user=user,
         code=coupon_code,
         discount_percentage=discount_percentage,

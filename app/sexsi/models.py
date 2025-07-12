@@ -1,4 +1,4 @@
-# Ubicacion SEXSI -- /home/pablo/app/sexsi/models.py
+# Ubicacion SEXSI -- app/sexsi/models.py
 
 from django.db import models
 from django.utils.timezone import now, timedelta
@@ -185,7 +185,7 @@ class SexsiDiscountCoupon(models.Model):
         return f"Cupon SEXSI {self.code} - {self.discount_percentage}% - {'Usado' if self.is_used else 'Disponible'}"
 
 # Modelo de relación intermedia para manejar las preferencias en los acuerdos
-class AgreementPreference(models.Model):
+class SexsiAgreementPreference(models.Model):
     """
     Modelo que representa la relación entre un acuerdo y sus preferencias,
     permitiendo almacenar información adicional sobre cada preferencia en el contexto del acuerdo.
