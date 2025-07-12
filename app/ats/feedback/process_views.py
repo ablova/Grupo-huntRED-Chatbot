@@ -23,7 +23,7 @@ from django.utils import timezone
 from django.urls import reverse
 from django.db.models import Q, Count, Avg, F, Value, Sum, Case, When, IntegerField
 
-from app.models import Opportunity, Proposal, ServiceContract, Company, Contact, BusinessUnit
+from app.models import Opportunity, Proposal, Contract, Company, Contact, BusinessUnit
 from app.ats.feedback.feedback_models import ServiceFeedback, OngoingServiceFeedback, CompletedServiceFeedback
 from app.ats.feedback.reminder_system import get_reminder_system, ReminderChannel
 from app.ats.feedback import get_feedback_tracker

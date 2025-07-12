@@ -14,7 +14,7 @@ from django.db.models.signals import post_save, post_init
 from django.dispatch import receiver
 
 from app.ats.models import Proposal
-from app.models import Opportunity, ServiceContract, ServiceMilestone
+from app.models import Opportunity, Contract, ServiceMilestone
 from app.ats.feedback.feedback_modelsfeedback_models import ServiceFeedback, OngoingServiceFeedback, CompletedServiceFeedback
 from app.ats.feedback.feedback_modelsongoing_tracker import get_ongoing_service_tracker
 from app.ats.feedback.feedback_modelscompletion_tracker import get_service_completion_tracker
@@ -104,7 +104,7 @@ def track_milestone_feedback(sender, instance, created, **kwargs):
     ))
 
 # Enviar feedback a intervalos regulares para servicios largos
-@receiver(post_save, sender=ServiceContract)
+@receiver(post_save, sender=Contract)
 def schedule_periodic_feedback(sender, instance, created, **kwargs):
     """
     Para servicios de larga duración, programa retroalimentación
@@ -159,12 +159,12 @@ def schedule_periodic_feedback(sender, instance, created, **kwargs):
     logger.info(f"Programados 3 puntos de feedback periódico para servicio de larga duración {opportunity_id}")
 
 # Rastrear cambios de estado en contratos
-@receiver(post_init, sender=ServiceContract)
+@receiver(post_init, sender=Contract)
 def store_initial_contract_status(sender, instance, **kwargs):
     """Almacena el estado inicial del contrato para detectar cambios."""
     instance._initial_status = instance.status if hasattr(instance, 'status') else None
 
-@receiver(post_save, sender=ServiceContract)
+@receiver(post_save, sender=Contract)
 def check_contract_status_change(sender, instance, **kwargs):
     """Detecta cambios en el estado del contrato."""
     if not hasattr(instance, '_initial_status'):
@@ -175,7 +175,7 @@ def check_contract_status_change(sender, instance, **kwargs):
 
 # SEÑALES PARA FINALIZACIÓN DE SERVICIOS
 
-@receiver(post_save, sender=ServiceContract)
+@receiver(post_save, sender=Contract)
 def track_service_completion(sender, instance, created, **kwargs):
     """
     Detecta cuando se completa un servicio y programa la evaluación final.

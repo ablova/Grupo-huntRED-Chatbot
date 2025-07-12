@@ -27,7 +27,7 @@ from django.urls import reverse
 from django.db.models import Q, Count, Avg, F, Value, Sum, Case, When, IntegerField
 from django.views.generic import TemplateView, ListView, DetailView
 
-from app.models import Proposal, Opportunity, ServiceContract, Company, Contact
+from app.models import Proposal, Opportunity, Contract, Company, Contact
 from app.ats.feedback.feedback_models import (
     ServiceFeedback, OngoingServiceFeedback, CompletedServiceFeedback, 
     ServiceImprovementSuggestion

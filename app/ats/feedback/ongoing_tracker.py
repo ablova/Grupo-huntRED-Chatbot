@@ -24,7 +24,7 @@ from django.core.mail import send_mail
 import redis
 import requests
 
-from app.models import Opportunity, ServiceContract, Company, Contact
+from app.models import Opportunity, Contract, Company, Contact
 from app.ats.feedback.feedback_models import ServiceFeedback, OngoingServiceFeedback, ServiceImprovementSuggestion
 
 logger = logging.getLogger(__name__)
