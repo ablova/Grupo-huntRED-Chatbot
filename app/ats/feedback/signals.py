@@ -16,9 +16,9 @@ from django.dispatch import receiver
 from app.ats.models import Proposal
 from app.models import Opportunity, Contract
 from app.ats.pricing.models import ExternalServiceMilestone
-from app.ats.feedback.feedback_modelsfeedback_models import ServiceFeedback, OngoingServiceFeedback, CompletedServiceFeedback
-from app.ats.feedback.feedback_modelsongoing_tracker import get_ongoing_service_tracker
-from app.ats.feedback.feedback_modelscompletion_tracker import get_service_completion_tracker
+from app.ats.feedback.feedback_models import ServiceFeedback, OngoingServiceFeedback, CompletedServiceFeedback
+from app.ats.feedback.ongoing_tracker import get_ongoing_service_tracker
+from app.ats.feedback.completion_tracker import get_service_completion_tracker
 from app.ats.pricing.proposal_tracker import get_proposal_tracker
 from app.ats.utilidades.logging_utils import get_logger
 
