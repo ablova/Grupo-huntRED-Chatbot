@@ -15,7 +15,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.admin.views.decorators import staff_member_required
 
 from app.ml.aura.orchestrator import aura_orchestrator
-from app.ml.aura.core.ethics_engine import AnalysisType
+from app.ml.aura.orchestrator import AnalysisType
 
 logger = logging.getLogger(__name__)
 
