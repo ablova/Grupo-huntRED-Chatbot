@@ -24,8 +24,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-logger = get_logger(__name__)
-
 # Configuración
 PROPOSAL_FEEDBACK_DELAY = 3  # días después de enviar la propuesta
 MILESTONE_FEEDBACK_DELAY = 1  # día después de alcanzar un hito
