@@ -1,3 +1,4 @@
+# app/ats/publish/views/__init__.py
 """
 Módulo de vistas para el módulo Publish.
 

@@ -1,3 +1,4 @@
+# app/ats/publish/views/strategic_notification_views.py
 """
 Vistas para Notificaciones Estratégicas del módulo Publish.
 
