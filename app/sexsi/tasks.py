@@ -2,7 +2,7 @@
 
 from celery import shared_task
 from django.utils.timezone import now, timedelta
-from app.models import ConsentAgreement, DiscountCoupon
+from app.sexsi.models import ConsentAgreement, DiscountCoupon
 from app.ats.chatbot.workflow.sexsi import send_signature_reminder
 from app.ats.integrations.services import send_message, notify_employer, EnhancedNetworkGamificationProfile, email_service
 from app.models import Person

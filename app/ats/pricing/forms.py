@@ -1,4 +1,4 @@
-# /home/pablo/app/com/pricing/forms.py
+# app/ats/pricing/forms.py
 """
 Formularios para el módulo de pricing de Grupo huntRED®.
 
@@ -171,20 +171,34 @@ class CompanyForm(forms.ModelForm):
 
     class Meta:
         model = Company
-        fields = ['name', 'legal_name', 'tax_id', 'industry', 'size', 'website', 'address', 'city', 'state', 'country',
-                  'signer', 'payment_responsible', 'fiscal_responsible', 'process_responsible', 'report_invitees', 'notification_preferences']
-        widgets = {
-            'name': TextInput(attrs={'class': 'form-control'}),
-            'legal_name': TextInput(attrs={'class': 'form-control'}),
-            'tax_id': TextInput(attrs={'class': 'form-control'}),
-            'industry': TextInput(attrs={'class': 'form-control'}),
-            'size': TextInput(attrs={'class': 'form-control'}),
-            'website': TextInput(attrs={'class': 'form-control'}),
-            'address': Textarea(attrs={'class': 'form-control', 'rows': 2}),
-            'city': TextInput(attrs={'class': 'form-control'}),
-            'state': TextInput(attrs={'class': 'form-control'}),
-            'country': TextInput(attrs={'class': 'form-control'}),
-        }
+        # TODO: Temporal - campos fiscales deshabilitados hasta que se apliquen las migraciones
+        try:
+            # Verificar si los campos fiscales existen en el modelo
+            Company._meta.get_field('tax_id')
+            fields = ['name', 'legal_name', 'tax_id', 'industry', 'size', 'website', 'address', 'city', 'state', 'country',
+                      'signer', 'payment_responsible', 'fiscal_responsible', 'process_responsible', 'report_invitees', 'notification_preferences']
+            widgets = {
+                'name': TextInput(attrs={'class': 'form-control'}),
+                'legal_name': TextInput(attrs={'class': 'form-control'}),
+                'tax_id': TextInput(attrs={'class': 'form-control'}),
+                'industry': TextInput(attrs={'class': 'form-control'}),
+                'size': TextInput(attrs={'class': 'form-control'}),
+                'website': TextInput(attrs={'class': 'form-control'}),
+                'address': Textarea(attrs={'class': 'form-control', 'rows': 2}),
+                'city': TextInput(attrs={'class': 'form-control'}),
+                'state': TextInput(attrs={'class': 'form-control'}),
+                'country': TextInput(attrs={'class': 'form-control'}),
+            }
+        except:
+            # Si los campos fiscales no existen, usar solo campos básicos
+            fields = ['name', 'industry', 'size', 'website',
+                      'signer', 'payment_responsible', 'fiscal_responsible', 'process_responsible', 'report_invitees', 'notification_preferences']
+            widgets = {
+                'name': TextInput(attrs={'class': 'form-control'}),
+                'industry': TextInput(attrs={'class': 'form-control'}),
+                'size': TextInput(attrs={'class': 'form-control'}),
+                'website': TextInput(attrs={'class': 'form-control'}),
+            }
 
 
 class BulkAnalysisRequestForm(forms.Form):
@@ -223,3 +237,18 @@ class BulkAnalysisRequestForm(forms.Form):
         initial=False,
         widget=CheckboxInput(attrs={'class': 'form-check-input'})
     )
+
+
+class ContactForm(forms.ModelForm):
+    """Formulario para crear/editar contactos."""
+    
+    class Meta:
+        model = Person
+        fields = ['nombre', 'apellido_paterno', 'apellido_materno', 'email', 'phone']
+        widgets = {
+            'nombre': TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre'}),
+            'apellido_paterno': TextInput(attrs={'class': 'form-control', 'placeholder': 'Apellido paterno'}),
+            'apellido_materno': TextInput(attrs={'class': 'form-control', 'placeholder': 'Apellido materno'}),
+            'email': TextInput(attrs={'class': 'form-control', 'type': 'email', 'placeholder': 'Correo electrónico'}),
+            'phone': TextInput(attrs={'class': 'form-control', 'placeholder': 'Teléfono'})
+        }

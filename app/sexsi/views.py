@@ -1,4 +1,4 @@
-# /home/pablo/app/sexsi/views.py
+# app/sexsi/views.py
 #
 # Vista para el módulo. Implementa la lógica de presentación y manejo de peticiones HTTP.
 
@@ -17,8 +17,7 @@ from weasyprint import HTML
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 
-from app.models import ConsentAgreement, PaymentTransaction, Preference, DiscountCoupon
-from app.ats.sexsi.forms import ConsentAgreementForm
+from app.sexsi.forms import ConsentAgreement, PaymentTransaction, Preference, ConsentAgreementForm, DiscountCoupon
 from app.ats.integrations.services import send_message, email_service
 from asgiref.sync import async_to_sync
 import json

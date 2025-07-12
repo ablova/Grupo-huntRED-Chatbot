@@ -69,13 +69,13 @@ from app.views.publish_views import (
     update_job_opportunity_status,
     webhook_job_opportunity
 )
-from app.ats.pricing.views.sync_views import sync_pricing_view, sync_all_pricing_view
+# TODO: Temporal - comentar hasta resolver el problema de importación
+# from app.ats.pricing.views import sync_pricing_view, sync_all_pricing_view
 
 # Importación para Análisis Cultural
 # Migrated to app.ats.chatbot.workflow.assessments.cultural
 
-# IMPORTACIONES DE DOCUMENTOS (RRHH)
-from app.ats.documents import urls as documents_urls
+
 
 logger = logging.getLogger(__name__)
 
@@ -103,9 +103,9 @@ urlpatterns = [
     # Incluir URLs de módulos
     path('chatbot/', include('app.views.chatbot.urls')),
     path('candidates/', include('app.views.candidates.urls')),
-    path('workflow/', include('app.views.workflow.urls')),
+    #path('workflow/', include('app.views.workflow.urls')), Se convirtieron en las rutas de workflow de más adelante 218-222
     path('sexsi/', include('app.sexsi.urls')),
-    path('documents/', include(documents_urls, namespace='documents')),
+
     path('pricing/', include('app.ats.pricing.urls', namespace='pricing')),
     path('publish/', include('app.ats.publish.urls', namespace='publish')),
     path('ml/', include('app.views.ml.urls')),

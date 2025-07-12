@@ -1,14 +1,28 @@
 # /home/pablo/app/ml/core/models/matchmaking/matchmaking.py
 import numpy as np
-import tensorflow as tf
-from tensorflow.keras import layers, models
 from sklearn.preprocessing import StandardScaler
 from typing import Dict, List, Optional, Tuple
 from app.models import Person, Vacante
 from app.ml.core.models.base import BaseMLModel
 from sklearn.base import BaseEstimator
-import torch
-import torch.nn as nn
+
+# Importación condicional de TensorFlow
+try:
+    import tensorflow as tf
+    from tensorflow.keras import layers, models
+    TENSORFLOW_AVAILABLE = True
+except ImportError:
+    TENSORFLOW_AVAILABLE = False
+    print("TensorFlow no disponible. Algunas funcionalidades pueden estar limitadas.")
+
+# Importación condicional de PyTorch
+try:
+    import torch
+    import torch.nn as nn
+    PYTORCH_AVAILABLE = True
+except ImportError:
+    PYTORCH_AVAILABLE = False
+    print("PyTorch no disponible. Algunas funcionalidades pueden estar limitadas.")
 
 class MatchmakingModel(BaseEstimator):
     """Modelo base de ML para matchmaking."""
@@ -27,8 +41,12 @@ class MatchmakingModel(BaseEstimator):
         # Inicializar red neuronal
         self.model = self._build_model()
         
-    def _build_model(self) -> nn.Module:
+    def _build_model(self):
         """Construye la arquitectura de la red neuronal."""
+        if not PYTORCH_AVAILABLE:
+            print("PyTorch no disponible. Usando modelo dummy.")
+            return None
+            
         layers = []
         
         # Capa de entrada
@@ -53,8 +71,11 @@ class MatchmakingModel(BaseEstimator):
         self,
         candidate_features: Dict,
         job_features: Dict
-    ) -> torch.Tensor:
+    ):
         """Prepara las características para el modelo."""
+        if not PYTORCH_AVAILABLE:
+            return np.array([])
+            
         # Características base
         base_features = self._prepare_base_features(candidate_features, job_features)
         
@@ -70,13 +91,18 @@ class MatchmakingModel(BaseEstimator):
         self,
         candidate_features: Dict,
         job_features: Dict
-    ) -> torch.Tensor:
+    ):
         """Prepara las características base del candidato y la vacante."""
+        if not PYTORCH_AVAILABLE:
+            return np.array([])
         # Implementar preparación de características base
         return torch.tensor([])
         
-    def _prepare_group_features(self, candidate_features: Dict) -> torch.Tensor:
+    def _prepare_group_features(self, candidate_features: Dict):
         """Prepara las características de relaciones grupales y familiares."""
+        if not PYTORCH_AVAILABLE:
+            return np.array([])
+            
         group_features = []
         
         # Familiares en la empresa
@@ -113,6 +139,10 @@ class MatchmakingModel(BaseEstimator):
             X: Lista de pares (características_candidato, características_vacante)
             y: Lista de scores de match
         """
+        if not PYTORCH_AVAILABLE:
+            print("PyTorch no disponible. Saltando entrenamiento.")
+            return self
+            
         # Preparar datos
         X_processed = [
             self._prepare_features(candidate, job)
@@ -122,16 +152,17 @@ class MatchmakingModel(BaseEstimator):
         y_tensor = torch.tensor(y, dtype=torch.float32)
         
         # Entrenar modelo
-        self.model.train()
-        optimizer = torch.optim.Adam(self.model.parameters())
-        criterion = nn.BCELoss()
-        
-        for epoch in range(100):  # Número de épocas
-            optimizer.zero_grad()
-            outputs = self.model(X_tensor)
-            loss = criterion(outputs, y_tensor.unsqueeze(1))
-            loss.backward()
-            optimizer.step()
+        if self.model is not None:
+            self.model.train()
+            optimizer = torch.optim.Adam(self.model.parameters())
+            criterion = nn.BCELoss()
+            
+            for epoch in range(100):  # Número de épocas
+                optimizer.zero_grad()
+                outputs = self.model(X_tensor)
+                loss = criterion(outputs, y_tensor.unsqueeze(1))
+                loss.backward()
+                optimizer.step()
             
         return self
         
@@ -148,6 +179,10 @@ class MatchmakingModel(BaseEstimator):
         Returns:
             Array de scores de match
         """
+        if not PYTORCH_AVAILABLE or self.model is None:
+            print("PyTorch no disponible o modelo no inicializado. Retornando predicciones dummy.")
+            return np.array([0.5] * len(X))
+            
         self.model.eval()
         with torch.no_grad():
             X_processed = [

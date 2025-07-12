@@ -9,7 +9,7 @@ from django.shortcuts import get_object_or_404
 from django.http import JsonResponse
 from django.utils.timezone import now
 from django.conf import settings
-from app.models import ConsentAgreement
+from app.sexsi.models import ConsentAgreement
 from app.ats.utils.signature.config import BIOMETRIC_CONFIG
 
 class AdvancedBiometricValidation:

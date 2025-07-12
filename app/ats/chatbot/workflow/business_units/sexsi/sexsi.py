@@ -7,7 +7,7 @@ from asgiref.sync import async_to_sync
 from app.ats.integrations.services import send_message, EmailService, send_options
 from forex_python.converter import CurrencyRates
 from django.utils.timezone import now
-from app.models import ConsentAgreement, SexsiConfig, DiscountCoupon
+from app.sexsi.models import ConsentAgreement, SexsiConfig, DiscountCoupon
 
 logger = logging.getLogger(__name__)
 

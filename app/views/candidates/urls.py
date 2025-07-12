@@ -1,6 +1,16 @@
+# app/views/candidates/urls.py 
+# - URLs para el módulo de candidatos.
+# Optimización: Diseño modular para URLs de candidatos.
+# Mejora: Diseño dinámico con herencia de clases para URLs de candidatos, manteniendo nombres como 'candidato_dashboard'.
+# Type hints y comentarios para mejores prácticas.
+
+from typing import Dict, Any, List  # Type hints para legibilidad y errores tempranos.
+from django.urls import path  # Importación de path para URLs.
+from django.contrib.auth.decorators import login_required  # Importación de login_required para decoradores.
+
 from django.urls import path
 from django.contrib.auth.decorators import login_required
-from app.ats.views.candidatos_views import (
+from app.views.candidatos_views import (
     candidato_dashboard, list_candidatos, add_application,
     candidato_details, generate_challenges
 )

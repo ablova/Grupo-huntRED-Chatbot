@@ -5616,48 +5616,9 @@ class Interaction(models.Model):
         return f"{self.user} - {self.type}"
 
 
-class SexsiConfig(models.Model):
-    """Modelo para configuración de Sexsi."""
-    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE, related_name='sexsi_configs')
-    api_key = models.CharField(max_length=255)
-    api_secret = models.CharField(max_length=255)
-    base_url = models.URLField()
-    is_active = models.BooleanField(default=True)
-    additional_config = models.JSONField(default=dict, help_text="Configuración adicional")
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    class Meta:
-        verbose_name = "Configuración de Sexsi"
-        verbose_name_plural = "Configuraciones de Sexsi"
-        unique_together = ['business_unit']
-        
-    def __str__(self):
-        return f"Sexsi - {self.business_unit}"
 
-class ConsentAgreement(models.Model):
-    """Modelo para acuerdos de consentimiento."""
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='consent_agreements')
-    agreement_type = models.CharField(max_length=50, choices=[
-        ('privacy', 'Privacidad'),
-        ('terms', 'Términos y condiciones'),
-        ('marketing', 'Marketing'),
-        ('other', 'Otro')
-    ])
-    version = models.CharField(max_length=50)
-    content = models.TextField()
-    is_accepted = models.BooleanField(default=False)
-    accepted_at = models.DateTimeField(null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    class Meta:
-        verbose_name = "Acuerdo de Consentimiento"
-        verbose_name_plural = "Acuerdos de Consentimiento"
-        ordering = ['-created_at']
-        
-    def __str__(self):
-        return f"{self.user} - {self.agreement_type}"
+
+
 
 class AgreementPreference(models.Model):
     """Modelo para preferencias de acuerdos."""
@@ -5680,22 +5641,7 @@ class AgreementPreference(models.Model):
     def __str__(self):
         return f"{self.user} - {self.agreement_type}"
 
-class Preference(models.Model):
-    """Modelo para preferencias de usuario."""
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='preferences')
-    category = models.CharField(max_length=50)
-    key = models.CharField(max_length=100)
-    value = models.JSONField()
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    class Meta:
-        verbose_name = "Preferencia"
-        verbose_name_plural = "Preferencias"
-        unique_together = ['user', 'category', 'key']
-        
-    def __str__(self):
-        return f"{self.user} - {self.category}.{self.key}"
+
 
 class OnboardingProcess(models.Model):
     """Modelo para procesos de onboarding."""

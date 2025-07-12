@@ -6,7 +6,7 @@
 URL configuration for the SEXSI app.
 """
 from django.urls import path
-from app.ats.sexsi import views
+from app.sexsi import views
 
 app_name = 'sexsi'
 

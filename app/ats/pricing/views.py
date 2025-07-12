@@ -1,4 +1,4 @@
-# /home/pablo/app/ats/pricing/views.py
+# app/ats/pricing/views.py
 """
 Vistas para el módulo de pricing de Grupo huntRED®.
 
@@ -268,7 +268,14 @@ class Talent360RequestCreateView(LoginRequiredMixin, CreateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         # Formularios para crear empresa y contacto en la misma vista
-        context['company_form'] = CompanyForm()
+        # TODO: Temporal - deshabilitar CompanyForm hasta que se apliquen las migraciones
+        try:
+            context['company_form'] = CompanyForm()
+        except Exception as e:
+            # Si hay error con CompanyForm (campos no existen en BD), usar None
+            context['company_form'] = None
+            context['company_form_error'] = "Formulario de empresa temporalmente deshabilitado durante la migración"
+        
         context['contact_form'] = ContactForm()
         context['signer'] = self.request.user.signer
         context['payment_responsible'] = self.request.user.payment_responsible
@@ -317,8 +324,26 @@ class Talent360RequestCreateView(LoginRequiredMixin, CreateView):
 class CompanyCreateView(LoginRequiredMixin, CreateView):
     """Crear una nueva empresa."""
     model = Company
-    form_class = CompanyForm
+    # TODO: Temporal - deshabilitar CompanyForm hasta que se apliquen las migraciones
+    form_class = None  # Temporalmente deshabilitado
     template_name = 'pricing/company_form.html'
+    
+    def get_form_class(self):
+        # TODO: Temporal - verificar si CompanyForm puede ser usado
+        try:
+            from app.ats.pricing.forms import CompanyForm
+            return CompanyForm
+        except Exception as e:
+            # Si hay error, mostrar mensaje de error
+            from django import forms
+            class DisabledForm(forms.Form):
+                def __init__(self, *args, **kwargs):
+                    super().__init__(*args, **kwargs)
+                    self.fields['error'] = forms.CharField(
+                        widget=forms.HiddenInput,
+                        initial="Formulario temporalmente deshabilitado durante la migración"
+                    )
+            return DisabledForm
     
     def get_success_url(self):
         # Redirigir de vuelta a donde vino
@@ -1729,17 +1754,71 @@ def update_company_contacts(request, company_id):
         messages.error(request, "No tienes permisos para editar los contactos de esta empresa.")
         return redirect(request.META.get('HTTP_REFERER', '/'))
 
-    if request.method == 'POST':
-        form = CompanyForm(request.POST, instance=company)
-        if form.is_valid():
-            form.save()
-            messages.success(request, "Contactos y notificaciones actualizados correctamente.")
-            return redirect(request.META.get('HTTP_REFERER', '/'))
-    else:
-        form = CompanyForm(instance=company)
+    # TODO: Temporal - deshabilitar CompanyForm hasta que se apliquen las migraciones
+    try:
+        if request.method == 'POST':
+            form = CompanyForm(request.POST, instance=company)
+            if form.is_valid():
+                form.save()
+                messages.success(request, "Contactos y notificaciones actualizados correctamente.")
+                return redirect(request.META.get('HTTP_REFERER', '/'))
+        else:
+            form = CompanyForm(instance=company)
+    except Exception as e:
+        # Si hay error con CompanyForm, mostrar mensaje de error
+        messages.error(request, "Formulario temporalmente deshabilitado durante la migración")
+        return redirect(request.META.get('HTTP_REFERER', '/'))
 
     return render(request, 'proposals/proposal_template.html', {
         'company': company,
         'form': form,
         # Agrega aquí otros contextos necesarios para la propuesta
     })
+
+
+@login_required
+def sync_pricing_view(request):
+    """Sincronizar configuración de pricing con WordPress."""
+    business_unit = request.user.business_unit
+    
+    try:
+        # Crear servicio de sincronización
+        from app.ats.pricing.services.integrations.wordpress_sync_service import WordPressSyncService
+        sync_service = WordPressSyncService(business_unit.name)
+        
+        # Sincronizar pricing
+        result = sync_service.sincronizar_pricing()
+        
+        if result.get('success'):
+            messages.success(request, 'Pricing sincronizado exitosamente con WordPress.')
+        else:
+            messages.error(request, f'Error sincronizando pricing: {result.get("error")}')
+            
+    except Exception as e:
+        messages.error(request, f'Error en sincronización: {str(e)}')
+    
+    return redirect('pricing:wordpress_sync_dashboard')
+
+
+@login_required
+def sync_all_pricing_view(request):
+    """Sincronizar todo el pricing con WordPress."""
+    business_unit = request.user.business_unit
+    
+    try:
+        # Crear servicio de sincronización
+        from app.ats.pricing.services.integrations.wordpress_sync_service import WordPressSyncService
+        sync_service = WordPressSyncService(business_unit.name)
+        
+        # Sincronizar todo
+        result = sync_service.sincronizar_todos()
+        
+        if result.get('success'):
+            messages.success(request, 'Sincronización completa de pricing exitosa.')
+        else:
+            messages.error(request, f'Error en sincronización: {result.get("error")}')
+            
+    except Exception as e:
+        messages.error(request, f'Error en sincronización: {str(e)}')
+    
+    return redirect('pricing:wordpress_sync_dashboard')

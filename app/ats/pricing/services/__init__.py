@@ -10,6 +10,7 @@ from .electronic_billing_service import ElectronicBillingService
 from .scheduled_payment_service import ScheduledPaymentService
 from .integrations.wordpress_sync_service import WordPressSyncService
 from .unified_pricing_service import UnifiedPricingService
+from .recommendation_service import RecommendationService
 
 __all__ = [
     'BillingService',
@@ -20,5 +21,5 @@ __all__ = [
     'ScheduledPaymentService',
     'WordPressSyncService',
     'UnifiedPricingService',
-    'DiscountService',
+    'RecommendationService',
 ]
