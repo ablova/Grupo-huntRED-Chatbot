@@ -184,25 +184,7 @@ class SexsiDiscountCoupon(models.Model):
     def __str__(self):
         return f"Cupon SEXSI {self.code} - {self.discount_percentage}% - {'Usado' if self.is_used else 'Disponible'}"
 
-# Modelo de relación intermedia para manejar las preferencias en los acuerdos
-class SexsiAgreementPreference(models.Model):
-    """
-    Modelo que representa la relación entre un acuerdo y sus preferencias,
-    permitiendo almacenar información adicional sobre cada preferencia en el contexto del acuerdo.
-    """
-    agreement = models.ForeignKey('ConsentAgreement', on_delete=models.CASCADE)
-    preference = models.ForeignKey('Preference', on_delete=models.CASCADE)
-    is_required = models.BooleanField(default=True, help_text="Indica si esta preferencia es obligatoria para el acuerdo")
-    notes = models.TextField(blank=True, null=True, help_text="Notas adicionales sobre esta preferencia en el contexto del acuerdo")
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
-    class Meta:
-        unique_together = ('agreement', 'preference')
-        ordering = ['preference__category', 'preference__name']
-
-    def __str__(self):
-        return f"{self.agreement} - {self.preference}"
 
 # Actualizar el modelo ConsentAgreement para incluir las nuevas funcionalidades
 # Eliminar la clase duplicada ConsentmentAgreement
