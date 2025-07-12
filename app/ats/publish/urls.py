@@ -1,16 +1,16 @@
-# /home/pablo/app/com/publish/urls.py
+# app/ats/publish/urls.py
 #
 # Configuración de URLs para el módulo. Define endpoints, vistas y patrones de URL.
 
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from app.ats.publish.views import ChannelViewSet, BotViewSet, JobChannelViewSet
+# from app.ats.publish.views import ChannelViewSet, BotViewSet
 from app.ats.publish.views import strategic_insights_views, strategic_notification_views
 
 router = DefaultRouter()
-router.register(r'channels', ChannelViewSet)
-router.register(r'bots', BotViewSet)
-router.register(r'job-channels', JobChannelViewSet)
+# router.register(r'channels', ChannelViewSet)
+# router.register(r'bots', BotViewSet)
+
 
 urlpatterns = [
     path('', include(router.urls)),

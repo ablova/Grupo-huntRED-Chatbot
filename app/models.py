@@ -1145,6 +1145,9 @@ class SkillAssessment(models.Model):
 # refactorizaciones masivas inmediatas, creamos un alias directo.
 PersonSkill = SkillAssessment
 
+# Alias para compatibilidad con importaciones existentes
+Contact = Person
+
 class SocialConnection(models.Model):
     """Modelo para almacenar conexiones sociales entre candidatos (SocialLink™).
     Principalmente utilizado para candidatos de Amigro que vienen en grupos."""

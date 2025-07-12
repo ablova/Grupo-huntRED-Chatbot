@@ -1,10 +1,10 @@
-# /home/pablo/app/com/publish/views.py
+# app/ats/publish/views.py
 #
 # Vista para el módulo. Implementa la lógica de presentación y manejo de peticiones HTTP.
 
 from rest_framework import viewsets, permissions
-from app.models import Channel, Bot, JobChannel
-from app.ats.publish.serializers import ChannelSerializer, BotSerializer, JobChannelSerializer
+from app.ats.publish.models import Channel, Bot
+from app.ats.publish.serializers import ChannelSerializer, BotSerializer
 
 class ChannelViewSet(viewsets.ModelViewSet):
     """
@@ -22,20 +22,4 @@ class BotViewSet(viewsets.ModelViewSet):
     serializer_class = BotSerializer
     permission_classes = [permissions.IsAuthenticated]
 
-class JobChannelViewSet(viewsets.ModelViewSet):
-    """
-    API endpoint para canales de oportunidades laborales
-    """
-    queryset = JobChannel.objects.all()
-    serializer_class = JobChannelSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
-    def get_queryset(self):
-        """
-        Filtra las oportunidades por estado si se especifica
-        """
-        queryset = super().get_queryset()
-        status = self.request.query_params.get('status')
-        if status:
-            queryset = queryset.filter(status=status)
-        return queryset

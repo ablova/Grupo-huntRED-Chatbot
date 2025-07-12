@@ -26,7 +26,7 @@ from app.models import (
 )
 
 # Importaciones de componentes
-from app.ats.chatbot.flow.conversational_flow_manager import ConversationalFlowManager
+from app.ats.chatbot.flow.conversational_flow import ConversationalFlowManager
 from app.ats.chatbot.core.intents_handler import IntentsHandler
 from app.ats.chatbot.components.context_manager import ConversationContext as ContextManager
 from app.ats.chatbot.components.response_generator import ResponseGenerator

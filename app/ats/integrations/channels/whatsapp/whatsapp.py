@@ -29,7 +29,7 @@ from app.models import (
 
 # Import at runtime to avoid circular imports
 def get_intent_processor():
-    from app.ats.chatbot.intents_handler import IntentProcessor
+    from app.ats.chatbot.core.intents_handler import IntentProcessor
     return IntentProcessor
 
 from app.ats.integrations.services.document import EnhancedDocumentProcessor

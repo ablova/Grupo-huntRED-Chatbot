@@ -1,4 +1,4 @@
-# /home/pablo/app/com/pricing/feedback_views.py
+# app/ats/feedback/feedback_views.py
 """
 Vistas para gestionar el sistema de retroalimentación de propuestas de Grupo huntRED®.
 
@@ -31,9 +31,9 @@ from django.views.generic import TemplateView, ListView, DetailView, CreateView,
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Q, Count, Avg, F, Value, Sum, Case, When, IntegerField
 
-from app.models import Proposal, TalentAnalysisRequest, Company, Contact, Opportunity
+from app.models import Proposal, TalentAnalysisRequest, Company, Opportunity, Contact
 from app.ats.pricing.models.feedback import ProposalFeedback, MeetingRequest
-from app.ats.pricing.feedback_forms import ProposalFeedbackForm, MeetingRequestForm
+from app.ats.feedback.feedback_forms import ProposalFeedbackForm, MeetingRequestForm
 from app.ats.pricing.proposal_tracker import ProposalTracker, get_proposal_tracker
 
 logger = logging.getLogger(__name__)
@@ -187,7 +187,6 @@ def send_meeting_confirmation(meeting):
         return False
 
 
-@login_required
 class FeedbackListView(LoginRequiredMixin, ListView):
     """Lista de retroalimentación de propuestas para administradores."""
     
@@ -230,7 +229,6 @@ class FeedbackListView(LoginRequiredMixin, ListView):
         return context
 
 
-@login_required
 class FeedbackDetailView(LoginRequiredMixin, DetailView):
     """Detalle de una retroalimentación específica."""
     

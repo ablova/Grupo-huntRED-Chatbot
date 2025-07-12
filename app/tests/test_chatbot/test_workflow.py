@@ -8,7 +8,7 @@ import os
 from unittest.mock import patch, AsyncMock, MagicMock
 from app.models import Person, BusinessUnit, ChatState
 from app.ats.chatbot.components.chat_state_manager import ChatStateManager
-from app.ats.chatbot.intents_handler import IntentProcessor
+from app.ats.chatbot.core.intents_handler import IntentProcessor
 from app.ats.integrations.channels.whatsapp import WhatsAppHandler
 from app.ats.chatbot.workflow.common import finalizar_creacion_perfil
 from app.ats.utils.cv_generator.cv_generator import CVGenerator

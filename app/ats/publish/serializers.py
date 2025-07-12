@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from app.models import Channel, Bot, JobChannel
+from app.ats.publish.models import Channel, Bot
 
 class ChannelSerializer(serializers.ModelSerializer):
     """
@@ -23,14 +23,4 @@ class BotSerializer(serializers.ModelSerializer):
         fields = '__all__'
         read_only_fields = ('created_at', 'updated_at')
 
-class JobChannelSerializer(serializers.ModelSerializer):
-    """
-    Serializador para canales de oportunidades laborales
-    """
-    channel_name = serializers.CharField(source='channel.name', read_only=True)
-    opportunity_title = serializers.CharField(source='opportunity.title', read_only=True)
-    
-    class Meta:
-        model = JobChannel
-        fields = '__all__'
-        read_only_fields = ('created_at', 'published_at')
+

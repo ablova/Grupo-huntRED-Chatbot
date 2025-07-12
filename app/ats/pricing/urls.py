@@ -1,4 +1,4 @@
-# /home/pablo/app/com/pricing/urls.py
+# app/ats/pricing/urls.py
 """
 URLs para el módulo de pricing de Grupo huntRED®.
 
@@ -9,7 +9,7 @@ sistema de retroalimentación para comprender por qué los clientes contratan o 
 
 from django.urls import path
 from app.ats.pricing import views
-from app.ats.pricing import feedback_views
+from app.ats.feedback import feedback_views
 from app.ats.pricing.views import update_company_contacts
 
 app_name = 'pricing'

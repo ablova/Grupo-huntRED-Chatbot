@@ -12,7 +12,7 @@ from app.ats.chatbot.core.chatbot import ChatBotHandler
 from app.ats.chatbot.core.gpt import GPTHandler
 from app.ats.chatbot.utils.chatbot_utils import ChatbotUtils
 get_nlp_processor = ChatbotUtils.get_nlp_processor  # Reemplazar importación
-from app.ats.chatbot.utils import fetch_data_from_url, validate_request_data
+from app.ats.chatbot.utils.chatbot_utils import validate_request_data
 from app.ats.utils.vacantes import VacanteManager, procesar_vacante
 from django.db import connections
 from app.tasks import send_whatsapp_message_task, train_ml_task, ejecutar_scraping

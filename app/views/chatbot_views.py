@@ -10,7 +10,7 @@ from django.db import transaction
 import json
 import logging
 from asgiref.sync import sync_to_async
-from app.ats.chatbot.flow.conversational_flow_manager import ConversationalFlowManager
+from app.ats.chatbot.flow.conversational_flow import ConversationalFlowManager
 from app.ats.integrations.services import MessageService
 from app.models import Person, BusinessUnit
 
