@@ -5615,11 +5615,6 @@ class Interaction(models.Model):
     def __str__(self):
         return f"{self.user} - {self.type}"
 
-
-
-
-
-
 class AgreementPreference(models.Model):
     """Modelo para preferencias de acuerdos."""
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='agreement_preferences')

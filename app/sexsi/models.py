@@ -150,13 +150,13 @@ class ConsentAgreement(models.Model):
     def __str__(self):
         return f"Acuerdo #{self.id} - {self.creator.username}"
 
-class PaymentTransaction(models.Model):
+class SexsiPaymentTransaction(models.Model):
     """
     Modelo para registrar la transacción de pago asociada al Acuerdo SEXSI.
     Permite almacenar el método, monto, ID de transacción (por PayPal u otro),
     y el estado del pago.
     """
-    agreement = models.ForeignKey(ConsentAgreement, on_delete=models.CASCADE, related_name="payment_transactions")
+    agreement = models.ForeignKey(ConsentAgreement, on_delete=models.CASCADE, related_name="sexsi_payment_transactions")
     signature_method = models.CharField(
         max_length=20, 
         choices=(("hellosign", "Hellosign"), ("internal", "Desarrollo Interno")),
@@ -168,11 +168,11 @@ class PaymentTransaction(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     
     def __str__(self):
-        return f"Pago {self.id} para Acuerdo #{self.agreement.id}"
+        return f"Pago SEXSI {self.id} para Acuerdo #{self.agreement.id}"
 
-class DiscountCoupon(models.Model):
+class SexsiDiscountCoupon(models.Model):
     """Modelo para almacenar cupones de descuento con diferentes porcentajes y un cupón de 100%."""
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='discount_coupons')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sexsi_discount_coupons')
     code = models.CharField(max_length=10, unique=True)
     discount_percentage = models.PositiveIntegerField()
     expiration_date = models.DateTimeField()
@@ -182,7 +182,7 @@ class DiscountCoupon(models.Model):
         return not self.is_used and self.expiration_date > now()
     
     def __str__(self):
-        return f"Cupon {self.code} - {self.discount_percentage}% - {'Usado' if self.is_used else 'Disponible'}"
+        return f"Cupon SEXSI {self.code} - {self.discount_percentage}% - {'Usado' if self.is_used else 'Disponible'}"
 
 # Modelo de relación intermedia para manejar las preferencias en los acuerdos
 class AgreementPreference(models.Model):

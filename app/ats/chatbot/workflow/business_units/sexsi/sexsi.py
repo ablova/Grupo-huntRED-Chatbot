@@ -1,4 +1,4 @@
-# Ubicacion SEXSI -- /home/pablo/app/com/chatbot/workflow/business_units/sexsi/sexsi.py
+# Ubicacion SEXSI -- app/ats/chatbot/workflow/business_units/sexsi/sexsi.py
 
 import logging
 import uuid
@@ -7,7 +7,7 @@ from asgiref.sync import async_to_sync
 from app.ats.integrations.services import send_message, EmailService, send_options
 from forex_python.converter import CurrencyRates
 from django.utils.timezone import now
-from app.sexsi.models import ConsentAgreement, SexsiConfig, DiscountCoupon
+from app.sexsi.models import ConsentAgreement, SexsiConfig, SexsiDiscountCoupon
 
 logger = logging.getLogger(__name__)
 
@@ -187,7 +187,7 @@ def process_pending_agreements():
 
 def apply_discount_coupon(user, original_price):
     """Aplica un cupón de descuento válido al precio original."""
-    valid_coupons = DiscountCoupon.objects.filter(user=user, is_used=False, expiration_date__gt=now()).order_by('-discount_percentage')
+            valid_coupons = SexsiDiscountCoupon.objects.filter(user=user, is_used=False, expiration_date__gt=now()).order_by('-discount_percentage')
     
     if valid_coupons.exists():
         coupon = valid_coupons.first()
@@ -202,7 +202,7 @@ def generate_discount_coupon(user, discount_percentage):
     """Genera un cupón con un porcentaje de descuento específico y una validez definida."""
     coupon_code = str(uuid.uuid4())[:8].upper()
     expiration_date = now() + timedelta(days=30)
-    coupon = DiscountCoupon.objects.create(
+            coupon = SexsiDiscountCoupon.objects.create(
         user=user,
         code=coupon_code,
         discount_percentage=discount_percentage,

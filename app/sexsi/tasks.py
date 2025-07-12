@@ -2,7 +2,7 @@
 
 from celery import shared_task
 from django.utils.timezone import now, timedelta
-from app.sexsi.models import ConsentAgreement, DiscountCoupon
+from app.sexsi.models import ConsentAgreement, SexsiDiscountCoupon
 from app.ats.chatbot.workflow.sexsi import send_signature_reminder
 from app.ats.integrations.services import send_message, notify_employer, EnhancedNetworkGamificationProfile, email_service
 from app.models import Person
@@ -49,7 +49,7 @@ def generate_discount_coupon(user):
     """Genera un cupón de descuento válido por 45 días y lo almacena en la base de datos."""
     coupon_code = str(uuid.uuid4())[:8].upper()
     expiration_date = now() + timedelta(days=45)
-    coupon = DiscountCoupon.objects.create(
+            coupon = SexsiDiscountCoupon.objects.create(
         user=user,
         code=coupon_code,
         discount_percentage=50,
@@ -73,7 +73,7 @@ def delete_expired_otps_and_tokens():
     count_tokens = expired_tokens.count()
     expired_tokens.update(token=None)
     
-    expired_coupons = DiscountCoupon.objects.filter(expiration_date__lt=now(), is_used=False)
+    expired_coupons = SexsiDiscountCoupon.objects.filter(expiration_date__lt=now(), is_used=False)
     count_coupons = expired_coupons.count()
     expired_coupons.update(is_used=True)
     
