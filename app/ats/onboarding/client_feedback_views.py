@@ -23,7 +23,7 @@ from asgiref.sync import sync_to_async
 from django.utils.decorators import method_decorator
 from django.views import View
 
-from app.models import BusinessUnit, Empresa, Person, ClientFeedback, ClientFeedbackSchedule, CLIENT_FEEDBACK_PERIODS
+from app.models import BusinessUnit, Company, Person, ClientFeedback, ClientFeedbackSchedule, CLIENT_FEEDBACK_PERIODS
 from app.ats.onboarding.client_feedback_controller import ClientFeedbackController
 
 logger = logging.getLogger(__name__)

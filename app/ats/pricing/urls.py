@@ -9,7 +9,12 @@ sistema de retroalimentación para comprender por qué los clientes contratan o 
 
 from django.urls import path
 from app.ats.pricing import views
-from app.ats.feedback import feedback_views
+from app.ats.feedback.views import (
+    proposal_feedback, feedback_dashboard, 
+    schedule_meeting, meeting_requests_list, mark_meeting_completed,
+    api_feedback_stats, webhook_feedback,
+    FeedbackListView, FeedbackDetailView
+)
 from app.ats.pricing.views import update_company_contacts
 
 app_name = 'pricing'
@@ -29,17 +34,17 @@ urlpatterns = [
     path('proposals/<int:pk>/', views.proposal_detail, name='proposal_detail'),
     
     # Sistema de retroalimentación de propuestas
-    path('feedback/<str:token>/', feedback_views.proposal_feedback, name='proposal_feedback'),
-    path('feedback/stats/', feedback_views.feedback_dashboard, name='feedback_dashboard'),
-    path('feedback/list/', feedback_views.FeedbackListView.as_view(), name='feedback_list'),
-    path('feedback/<int:pk>/detail/', feedback_views.FeedbackDetailView.as_view(), name='feedback_detail'),
-    path('feedback/<int:feedback_id>/schedule-meeting/', feedback_views.schedule_meeting, name='schedule_meeting'),
-    path('meetings/', feedback_views.meeting_requests_list, name='meeting_requests_list'),
-    path('meetings/<int:meeting_id>/mark-completed/', feedback_views.mark_meeting_completed, name='mark_meeting_completed'),
+    path('feedback/<str:token>/', proposal_feedback, name='proposal_feedback'),
+    path('feedback/stats/', feedback_dashboard, name='feedback_dashboard'),
+    path('feedback/list/', FeedbackListView.as_view(), name='feedback_list'),
+    path('feedback/<int:pk>/detail/', FeedbackDetailView.as_view(), name='feedback_detail'),
+    path('feedback/<int:feedback_id>/schedule-meeting/', schedule_meeting, name='schedule_meeting'),
+    path('meetings/', meeting_requests_list, name='meeting_requests_list'),
+    path('meetings/<int:meeting_id>/mark-completed/', mark_meeting_completed, name='mark_meeting_completed'),
     
     # API para retroalimentación
-    path('api/feedback-stats/', feedback_views.get_feedback_stats_json, name='feedback_stats_json'),
-    path('api/webhook/feedback/', feedback_views.webhook_feedback, name='webhook_feedback'),
+    path('api/feedback-stats/', api_feedback_stats, name='feedback_stats_json'),
+    path('api/webhook/feedback/', webhook_feedback, name='webhook_feedback'),
     
     # ============================================================================
     # URLS DE PAGOS, GATEWAYS Y FACTURACIÓN ELECTRÓNICA

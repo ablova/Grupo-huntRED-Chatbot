@@ -5,9 +5,15 @@ Implementa la lógica de ML para los diferentes factores.
 """
 from typing import Dict, List, Optional, Any, Tuple
 import numpy as np
-import torch
-import torch.nn as nn
 from sklearn.preprocessing import StandardScaler
+
+# Manejo de dependencias opcionales
+from app.ml.core.dependencies import TORCH_AVAILABLE
+
+# Importaciones condicionales de PyTorch
+if TORCH_AVAILABLE:
+    import torch
+    import torch.nn as nn
 
 from .matchmaking import MatchmakingModel, MatchmakingEmbedder
 
@@ -20,6 +26,8 @@ class FactorsMatchmakingModel(MatchmakingModel):
         hidden_dims: List[int] = [512, 256],
         dropout: float = 0.2
     ):
+        if not TORCH_AVAILABLE:
+            raise ImportError("PyTorch es requerido para FactorsMatchmakingModel")
         super().__init__(embedding_dim, hidden_dims, dropout)
         self.embedder = FactorsEmbedder(embedding_dim)
         
@@ -27,8 +35,10 @@ class FactorsMatchmakingModel(MatchmakingModel):
         self,
         candidate_features: Dict,
         job_features: Dict
-    ) -> torch.Tensor:
-        """Prepara las características para el modelo."""
+    ):
+        if not TORCH_AVAILABLE:
+            raise ImportError("PyTorch es requerido para _prepare_features")
+        
         # Generar embeddings base
         candidate_embedding = self.embedder.embed_candidate(candidate_features)
         job_embedding = self.embedder.embed_job(job_features)
@@ -40,6 +50,7 @@ class FactorsMatchmakingModel(MatchmakingModel):
         combined = torch.cat([candidate_embedding, job_embedding, group_embedding], dim=1)
         
         return combined
+        """Prepara las características para el modelo."""
         
     def fit(
         self,
@@ -47,6 +58,9 @@ class FactorsMatchmakingModel(MatchmakingModel):
         y: List[float]
     ) -> 'FactorsMatchmakingModel':
         """Entrena el modelo."""
+        if not TORCH_AVAILABLE:
+            raise ImportError("PyTorch es requerido para fit")
+            
         # Preparar datos
         X_processed = [
             self._prepare_features(candidate, job)
@@ -74,6 +88,9 @@ class FactorsMatchmakingModel(MatchmakingModel):
         X: List[Tuple[Dict, Dict]]
     ) -> np.ndarray:
         """Realiza predicciones."""
+        if not TORCH_AVAILABLE:
+            raise ImportError("PyTorch es requerido para predict")
+            
         self.model.eval()
         with torch.no_grad():
             X_processed = [
@@ -88,6 +105,8 @@ class FactorsEmbedder(MatchmakingEmbedder):
     """Embedder específico para factores de matchmaking."""
     
     def __init__(self, embedding_dim: int = 256):
+        if not TORCH_AVAILABLE:
+            raise ImportError("PyTorch es requerido para FactorsEmbedder")
         super().__init__(embedding_dim)
         self.group_encoder = nn.Sequential(
             nn.Linear(5, 64),  # 5 características grupales
@@ -95,18 +114,25 @@ class FactorsEmbedder(MatchmakingEmbedder):
             nn.Linear(64, embedding_dim)
         )
         
-    def embed_candidate(self, candidate_data: Dict) -> torch.Tensor:
+    def embed_candidate(self, candidate_data: Dict):
         """Genera embedding para un candidato."""
+        if not TORCH_AVAILABLE:
+            raise ImportError("PyTorch es requerido para embed_candidate")
         # Implementar generación de embedding base
         return torch.tensor([])
         
-    def embed_job(self, job_data: Dict) -> torch.Tensor:
+    def embed_job(self, job_data: Dict):
         """Genera embedding para una vacante."""
+        if not TORCH_AVAILABLE:
+            raise ImportError("PyTorch es requerido para embed_job")
         # Implementar generación de embedding base
         return torch.tensor([])
         
-    def embed_group_factors(self, candidate_data: Dict) -> torch.Tensor:
+    def embed_group_factors(self, candidate_data: Dict):
         """Genera embedding para factores grupales."""
+        if not TORCH_AVAILABLE:
+            raise ImportError("PyTorch es requerido para embed_group_factors")
+            
         group_features = []
         
         # Familiares en la empresa

@@ -13,10 +13,11 @@ import asyncio
 from datetime import datetime, timedelta, date
 import secrets
 import uuid
+import csv # Added for interview_feedback_export
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse, JsonResponse, Http404
-from django.views.decorators.http import require_POST, require_GET
+from django.views.decorators.http import require_POST, require_GET, require_http_methods
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.utils import timezone
@@ -33,6 +34,9 @@ from app.ats.feedback.feedback_models import (
     ServiceImprovementSuggestion
 )
 from app.ats.feedback import get_feedback_tracker, FEEDBACK_STAGES, SERVICE_TYPES
+
+from app.models import Interview, InterviewFeedback, CompetencyEvaluation, CandidateFeedback, RecruitmentProcess, ProcessFeedback # Added for new feedback types
+from app.ats.pricing.models.feedback import MeetingRequest, ProposalFeedback # Use existing models
 
 logger = logging.getLogger(__name__)
 
@@ -679,3 +683,508 @@ def webhook_feedback(request):
     except Exception as e:
         logger.error(f"Error en webhook de retroalimentación: {str(e)}")
         return JsonResponse({'error': 'Internal server error'}, status=500)
+
+# ============================================================================
+# FEEDBACK DE PROPUESTAS Y REUNIONES (RESTAURADAS)
+# ============================================================================
+
+def schedule_meeting(request, proposal_id):
+    """Programa una reunión para discutir una propuesta."""
+    if request.method == 'POST':
+        from app.ats.pricing.models import PricingProposal
+        proposal = get_object_or_404(PricingProposal, id=proposal_id)
+        
+        # Crear solicitud de reunión usando el modelo existente
+        meeting_request = MeetingRequest.objects.create(
+            propuesta=proposal,
+            estado='PENDIENTE',
+            fecha_solicitud=timezone.now(),
+            fecha_reunion=request.POST.get('meeting_date'),
+            duracion_minutos=request.POST.get('duration', 30),
+            tipo_reunion=request.POST.get('meeting_type', 'consultation'),
+            participantes={'requested_by': request.user.id},
+            notas=request.POST.get('notes', ''),
+            meeting_type=request.POST.get('meeting_type', 'consultation'),
+            preferred_date=request.POST.get('meeting_date'),
+            preferred_time_range=request.POST.get('time_range', 'morning'),
+            contact_phone=request.POST.get('contact_phone', '')
+        )
+        
+        messages.success(request, 'Solicitud de reunión enviada exitosamente.')
+        return redirect('pricing:proposal_feedback', token=proposal.feedback_token)
+    
+    return JsonResponse({'error': 'Método no permitido'}, status=405)
+
+def meeting_requests_list(request):
+    """Lista todas las solicitudes de reunión."""
+    if request.user.is_staff:
+        meeting_requests = MeetingRequest.objects.all().order_by('-created_at')
+    else:
+        meeting_requests = MeetingRequest.objects.filter(
+            requested_by=request.user
+        ).order_by('-created_at')
+    
+    return render(request, 'ats/feedback/meeting_requests_list.html', {
+        'meeting_requests': meeting_requests
+    })
+
+def mark_meeting_completed(request, meeting_id):
+    """Marca una reunión como completada."""
+    if request.method == 'POST':
+        meeting = get_object_or_404(MeetingRequest, id=meeting_id)
+        meeting.estado = 'COMPLETADA'
+        meeting.fecha_reunion = timezone.now()
+        meeting.save()
+        
+        # Crear feedback de la reunión usando ProposalFeedback
+        meeting_feedback = ProposalFeedback.objects.create(
+            propuesta=meeting.propuesta,
+            estado='APROBADO',
+            comentarios=request.POST.get('comments', ''),
+            calificacion=request.POST.get('rating'),
+            metadata={
+                'meeting_id': meeting.id,
+                'follow_up_required': request.POST.get('follow_up_required') == 'on',
+                'meeting_feedback': True
+            }
+        )
+        
+        messages.success(request, 'Reunión marcada como completada.')
+        return redirect('pricing:meeting_requests_list')
+    
+    return JsonResponse({'error': 'Método no permitido'}, status=405)
+
+# ============================================================================
+# SISTEMA COMPLETO DE FEEDBACK DE ENTREVISTAS
+# ============================================================================
+
+def interview_feedback_dashboard(request):
+    """Dashboard principal de feedback de entrevistas."""
+    if not request.user.is_authenticated:
+        return redirect('login')
+    
+    # Estadísticas generales
+    total_interviews = Interview.objects.count()
+    interviews_with_feedback = Interview.objects.filter(feedback__isnull=False).count()
+    avg_rating = InterviewFeedback.objects.aggregate(
+        avg_rating=Avg('overall_rating')
+    )['avg_rating'] or 0
+    
+    # Feedback por tipo de entrevista
+    feedback_by_type = InterviewFeedback.objects.values('interview__interview_type').annotate(
+        count=Count('id'),
+        avg_rating=Avg('overall_rating')
+    )
+    
+    # Feedback reciente
+    recent_feedback = InterviewFeedback.objects.select_related(
+        'interview', 'interview__candidate', 'interview__job'
+    ).order_by('-created_at')[:10]
+    
+    context = {
+        'total_interviews': total_interviews,
+        'interviews_with_feedback': interviews_with_feedback,
+        'avg_rating': round(avg_rating, 2),
+        'feedback_by_type': feedback_by_type,
+        'recent_feedback': recent_feedback,
+    }
+    
+    return render(request, 'ats/feedback/interview_feedback_dashboard.html', context)
+
+def interview_feedback_form(request, interview_id):
+    """Formulario para crear/editar feedback de entrevista."""
+    interview = get_object_or_404(Interview, id=interview_id)
+    
+    if request.method == 'POST':
+        # Crear o actualizar feedback
+        feedback, created = InterviewFeedback.objects.get_or_create(
+            interview=interview,
+            defaults={
+                'interviewer': request.user,
+                'overall_rating': request.POST.get('overall_rating'),
+                'technical_skills_rating': request.POST.get('technical_skills_rating'),
+                'communication_rating': request.POST.get('communication_rating'),
+                'cultural_fit_rating': request.POST.get('cultural_fit_rating'),
+                'problem_solving_rating': request.POST.get('problem_solving_rating'),
+                'strengths': request.POST.get('strengths', ''),
+                'weaknesses': request.POST.get('weaknesses', ''),
+                'recommendations': request.POST.get('recommendations', ''),
+                'hiring_decision': request.POST.get('hiring_decision'),
+                'next_steps': request.POST.get('next_steps', ''),
+                'additional_notes': request.POST.get('additional_notes', ''),
+            }
+        )
+        
+        if not created:
+            # Actualizar feedback existente
+            feedback.overall_rating = request.POST.get('overall_rating')
+            feedback.technical_skills_rating = request.POST.get('technical_skills_rating')
+            feedback.communication_rating = request.POST.get('communication_rating')
+            feedback.cultural_fit_rating = request.POST.get('cultural_fit_rating')
+            feedback.problem_solving_rating = request.POST.get('problem_solving_rating')
+            feedback.strengths = request.POST.get('strengths', '')
+            feedback.weaknesses = request.POST.get('weaknesses', '')
+            feedback.recommendations = request.POST.get('recommendations', '')
+            feedback.hiring_decision = request.POST.get('hiring_decision')
+            feedback.next_steps = request.POST.get('next_steps', '')
+            feedback.additional_notes = request.POST.get('additional_notes', '')
+            feedback.save()
+        
+        # Crear evaluación de competencias específicas
+        competencies = request.POST.getlist('competency_name')
+        ratings = request.POST.getlist('competency_rating')
+        comments = request.POST.getlist('competency_comment')
+        
+        # Eliminar evaluaciones anteriores
+        feedback.competency_evaluations.all().delete()
+        
+        # Crear nuevas evaluaciones
+        for i, competency in enumerate(competencies):
+            if competency and ratings[i]:
+                CompetencyEvaluation.objects.create(
+                    feedback=feedback,
+                    competency_name=competency,
+                    rating=int(ratings[i]),
+                    comments=comments[i] if i < len(comments) else ''
+                )
+        
+        messages.success(request, 'Feedback de entrevista guardado exitosamente.')
+        return redirect('feedback:interview_feedback_detail', feedback_id=feedback.id)
+    
+    # Obtener feedback existente si existe
+    try:
+        existing_feedback = InterviewFeedback.objects.get(interview=interview)
+    except InterviewFeedback.DoesNotExist:
+        existing_feedback = None
+    
+    context = {
+        'interview': interview,
+        'feedback': existing_feedback,
+        'rating_choices': [(i, str(i)) for i in range(1, 6)],
+        'hiring_decisions': InterviewFeedback.HIRING_DECISIONS,
+    }
+    
+    return render(request, 'ats/feedback/interview_feedback_form.html', context)
+
+def interview_feedback_detail(request, feedback_id):
+    """Vista detallada de un feedback de entrevista."""
+    feedback = get_object_or_404(InterviewFeedback, id=feedback_id)
+    
+    # Verificar permisos
+    if not (request.user.is_staff or 
+            request.user == feedback.interviewer or 
+            request.user == feedback.interview.interviewer):
+        messages.error(request, 'No tienes permisos para ver este feedback.')
+        return redirect('feedback:interview_feedback_dashboard')
+    
+    context = {
+        'feedback': feedback,
+        'competency_evaluations': feedback.competency_evaluations.all(),
+    }
+    
+    return render(request, 'ats/feedback/interview_feedback_detail.html', context)
+
+def interview_feedback_list(request):
+    """Lista todos los feedbacks de entrevistas."""
+    if request.user.is_staff:
+        feedbacks = InterviewFeedback.objects.select_related(
+            'interview', 'interview__candidate', 'interview__job', 'interviewer'
+        ).order_by('-created_at')
+    else:
+        feedbacks = InterviewFeedback.objects.filter(
+            interviewer=request.user
+        ).select_related(
+            'interview', 'interview__candidate', 'interview__job'
+        ).order_by('-created_at')
+    
+    # Filtros
+    interview_type = request.GET.get('interview_type')
+    if interview_type:
+        feedbacks = feedbacks.filter(interview__interview_type=interview_type)
+    
+    hiring_decision = request.GET.get('hiring_decision')
+    if hiring_decision:
+        feedbacks = feedbacks.filter(hiring_decision=hiring_decision)
+    
+    min_rating = request.GET.get('min_rating')
+    if min_rating:
+        feedbacks = feedbacks.filter(overall_rating__gte=min_rating)
+    
+    context = {
+        'feedbacks': feedbacks,
+        'interview_types': Interview.INTERVIEW_TYPES,
+        'hiring_decisions': InterviewFeedback.HIRING_DECISIONS,
+    }
+    
+    return render(request, 'ats/feedback/interview_feedback_list.html', context)
+
+def interview_feedback_analytics(request):
+    """Análisis y reportes de feedback de entrevistas."""
+    if not request.user.is_staff:
+        messages.error(request, 'Acceso restringido.')
+        return redirect('feedback:interview_feedback_dashboard')
+    
+    # Estadísticas por período
+    period = request.GET.get('period', '30')  # días
+    end_date = timezone.now()
+    start_date = end_date - timedelta(days=int(period))
+    
+    feedbacks_in_period = InterviewFeedback.objects.filter(
+        created_at__range=[start_date, end_date]
+    )
+    
+    # Análisis de ratings
+    rating_distribution = feedbacks_in_period.values('overall_rating').annotate(
+        count=Count('id')
+    ).order_by('overall_rating')
+    
+    # Análisis por competencia
+    competency_analysis = CompetencyEvaluation.objects.filter(
+        feedback__in=feedbacks_in_period
+    ).values('competency_name').annotate(
+        avg_rating=Avg('rating'),
+        count=Count('id')
+    ).order_by('-avg_rating')
+    
+    # Análisis de decisiones de contratación
+    hiring_analysis = feedbacks_in_period.values('hiring_decision').annotate(
+        count=Count('id')
+    ).order_by('-count')
+    
+    # Tendencias temporales
+    daily_feedback = feedbacks_in_period.extra(
+        select={'day': 'date(created_at)'}
+    ).values('day').annotate(
+        count=Count('id'),
+        avg_rating=Avg('overall_rating')
+    ).order_by('day')
+    
+    context = {
+        'period': period,
+        'rating_distribution': rating_distribution,
+        'competency_analysis': competency_analysis,
+        'hiring_analysis': hiring_analysis,
+        'daily_feedback': daily_feedback,
+        'total_feedbacks': feedbacks_in_period.count(),
+        'avg_rating': feedbacks_in_period.aggregate(
+            avg=Avg('overall_rating')
+        )['avg'] or 0,
+    }
+    
+    return render(request, 'ats/feedback/interview_feedback_analytics.html', context)
+
+def interview_feedback_export(request):
+    """Exporta feedbacks de entrevistas a CSV/Excel."""
+    if not request.user.is_staff:
+        messages.error(request, 'Acceso restringido.')
+        return redirect('feedback:interview_feedback_dashboard')
+    
+    format_type = request.GET.get('format', 'csv')
+    period = request.GET.get('period', 'all')
+    
+    # Filtrar por período
+    if period != 'all':
+        end_date = timezone.now()
+        start_date = end_date - timedelta(days=int(period))
+        feedbacks = InterviewFeedback.objects.filter(
+            created_at__range=[start_date, end_date]
+        )
+    else:
+        feedbacks = InterviewFeedback.objects.all()
+    
+    feedbacks = feedbacks.select_related(
+        'interview', 'interview__candidate', 'interview__job', 'interviewer'
+    ).prefetch_related('competency_evaluations')
+    
+    if format_type == 'csv':
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = f'attachment; filename="interview_feedback_{period}.csv"'
+        
+        writer = csv.writer(response)
+        writer.writerow([
+            'Fecha', 'Candidato', 'Puesto', 'Entrevistador', 'Tipo Entrevista',
+            'Rating General', 'Habilidades Técnicas', 'Comunicación', 
+            'Fit Cultural', 'Resolución Problemas', 'Fortalezas', 'Debilidades',
+            'Recomendaciones', 'Decisión', 'Próximos Pasos'
+        ])
+        
+        for feedback in feedbacks:
+            writer.writerow([
+                feedback.created_at.strftime('%Y-%m-%d %H:%M'),
+                feedback.interview.candidate.name,
+                feedback.interview.job.title,
+                feedback.interviewer.get_full_name(),
+                feedback.interview.get_interview_type_display(),
+                feedback.overall_rating,
+                feedback.technical_skills_rating,
+                feedback.communication_rating,
+                feedback.cultural_fit_rating,
+                feedback.problem_solving_rating,
+                feedback.strengths,
+                feedback.weaknesses,
+                feedback.recommendations,
+                feedback.get_hiring_decision_display(),
+                feedback.next_steps,
+            ])
+        
+        return response
+    
+    # Para Excel necesitarías openpyxl
+    messages.error(request, 'Formato no soportado.')
+    return redirect('feedback:interview_feedback_analytics')
+
+# ============================================================================
+# FEEDBACK DE CANDIDATOS (NUEVO)
+# ============================================================================
+
+def candidate_feedback_form(request, candidate_id):
+    """Formulario para feedback general de candidatos."""
+    candidate = get_object_or_404(Candidate, id=candidate_id)
+    
+    if request.method == 'POST':
+        feedback = CandidateFeedback.objects.create(
+            candidate=candidate,
+            evaluator=request.user,
+            evaluation_date=timezone.now(),
+            overall_impression=request.POST.get('overall_impression'),
+            technical_competence=request.POST.get('technical_competence'),
+            communication_skills=request.POST.get('communication_skills'),
+            teamwork_ability=request.POST.get('teamwork_ability'),
+            problem_solving=request.POST.get('problem_solving'),
+            learning_ability=request.POST.get('learning_ability'),
+            cultural_fit=request.POST.get('cultural_fit'),
+            strengths=request.POST.get('strengths', ''),
+            areas_for_improvement=request.POST.get('areas_for_improvement', ''),
+            recommendations=request.POST.get('recommendations', ''),
+            would_recommend=request.POST.get('would_recommend') == 'on',
+            notes=request.POST.get('notes', ''),
+        )
+        
+        messages.success(request, 'Feedback del candidato guardado exitosamente.')
+        return redirect('feedback:candidate_feedback_detail', feedback_id=feedback.id)
+    
+    context = {
+        'candidate': candidate,
+        'rating_choices': [(i, str(i)) for i in range(1, 6)],
+    }
+    
+    return render(request, 'ats/feedback/candidate_feedback_form.html', context)
+
+def candidate_feedback_detail(request, feedback_id):
+    """Vista detallada de feedback de candidato."""
+    feedback = get_object_or_404(CandidateFeedback, id=feedback_id)
+    
+    context = {
+        'feedback': feedback,
+    }
+    
+    return render(request, 'ats/feedback/candidate_feedback_detail.html', context)
+
+# ============================================================================
+# FEEDBACK DE PROCESOS DE RECLUTAMIENTO (NUEVO)
+# ============================================================================
+
+def recruitment_process_feedback(request, process_id):
+    """Feedback sobre el proceso de reclutamiento completo."""
+    process = get_object_or_404(RecruitmentProcess, id=process_id)
+    
+    if request.method == 'POST':
+        feedback = ProcessFeedback.objects.create(
+            process=process,
+            evaluator=request.user,
+            overall_satisfaction=request.POST.get('overall_satisfaction'),
+            communication_quality=request.POST.get('communication_quality'),
+            process_efficiency=request.POST.get('process_efficiency'),
+            candidate_experience=request.POST.get('candidate_experience'),
+            transparency=request.POST.get('transparency'),
+            speed_of_process=request.POST.get('speed_of_process'),
+            what_went_well=request.POST.get('what_went_well', ''),
+            what_could_improve=request.POST.get('what_could_improve', ''),
+            suggestions=request.POST.get('suggestions', ''),
+            would_recommend=request.POST.get('would_recommend') == 'on',
+            additional_comments=request.POST.get('additional_comments', ''),
+        )
+        
+        messages.success(request, 'Feedback del proceso guardado exitosamente.')
+        return redirect('feedback:process_feedback_detail', feedback_id=feedback.id)
+    
+    context = {
+        'process': process,
+        'rating_choices': [(i, str(i)) for i in range(1, 6)],
+    }
+    
+    return render(request, 'ats/feedback/process_feedback_form.html', context)
+
+def process_feedback_detail(request, feedback_id):
+    """Vista detallada de feedback de proceso."""
+    feedback = get_object_or_404(ProcessFeedback, id=feedback_id)
+    
+    context = {
+        'feedback': feedback,
+    }
+    
+    return render(request, 'ats/feedback/process_feedback_detail.html', context)
+
+# ============================================================================
+# API ENDPOINTS PARA FEEDBACK
+# ============================================================================
+
+@require_http_methods(["POST"])
+def api_interview_feedback(request):
+    """API endpoint para crear feedback de entrevista."""
+    try:
+        data = json.loads(request.body)
+        interview_id = data.get('interview_id')
+        interview = get_object_or_404(Interview, id=interview_id)
+        
+        feedback = InterviewFeedback.objects.create(
+            interview=interview,
+            interviewer=request.user,
+            overall_rating=data.get('overall_rating'),
+            technical_skills_rating=data.get('technical_skills_rating'),
+            communication_rating=data.get('communication_rating'),
+            cultural_fit_rating=data.get('cultural_fit_rating'),
+            problem_solving_rating=data.get('problem_solving_rating'),
+            strengths=data.get('strengths', ''),
+            weaknesses=data.get('weaknesses', ''),
+            recommendations=data.get('recommendations', ''),
+            hiring_decision=data.get('hiring_decision'),
+            next_steps=data.get('next_steps', ''),
+            additional_notes=data.get('additional_notes', ''),
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'feedback_id': feedback.id,
+            'message': 'Feedback creado exitosamente'
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=400)
+
+@require_http_methods(["GET"])
+def api_feedback_stats(request):
+    """API endpoint para estadísticas de feedback."""
+    period = request.GET.get('period', '30')
+    end_date = timezone.now()
+    start_date = end_date - timedelta(days=int(period))
+    
+    feedbacks = InterviewFeedback.objects.filter(
+        created_at__range=[start_date, end_date]
+    )
+    
+    stats = {
+        'total_feedbacks': feedbacks.count(),
+        'avg_rating': feedbacks.aggregate(avg=Avg('overall_rating'))['avg'] or 0,
+        'rating_distribution': list(feedbacks.values('overall_rating').annotate(
+            count=Count('id')
+        ).order_by('overall_rating')),
+        'hiring_decisions': list(feedbacks.values('hiring_decision').annotate(
+            count=Count('id')
+        ).order_by('-count')),
+    }
+    
+    return JsonResponse(stats)

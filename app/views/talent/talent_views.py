@@ -1,3 +1,4 @@
+# app/views/talent/talent_views.py
 """
 Vistas para el módulo de Talent de Grupo huntRED®.
 
@@ -508,3 +509,99 @@ async def generate_pdf_report(analysis_type, analysis_data, include_graphics=Tru
         logger.error(f"Error generando PDF: {str(e)}")
         # Devolver un PDF básico en caso de error
         return b'%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj 2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj 3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Resources<<>>/Contents 4 0 R/Parent 2 0 R>>endobj 4 0 obj<</Length 23>>stream\nBT /F1 12 Tf 100 700 Td (Error generating report) Tj ET\nendstream\nendobj\nxref\n0 5\n0000000000 65535 f \n0000000015 00000 n \n0000000061 00000 n \n0000000114 00000 n \n0000000212 00000 n \ntrailer<</Size 5/Root 1 0 R>>\nstartxref\n287\n%%EOF'
+
+@login_required
+@require_http_methods(["GET"])
+@check_role_access(["Super Admin", "Consultant BU Complete", "Consultant BU Division"])
+async def analyze_retention_risk(request, person_id):
+    """
+    API para analizar riesgo de retención de un empleado.
+    
+    Evalúa múltiples factores que pueden influir en la retención:
+    - Satisfacción laboral
+    - Oportunidades de crecimiento
+    - Compensación
+    - Cultura organizacional
+    - Relaciones laborales
+    """
+    try:
+        business_unit = request.GET.get('business_unit')
+        analysis_depth = request.GET.get('depth', 'standard')  # basic, standard, comprehensive
+        
+        # Verificaciones de acceso y existencia
+        if not await check_bu_access(request.user, business_unit):
+            return JsonResponse({
+                'error': 'No tienes permisos para acceder a esta unidad de negocio'
+            }, status=403)
+        
+        if not await person_exists(person_id):
+            return JsonResponse({'error': 'La persona no existe'}, status=404)
+        
+        # Importar el analizador de retención
+        from app.ats.talent.retention_analyzer import RetentionRiskAnalyzer
+        
+        # Realizar análisis
+        analyzer = RetentionRiskAnalyzer(business_unit)
+        result = await analyzer.analyze_retention_risk(
+            person_id,
+            depth=analysis_depth
+        )
+        
+        # Registrar actividad
+        await log_activity(
+            request.user.id, 
+            'analyze_retention_risk', 
+            f"Análisis de riesgo de retención para persona {person_id} en {business_unit}"
+        )
+        
+        return JsonResponse(result)
+    except Exception as e:
+        logger.error(f"Error en analyze_retention_risk: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=500)
+
+@login_required
+@require_http_methods(["GET"])
+@check_role_access(["Super Admin", "Consultant BU Complete", "Consultant BU Division"])
+async def generate_intervention_plan(request, person_id):
+    """
+    API para generar plan de intervención personalizado.
+    
+    Crea un plan de acción específico basado en el análisis de riesgo
+    de retención y otros factores identificados.
+    """
+    try:
+        business_unit = request.GET.get('business_unit')
+        intervention_type = request.GET.get('type', 'retention')  # retention, performance, development
+        priority = request.GET.get('priority', 'medium')  # low, medium, high, critical
+        
+        # Verificaciones
+        if not await check_bu_access(request.user, business_unit):
+            return JsonResponse({
+                'error': 'No tienes permisos para acceder a esta unidad de negocio'
+            }, status=403)
+        
+        if not await person_exists(person_id):
+            return JsonResponse({'error': 'La persona no existe'}, status=404)
+        
+        # Importar el generador de planes de intervención
+        from app.ats.talent.intervention_planner import InterventionPlanner
+        
+        # Generar plan
+        planner = InterventionPlanner(business_unit)
+        result = await planner.generate_intervention_plan(
+            person_id,
+            intervention_type=intervention_type,
+            priority=priority
+        )
+        
+        # Registrar actividad
+        await log_activity(
+            request.user.id, 
+            'generate_intervention_plan', 
+            f"Plan de intervención {intervention_type} para persona {person_id} en {business_unit}"
+        )
+        
+        return JsonResponse(result)
+    except Exception as e:
+        logger.error(f"Error en generate_intervention_plan: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=500)

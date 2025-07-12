@@ -7362,6 +7362,179 @@ class INCODEVerification(models.Model):
         }
         return pricing.get(self.verification_type, 50.00)
 
+# ============================================================================
+# MODELOS DE FEEDBACK COMPLETO
+# ============================================================================
+
+class Interview(models.Model):
+    """Entrevista de candidato."""
+    INTERVIEW_TYPES = [
+        ('phone_screen', 'Preselección telefónica'),
+        ('technical', 'Entrevista técnica'),
+        ('behavioral', 'Entrevista conductual'),
+        ('cultural', 'Entrevista cultural'),
+        ('final', 'Entrevista final'),
+        ('panel', 'Entrevista panel'),
+        ('case_study', 'Estudio de caso'),
+        ('coding', 'Prueba de programación'),
+        ('presentation', 'Presentación'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('scheduled', 'Programada'),
+        ('in_progress', 'En progreso'),
+        ('completed', 'Completada'),
+        ('cancelled', 'Cancelada'),
+        ('no_show', 'No se presentó'),
+    ]
+    
+    candidate = models.ForeignKey('Person', on_delete=models.CASCADE, related_name='interviews')
+    job = models.ForeignKey('Vacante', on_delete=models.CASCADE, related_name='interviews')
+    interviewer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='interviews_conducted')
+    interview_type = models.CharField(max_length=20, choices=INTERVIEW_TYPES)
+    scheduled_date = models.DateTimeField()
+    duration = models.IntegerField(help_text='Duración en minutos')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='scheduled')
+    location = models.CharField(max_length=200, blank=True)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-scheduled_date']
+    
+    def __str__(self):
+        return f"Entrevista {self.candidate.nombre} - {self.job.titulo}"
+
+class InterviewFeedback(models.Model):
+    """Feedback detallado de una entrevista."""
+    HIRING_DECISIONS = [
+        ('hire', 'Contratar'),
+        ('no_hire', 'No contratar'),
+        ('maybe', 'Considerar'),
+        ('strong_hire', 'Contratar definitivamente'),
+        ('strong_no_hire', 'No contratar definitivamente'),
+    ]
+    
+    interview = models.OneToOneField(Interview, on_delete=models.CASCADE, related_name='feedback')
+    interviewer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='interview_feedbacks')
+    
+    # Ratings principales
+    overall_rating = models.IntegerField(choices=[(i, str(i)) for i in range(1, 6)])
+    technical_skills_rating = models.IntegerField(choices=[(i, str(i)) for i in range(1, 6)])
+    communication_rating = models.IntegerField(choices=[(i, str(i)) for i in range(1, 6)])
+    cultural_fit_rating = models.IntegerField(choices=[(i, str(i)) for i in range(1, 6)])
+    problem_solving_rating = models.IntegerField(choices=[(i, str(i)) for i in range(1, 6)])
+    
+    # Evaluación cualitativa
+    strengths = models.TextField(blank=True)
+    weaknesses = models.TextField(blank=True)
+    recommendations = models.TextField(blank=True)
+    hiring_decision = models.CharField(max_length=20, choices=HIRING_DECISIONS)
+    next_steps = models.TextField(blank=True)
+    additional_notes = models.TextField(blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"Feedback {self.interview.candidate.nombre} - {self.interview.job.titulo}"
+
+class CompetencyEvaluation(models.Model):
+    """Evaluación de competencias específicas en una entrevista."""
+    feedback = models.ForeignKey(InterviewFeedback, on_delete=models.CASCADE, related_name='competency_evaluations')
+    competency_name = models.CharField(max_length=100)
+    rating = models.IntegerField(choices=[(i, str(i)) for i in range(1, 6)])
+    comments = models.TextField(blank=True)
+    
+    def __str__(self):
+        return f"{self.competency_name} - {self.rating}/5"
+
+class CandidateFeedback(models.Model):
+    """Feedback general de un candidato (no específico de entrevista)."""
+    candidate = models.ForeignKey('Person', on_delete=models.CASCADE, related_name='general_feedbacks')
+    evaluator = models.ForeignKey(User, on_delete=models.CASCADE, related_name='candidate_feedbacks')
+    evaluation_date = models.DateTimeField(auto_now_add=True)
+    
+    # Evaluaciones
+    overall_impression = models.IntegerField(choices=[(i, str(i)) for i in range(1, 6)])
+    technical_competence = models.IntegerField(choices=[(i, str(i)) for i in range(1, 6)])
+    communication_skills = models.IntegerField(choices=[(i, str(i)) for i in range(1, 6)])
+    teamwork_ability = models.IntegerField(choices=[(i, str(i)) for i in range(1, 6)])
+    problem_solving = models.IntegerField(choices=[(i, str(i)) for i in range(1, 6)])
+    learning_ability = models.IntegerField(choices=[(i, str(i)) for i in range(1, 6)])
+    cultural_fit = models.IntegerField(choices=[(i, str(i)) for i in range(1, 6)])
+    
+    # Comentarios
+    strengths = models.TextField(blank=True)
+    areas_for_improvement = models.TextField(blank=True)
+    recommendations = models.TextField(blank=True)
+    would_recommend = models.BooleanField(default=False)
+    notes = models.TextField(blank=True)
+    
+    class Meta:
+        ordering = ['-evaluation_date']
+    
+    def __str__(self):
+        return f"Feedback {self.candidate.nombre} - {self.evaluator.get_full_name()}"
+
+class RecruitmentProcess(models.Model):
+    """Proceso de reclutamiento completo."""
+    STATUS_CHOICES = [
+        ('active', 'Activo'),
+        ('completed', 'Completado'),
+        ('cancelled', 'Cancelado'),
+        ('on_hold', 'En pausa'),
+    ]
+    
+    job = models.ForeignKey('Vacante', on_delete=models.CASCADE, related_name='recruitment_processes')
+    recruiter = models.ForeignKey(User, on_delete=models.CASCADE, related_name='managed_processes')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
+    start_date = models.DateTimeField(auto_now_add=True)
+    end_date = models.DateTimeField(null=True, blank=True)
+    target_positions = models.IntegerField(default=1)
+    filled_positions = models.IntegerField(default=0)
+    total_candidates = models.IntegerField(default=0)
+    total_interviews = models.IntegerField(default=0)
+    notes = models.TextField(blank=True)
+    
+    class Meta:
+        ordering = ['-start_date']
+    
+    def __str__(self):
+        return f"Proceso {self.job.titulo} - {self.recruiter.get_full_name()}"
+
+class ProcessFeedback(models.Model):
+    """Feedback sobre el proceso de reclutamiento."""
+    process = models.ForeignKey(RecruitmentProcess, on_delete=models.CASCADE, related_name='feedbacks')
+    evaluator = models.ForeignKey(User, on_delete=models.CASCADE, related_name='process_feedbacks')
+    
+    # Evaluaciones del proceso
+    overall_satisfaction = models.IntegerField(choices=[(i, str(i)) for i in range(1, 6)])
+    communication_quality = models.IntegerField(choices=[(i, str(i)) for i in range(1, 6)])
+    process_efficiency = models.IntegerField(choices=[(i, str(i)) for i in range(1, 6)])
+    candidate_experience = models.IntegerField(choices=[(i, str(i)) for i in range(1, 6)])
+    transparency = models.IntegerField(choices=[(i, str(i)) for i in range(1, 6)])
+    speed_of_process = models.IntegerField(choices=[(i, str(i)) for i in range(1, 6)])
+    
+    # Comentarios
+    what_went_well = models.TextField(blank=True)
+    what_could_improve = models.TextField(blank=True)
+    suggestions = models.TextField(blank=True)
+    would_recommend = models.BooleanField(default=False)
+    additional_comments = models.TextField(blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"Feedback proceso {self.process.job.titulo}"
+
 class BackgroundCheck(models.Model):
     """
     Modelo para verificaciones de antecedentes.

@@ -356,51 +356,61 @@ urlpatterns += [
     path('api/talent/intervention-plan/<int:person_id>', talent_views.generate_intervention_plan, name='generate_intervention_plan'),
 ]
 
-# Feedback URLs
-path('api/feedback/submit/', views.feedback_views.submit_feedback, name='submit_feedback'),
-path('api/feedback/stats/<str:skill_id>/', views.feedback_views.get_feedback_stats, name='get_feedback_stats'),
-path('api/feedback/list/', views.feedback_views.list_feedback, name='list_feedback'),
-path('api/feedback/<int:feedback_id>/', views.feedback_views.get_feedback_details, name='get_feedback_details'),
-path('api/feedback/retrain/<str:skill_id>/', views.feedback_views.trigger_retraining, name='trigger_retraining'),
-
-# URLs para validación de skills
-path('skill-assessment/<int:assessment_id>/', views.get_skill_assessment_details, name='skill_assessment_details'),
-path('skill-assessment/<int:assessment_id>/validate/', views.validate_skill_assessment, name='validate_skill_assessment'),
-
-# URLs para características premium
-path('pricing/premium-features/', views.pricing_views.premium_features, name='premium_features'),
-
-# LinkedIn
-path('linkedin/templates/', message_templates.template_list, name='linkedin:template_list'),
-path('linkedin/templates/create/', message_templates.template_create, name='linkedin:template_create'),
-path('linkedin/templates/<int:pk>/edit/', message_templates.template_edit, name='linkedin:template_edit'),
-path('linkedin/templates/<int:pk>/toggle/', message_templates.template_toggle, name='linkedin:template_toggle'),
-path('linkedin/templates/<int:pk>/delete/', message_templates.template_delete, name='linkedin:template_delete'),
-
-from app.views.linkedin import schedules
+# ----------------------------------------
+# 📌 RUTAS DE FEEDBACK API
+# ----------------------------------------
+from app.ats.feedback import views as feedback_views
+from app.views import feedback_views as app_feedback_views
+from app.views.linkedin import message_templates, schedules
+from app.views.proposals import views as proposals_views
 
 urlpatterns += [
-    # LinkedIn Schedules
+    # Feedback URLs
+    path('api/feedback/submit/', feedback_views.submit_feedback, name='submit_feedback'),
+    path('api/feedback/stats/<str:skill_id>/', feedback_views.get_feedback_stats, name='get_feedback_stats'),
+    path('api/feedback/list/', feedback_views.list_feedback, name='list_feedback'),
+    path('api/feedback/<int:feedback_id>/', feedback_views.get_feedback_details, name='get_feedback_details'),
+    path('api/feedback/retrain/<str:skill_id>/', feedback_views.trigger_retraining, name='trigger_retraining'),
+
+    # URLs para validación de skills (existen en app.views.feedback_views)
+    path('skill-assessment/<int:assessment_id>/', app_feedback_views.get_skill_assessment_details, name='skill_assessment_details'),
+    path('skill-assessment/<int:assessment_id>/validate/', app_feedback_views.validate_skill_assessment, name='validate_skill_assessment'),
+
+    # LinkedIn Templates (existen en app.views.linkedin.message_templates)
+    path('linkedin/templates/', message_templates.template_list, name='linkedin:template_list'),
+    path('linkedin/templates/create/', message_templates.template_create, name='linkedin:template_create'),
+    path('linkedin/templates/<int:pk>/edit/', message_templates.template_edit, name='linkedin:template_edit'),
+    path('linkedin/templates/<int:pk>/toggle/', message_templates.template_toggle, name='linkedin:template_toggle'),
+    path('linkedin/templates/<int:pk>/delete/', message_templates.template_delete, name='linkedin:template_delete'),
+
+    # LinkedIn Schedules (existen en app.views.linkedin.schedules)
     path('linkedin/schedules/', schedules.schedule_list, name='linkedin:schedule_list'),
     path('linkedin/schedules/create/', schedules.schedule_create, name='linkedin:schedule_create'),
     path('linkedin/schedules/<int:pk>/edit/', schedules.schedule_edit, name='linkedin:schedule_edit'),
     path('linkedin/schedules/<int:pk>/toggle/', schedules.schedule_toggle, name='linkedin:schedule_toggle'),
     path('linkedin/schedules/<int:pk>/delete/', schedules.schedule_delete, name='linkedin:schedule_delete'),
+
+    # Rutas de edición inline (existen en app.views.proposals.views)
+    path('proposals/client/<int:client_id>/update-info/', proposals_views.update_client_info, name='update_client_info'),
+    path('proposals/company/<int:company_id>/update-contacts/', proposals_views.update_company_contacts, name='update_company_contacts'),
+    path('proposals/company/<int:company_id>/add-invitee/', proposals_views.add_invitee, name='add_invitee'),
+    path('proposals/company/<int:company_id>/remove-invitee/', proposals_views.remove_invitee, name='remove_invitee'),
 ]
 
-# New routes for AURA
-path('aura/dashboard/', ExecutiveDashboardView.as_view(), name='aura_dashboard'),
-path('aura/recommendations/', AuraRecommendationsView.as_view(), name='aura_recommendations'),
-path('aura/networking/', AuraNetworkingView.as_view(), name='aura_networking'),
-path('aura/organizational/', AuraOrganizationalView.as_view(), name='aura_organizational'),
-path('aura/gpt/', AuraGPTAssistantView.as_view(), name='aura_gpt_assistant'),
+# ----------------------------------------
+# 📌 RUTAS DE AURA (EXECUTIVE DASHBOARD)
+# ----------------------------------------
+from app.views.aura.dashboard import AURADashboardView
+from app.views.aura.recommendations import AuraRecommendationsView
+from app.views.aura.networking import AuraNetworkingView
+from app.views.aura.organizational import AuraOrganizationalView
+from app.views.aura.gpt_assistant import AuraGPTAssistantView
 
-# ------------------------
-# 📌 RUTAS DE EDICIÓN INLINE ULTRA MEJORADA
-# ------------------------
 urlpatterns += [
-    path('proposals/client/<int:client_id>/update-info/', views.proposals.views.update_client_info, name='update_client_info'),
-    path('proposals/company/<int:company_id>/update-contacts/', views.proposals.views.update_company_contacts, name='update_company_contacts'),
-    path('proposals/company/<int:company_id>/add-invitee/', views.proposals.views.add_invitee, name='add_invitee'),
-    path('proposals/company/<int:company_id>/remove-invitee/', views.proposals.views.remove_invitee, name='remove_invitee'),
+    # AURA Routes (existen en app.views.aura.*)
+    path('aura/dashboard/', AURADashboardView.as_view(), name='aura_dashboard'),
+    path('aura/recommendations/', AuraRecommendationsView.as_view(), name='aura_recommendations'),
+    path('aura/networking/', AuraNetworkingView.as_view(), name='aura_networking'),
+    path('aura/organizational/', AuraOrganizationalView.as_view(), name='aura_organizational'),
+    path('aura/gpt/', AuraGPTAssistantView.as_view(), name='aura_gpt_assistant'),
 ]
