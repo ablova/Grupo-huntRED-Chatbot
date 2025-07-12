@@ -115,7 +115,7 @@ urlpatterns = [
     path('aura/', include('app.ml.aura.urls', namespace='aura')),
     
     # 🚀 ANALYTICS AVANZADOS Y MATCHING AUTOMÁTICO
-    path('advanced-analytics/', include('app.urls.advanced_analytics')),
+    # path('advanced-analytics/', include('app.urls.advanced_analytics')),
 ]
 
 # ---------------------------------
