@@ -20,7 +20,9 @@ from app.ats.feedback.feedback_models import ServiceFeedback, OngoingServiceFeed
 from app.ats.feedback.ongoing_tracker import get_ongoing_service_tracker
 from app.ats.feedback.completion_tracker import get_service_completion_tracker
 from app.ats.pricing.proposal_tracker import get_proposal_tracker
-from app.ats.utilidades.logging_utils import get_logger
+import logging
+
+logger = logging.getLogger(__name__)
 
 logger = get_logger(__name__)
 
