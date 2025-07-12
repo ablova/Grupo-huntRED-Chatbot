@@ -236,7 +236,7 @@ def aura_audit_trail(request):
 @staff_member_required
 @require_http_methods(["POST"])
 @csrf_exempt
-def aura_test_analysis(request):
+async def aura_test_analysis(request):
     """
     API para probar análisis con datos de ejemplo.
     """
