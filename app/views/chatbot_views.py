@@ -268,7 +268,7 @@ class ProcessMessageView(View):
             logger.error(f"Error procesando mensaje en ProcessMessageView: {e}", exc_info=True)
             return JsonResponse({'error': 'Error interno del servidor'}, status=500)
 
-    def get(self, request):
+    async def get(self, request):
         """
         Endpoint GET para verificación de estado del servicio.
         """
