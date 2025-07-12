@@ -1,11 +1,11 @@
 from django.urls import path, re_path
-from app.ats.views.webhook_views import (
+from app.views.webhook_views import (
     WhatsAppWebhookView, TelegramWebhookView,
     MessengerWebhookView, InstagramWebhookView
 )
-from app.ats.views.verification_views import webhook_verification
-from app.ats.views.publish_views import webhook_job_opportunity
-from app.ats.views.webhook_views import WebhookView
+from app.views.verification_views import webhook_verification
+from app.views.publish_views import webhook_job_opportunity
+from app.views.webhook_views import WebhookView
 
 urlpatterns = [
     # Webhooks de mensajería
