@@ -1,6 +1,6 @@
 from django.urls import path
 from django.contrib.auth.decorators import login_required
-from app.ats.views.ml_views import train_ml_api, predict_matches
+from app.views.ml_views import train_ml_api, predict_matches
 from app.ats.views.ml_admin_views import (
     MLDashboardView, vacancy_analysis_view,
     candidate_growth_plan_view, candidate_growth_plan_pdf_view,
