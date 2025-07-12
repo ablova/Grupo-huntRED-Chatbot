@@ -5,7 +5,7 @@ from app.views.webhook_views import (
 )
 from app.views.verification_views import webhook_verification
 from app.views.publish_views import webhook_job_opportunity
-from app.views.webhook_views import WebhookView
+from app.views.chatbot_views import WebhookView
 
 urlpatterns = [
     # Webhooks de mensajería
