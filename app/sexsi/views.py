@@ -17,7 +17,8 @@ from weasyprint import HTML
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 
-from app.sexsi.forms import ConsentAgreement, PaymentTransaction, Preference, ConsentAgreementForm, DiscountCoupon
+from app.sexsi.models import ConsentAgreement, SexsiPaymentTransaction, Preference, SexsiDiscountCoupon
+from app.sexsi.forms import ConsentAgreementForm
 from app.ats.integrations.services import send_message, email_service
 from asgiref.sync import async_to_sync
 import json
@@ -39,7 +40,7 @@ def paypal_webhook(request):
             agreement_id = data["resource"]["invoice_id"]  # Asegúrate de enviar este ID al crear el pago
             
             # Actualiza la transacción en la base de datos
-            transaction = PaymentTransaction.objects.filter(paypal_transaction_id=transaction_id).first()
+            transaction = SexsiPaymentTransaction.objects.filter(paypal_transaction_id=transaction_id).first()
             if transaction:
                 transaction.transaction_status = "completed"
                 transaction.save()
