@@ -14,7 +14,8 @@ from django.db.models.signals import post_save, post_init
 from django.dispatch import receiver
 
 from app.ats.models import Proposal
-from app.models import Opportunity, Contract, ServiceMilestone
+from app.models import Opportunity, Contract
+from app.ats.pricing.models import ExternalServiceMilestone
 from app.ats.feedback.feedback_modelsfeedback_models import ServiceFeedback, OngoingServiceFeedback, CompletedServiceFeedback
 from app.ats.feedback.feedback_modelsongoing_tracker import get_ongoing_service_tracker
 from app.ats.feedback.feedback_modelscompletion_tracker import get_service_completion_tracker
@@ -82,7 +83,7 @@ def check_proposal_status_change(sender, instance, **kwargs):
 
 # SEÑALES PARA SERVICIOS EN CURSO
 
-@receiver(post_save, sender=ServiceMilestone)
+@receiver(post_save, sender=ExternalServiceMilestone)
 def track_milestone_feedback(sender, instance, created, **kwargs):
     """
     Detecta cuando se alcanza un hito en un servicio y programa
