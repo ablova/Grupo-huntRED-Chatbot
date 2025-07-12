@@ -128,7 +128,7 @@ class ChatbotView(View):
             logger.error(f"Error processing message: {e}")
             return JsonResponse({'error': 'Internal server error'}, status=500)
 
-    def get(self, request, platform):
+    async def get(self, request, platform):
         """Maneja las peticiones GET para verificación inicial."""
         return JsonResponse({'status': 'ok'})
 
