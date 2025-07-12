@@ -38,6 +38,11 @@ from app.views.candidatos_views import (
 )
 from app.views.ml_views import train_ml_api, predict_matches
 from app.views.ml_admin_views import MLDashboardView, vacancy_analysis_view, candidate_growth_plan_view, candidate_growth_plan_pdf_view, dashboard_charts_api_view
+from app.views.analytics import (
+    advanced_analytics_dashboard, matching_analytics,
+    performance_metrics, predictive_insights,
+    automated_matching, analytics_api
+)
 from app.views.dashboard import (
     dashboard, interview_slots_dashboard, generate_slots, 
     slot_details, edit_slot, delete_slot, slot_analytics
@@ -115,7 +120,12 @@ urlpatterns = [
     path('aura/', include('app.ml.aura.urls', namespace='aura')),
     
     # 🚀 ANALYTICS AVANZADOS Y MATCHING AUTOMÁTICO
-    path('advanced-analytics/', include('app.urls.advanced_analytics')),
+    path('advanced-analytics/', advanced_analytics_dashboard, name='advanced_analytics_dashboard'),
+    path('advanced-analytics/matching/', matching_analytics, name='matching_analytics'),
+    path('advanced-analytics/performance/', performance_metrics, name='performance_metrics'),
+    path('advanced-analytics/predictive/', predictive_insights, name='predictive_insights'),
+    path('advanced-analytics/automated-matching/', automated_matching, name='automated_matching'),
+    path('advanced-analytics/api/', analytics_api, name='analytics_api'),
 ]
 
 # ---------------------------------
