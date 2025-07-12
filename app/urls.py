@@ -107,7 +107,7 @@ urlpatterns = [
     path('sexsi/', include('app.sexsi.urls')),
 
     path('pricing/', include('app.ats.pricing.urls', namespace='pricing')),
-    path('publish/', include('app.ats.publish.urls', namespace='publish')),
+    path('publish/', include('app.ats.publish.urls')),
     path('ml/', include('app.views.ml.urls')),
     path('webhooks/', include('app.views.webhook.urls')),
     
