@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 @staff_member_required
 @require_http_methods(["POST"])
 @csrf_exempt
-def aura_analyze_comprehensive(request):
+async def aura_analyze_comprehensive(request):
     """
     API para análisis comprehensivo de AURA.
     """
@@ -80,7 +80,7 @@ def aura_analyze_comprehensive(request):
 @staff_member_required
 @require_http_methods(["POST"])
 @csrf_exempt
-def aura_analyze_specific(request):
+async def aura_analyze_specific(request):
     """
     API para análisis específico de AURA.
     """
