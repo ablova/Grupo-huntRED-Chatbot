@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.conf import settings
 from app.ats.analytics.models import AnalyticsEvent, UserMetric, SystemMetric, Report
 
 @admin.register(AnalyticsEvent)
@@ -87,20 +88,17 @@ class SystemMetricAdmin(admin.ModelAdmin):
     """Administración de Métricas del Sistema"""
     
     list_display = (
-        'name',
-        'value',
-        'value_type',
+        'metric_name',
+        'metric_value',
         'timestamp'
     )
     
     list_filter = (
-        'value_type',
-        'timestamp'
+        'timestamp',
     )
     
     search_fields = (
-        'name',
-        'category'
+        'metric_name',
     )
     
     readonly_fields = (
@@ -110,10 +108,8 @@ class SystemMetricAdmin(admin.ModelAdmin):
     fieldsets = (
         ('Información Básica', {
             'fields': (
-                'name',
-                'value',
-                'value_type',
-                'category'
+                'metric_name',
+                'metric_value'
             )
         }),
         ('Temporal', {
@@ -129,18 +125,16 @@ class ReportAdmin(admin.ModelAdmin):
     
     list_display = (
         'title',
-        'report_type',
         'created_at'
     )
     
     list_filter = (
-        'report_type',
         'created_at'
     )
     
     search_fields = (
         'title',
-        'description'
+        'content'
     )
     
     readonly_fields = (
@@ -151,9 +145,7 @@ class ReportAdmin(admin.ModelAdmin):
         ('Información Básica', {
             'fields': (
                 'title',
-                'description',
-                'report_type',
-                'data'
+                'content'
             )
         }),
         ('Temporal', {

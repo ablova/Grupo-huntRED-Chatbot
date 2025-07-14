@@ -1,9 +1,9 @@
 # /home/pablo/app/ats/analytics/models.py
 from django.db import models
-from django.contrib.auth.models import User
+from django.conf import settings
 
 class AnalyticsEvent(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True)
     event_type = models.CharField(max_length=100)
     event_data = models.JSONField()
     timestamp = models.DateTimeField(auto_now_add=True)
@@ -12,7 +12,7 @@ class AnalyticsEvent(models.Model):
         return f"{self.event_type} - {self.timestamp}"
 
 class UserMetric(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     metric_name = models.CharField(max_length=100)
     metric_value = models.FloatField()
     timestamp = models.DateTimeField(auto_now_add=True)
