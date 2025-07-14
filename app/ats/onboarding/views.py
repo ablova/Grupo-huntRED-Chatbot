@@ -27,7 +27,7 @@ from app.models import OnboardingProcess, OnboardingTask, Person, Vacante, Busin
 from app.ats.onboarding.onboarding_controller import OnboardingController
 from app.ats.onboarding.models import OnboardingProcess
 from app.ats.onboarding.managers import OnboardingManager
-from app.ats.notifications.managers import NotificationManager
+from app.ats.notifications.notification_manager import NotificationManager
 
 logger = logging.getLogger(__name__)
 signer = Signer(salt='onboarding-satisfaction')
