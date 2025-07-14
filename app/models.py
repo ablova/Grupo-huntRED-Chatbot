@@ -7689,3 +7689,114 @@ class VerificationPackage(models.Model):
 # Aliases para compatibilidad con código existente
 Client = Person
 Role = BusinessUnitMembership
+
+class PersonCulturalProfile(models.Model):
+    """
+    Modelo para perfiles culturales de personas.
+    Almacena información sobre valores, preferencias y características culturales.
+    """
+    person = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='cultural_profiles')
+    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE, related_name='person_cultural_profiles')
+    
+    # Dimensiones culturales
+    values_alignment = models.JSONField(default=dict, help_text="Alineación con valores organizacionales")
+    cultural_dimensions = models.JSONField(default=dict, help_text="Dimensiones culturales evaluadas")
+    
+    # Métricas de fit
+    overall_fit_score = models.FloatField(default=0.0, help_text="Puntuación general de fit cultural")
+    communication_style = models.CharField(max_length=50, blank=True, help_text="Estilo de comunicación preferido")
+    work_environment_preference = models.CharField(max_length=50, blank=True, help_text="Preferencia de ambiente laboral")
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Perfil Cultural de Persona"
+        verbose_name_plural = "Perfiles Culturales de Personas"
+        unique_together = ['person', 'business_unit']
+        ordering = ['-updated_at']
+    
+    def __str__(self):
+        return f"Perfil Cultural - {self.person}"
+    
+    def calculate_overall_fit(self, organizational_culture):
+        """Calcula el fit general con una cultura organizacional."""
+        # Implementación básica - se puede expandir
+        return self.overall_fit_score
+    
+    def get_cultural_dimensions(self):
+        """Obtiene las dimensiones culturales evaluadas."""
+        return self.cultural_dimensions
+
+class CulturalFitReport(models.Model):
+    """
+    Modelo para reportes de fit cultural entre personas y organizaciones.
+    """
+    person = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='cultural_fit_reports')
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='cultural_fit_reports')
+    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE, related_name='cultural_fit_reports')
+    
+    # Puntuaciones
+    overall_fit_score = models.FloatField(default=0.0, help_text="Puntuación general de fit")
+    dimension_scores = models.JSONField(default=dict, help_text="Puntuaciones por dimensión")
+    values_alignment = models.JSONField(default=dict, help_text="Alineación de valores")
+    
+    # Análisis cualitativo
+    strengths = models.TextField(blank=True, help_text="Fortalezas identificadas")
+    areas_for_improvement = models.TextField(blank=True, help_text="Áreas de mejora")
+    recommendations = models.TextField(blank=True, help_text="Recomendaciones")
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Reporte de Fit Cultural"
+        verbose_name_plural = "Reportes de Fit Cultural"
+        unique_together = ['person', 'company', 'business_unit']
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"Fit Cultural - {self.person} en {self.company}"
+    
+    def get_fit_level(self):
+        """Obtiene el nivel de fit en texto."""
+        if self.overall_fit_score >= 0.8:
+            return "Excelente"
+        elif self.overall_fit_score >= 0.6:
+            return "Bueno"
+        elif self.overall_fit_score >= 0.4:
+            return "Aceptable"
+        else:
+            return "Requiere mejora"
+
+class OrganizationalCulture(models.Model):
+    """
+    Modelo para culturas organizacionales.
+    """
+    organization = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='organizational_cultures')
+    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE, related_name='organizational_cultures')
+    
+    # Características culturales
+    culture_type = models.CharField(max_length=50, help_text="Tipo de cultura organizacional")
+    values = models.JSONField(default=dict, help_text="Valores organizacionales")
+    practices = models.JSONField(default=dict, help_text="Prácticas organizacionales")
+    
+    # Dimensiones culturales
+    cultural_dimensions = models.JSONField(default=dict, help_text="Dimensiones culturales evaluadas")
+    
+    # Estado
+    is_current = models.BooleanField(default=True, help_text="¿Es la cultura actual?")
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Cultura Organizacional"
+        verbose_name_plural = "Culturas Organizacionales"
+        ordering = ['-is_current', '-updated_at']
+    
+    def __str__(self):
+        return f"Cultura - {self.organization} ({self.culture_type})"
