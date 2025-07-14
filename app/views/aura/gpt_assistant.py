@@ -14,8 +14,8 @@ from django.views import View
 from django.http import JsonResponse
 import json
 
-# Suponiendo que tienes un wrapper en app/com/chatbot/gpt.py
-from app.com.chatbot.gpt import explain_aura_result, suggest_next_action
+# Suponiendo que tienes un wrapper en app/ats/chatbot/core/gpt.py
+from app.ats.chatbot.core.gpt import explain_aura_result, suggest_next_action
 
 class AuraGPTAssistantView(AuraBaseView):
     """

@@ -6,7 +6,7 @@ class CourseAdmin(admin.ModelAdmin):
     """Administración de Cursos"""
     
     list_display = (
-        'title',
+        'name',
         'provider',
         'level',
         'duration',
@@ -22,40 +22,50 @@ class CourseAdmin(admin.ModelAdmin):
     )
     
     search_fields = (
-        'title',
+        'name',
         'description',
         'skills__name'
+    )
+    
+    readonly_fields = (
+        'created_at',
+        'updated_at'
     )
     
     fieldsets = (
         ('Información Básica', {
             'fields': (
-                'title',
+                'name',
                 'description',
                 'provider',
+                'url',
                 'level'
             )
         }),
         ('Detalles', {
             'fields': (
                 'duration',
-                'prerequisites',
                 'skills',
-                'certification'
+                'business_unit'
             )
         }),
-        ('Contenido', {
+        ('Precios', {
             'fields': (
-                'modules',
-                'resources',
-                'assessments'
+                'price',
+                'currency'
             )
         }),
         ('Métricas', {
             'fields': (
-                'completion_rate',
-                'satisfaction_score',
-                'enrollment_count'
+                'rating',
+                'reviews_count'
+            )
+        }),
+        ('Estado', {
+            'fields': (
+                'is_active',
+                'created_at',
+                'updated_at'
             )
         })
     )
@@ -66,22 +76,32 @@ class LearningPathAdmin(admin.ModelAdmin):
     
     list_display = (
         'name',
-        'target_role',
-        'duration',
-        'is_active',
+        'user',
+        'business_unit',
+        'difficulty',
+        'status',
+        'progress',
         'created_at'
     )
     
     list_filter = (
-        'target_role',
-        'is_active',
+        'difficulty',
+        'status',
         'created_at'
     )
     
     search_fields = (
         'name',
         'description',
-        'skills__name'
+        'user__email',
+        'target_skills__name'
+    )
+    
+    readonly_fields = (
+        'created_at',
+        'updated_at',
+        'started_at',
+        'completed_at'
     )
     
     fieldsets = (
@@ -89,22 +109,29 @@ class LearningPathAdmin(admin.ModelAdmin):
             'fields': (
                 'name',
                 'description',
-                'target_role',
-                'is_active'
+                'user',
+                'business_unit'
             )
         }),
         ('Estructura', {
             'fields': (
-                'courses',
-                'skills',
-                'duration'
+                'target_skills',
+                'estimated_duration',
+                'difficulty'
             )
         }),
-        ('Métricas', {
+        ('Estado', {
             'fields': (
-                'completion_rate',
-                'success_rate',
-                'average_time'
+                'status',
+                'progress',
+                'started_at',
+                'completed_at'
+            )
+        }),
+        ('Temporal', {
+            'fields': (
+                'created_at',
+                'updated_at'
             )
         })
     )
@@ -134,27 +161,47 @@ class SkillAdmin(admin.ModelAdmin):
         'category'
     )
     
+    readonly_fields = (
+        'created_at',
+        'updated_at',
+        'last_used'
+    )
+    
     fieldsets = (
         ('Información Básica', {
             'fields': (
                 'name',
                 'description',
                 'category',
-                'level'
+                'level',
+                'years_experience'
             )
         }),
-        ('Relaciones', {
+        ('Análisis', {
             'fields': (
-                'prerequisites',
-                'related_skills',
-                'courses'
+                'demand_score',
+                'growth_potential',
+                'related_skills'
+            )
+        }),
+        ('Aprendizaje', {
+            'fields': (
+                'learning_resources',
+                'certification_required',
+                'certification_providers'
             )
         }),
         ('Métricas', {
             'fields': (
-                'demand_score',
-                'market_value',
-                'learning_difficulty'
+                'usage_count',
+                'last_used'
+            )
+        }),
+        ('Estado', {
+            'fields': (
+                'is_active',
+                'created_at',
+                'updated_at'
             )
         })
     )
@@ -179,7 +226,15 @@ class EnrollmentAdmin(admin.ModelAdmin):
     
     search_fields = (
         'user__email',
-        'course__title'
+        'course__name'
+    )
+    
+    readonly_fields = (
+        'enrolled_at',
+        'started_at',
+        'completed_at',
+        'created_at',
+        'updated_at'
     )
     
     fieldsets = (
@@ -187,21 +242,34 @@ class EnrollmentAdmin(admin.ModelAdmin):
             'fields': (
                 'user',
                 'course',
+                'business_unit',
                 'status'
             )
         }),
         ('Progreso', {
             'fields': (
                 'progress',
-                'completed_modules',
-                'last_activity'
+                'score'
             )
         }),
-        ('Evaluación', {
+        ('Fechas', {
             'fields': (
-                'assessments',
-                'certificate',
-                'feedback'
+                'enrolled_at',
+                'started_at',
+                'completed_at',
+                'expires_at'
+            )
+        }),
+        ('Certificación', {
+            'fields': (
+                'certificate_url',
+                'notes'
+            )
+        }),
+        ('Temporal', {
+            'fields': (
+                'created_at',
+                'updated_at'
             )
         })
     ) 

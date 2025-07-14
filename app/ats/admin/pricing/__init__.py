@@ -23,15 +23,17 @@ class PricingStrategyAdmin(admin.ModelAdmin):
     
     list_display = (
         'name',
-        'business_unit',
-        'active',
-        'created_at',
-        'updated_at'
+        'type',
+        'status',
+        'base_price',
+        'currency',
+        'created_at'
     )
     
     list_filter = (
-        'active',
-        'created_at'
+        'type',
+        'status',
+        'currency'
     )
     
     search_fields = (
@@ -39,17 +41,43 @@ class PricingStrategyAdmin(admin.ModelAdmin):
         'description'
     )
     
+    readonly_fields = (
+        'created_at',
+        'last_updated'
+    )
+    
     fieldsets = (
         ('Información Básica', {
             'fields': (
                 'name',
-                'description',
-                'active'
+                'type',
+                'status',
+                'description'
             )
         }),
-        ('Unidad de Negocio', {
+        ('Precios', {
             'fields': (
-                'business_unit',
+                'base_price',
+                'currency'
+            )
+        }),
+        ('Configuración', {
+            'fields': (
+                'pricing_model',
+                'conditions'
+            )
+        }),
+        ('Métricas', {
+            'fields': (
+                'success_rate',
+                'conversion_rate',
+                'revenue_impact'
+            )
+        }),
+        ('Temporal', {
+            'fields': (
+                'created_at',
+                'last_updated'
             )
         })
     )
@@ -60,36 +88,45 @@ class PricePointAdmin(admin.ModelAdmin):
     
     list_display = (
         'strategy',
-        'service_type',
-        'base_price',
+        'amount',
         'currency',
-        'min_duration',
-        'max_duration'
+        'valid_from',
+        'valid_to'
     )
     
     list_filter = (
-        'service_type',
-        'currency'
+        'currency',
+        'valid_from'
     )
     
     search_fields = (
         'strategy__name',
-        'service_type'
+        'description'
+    )
+    
+    readonly_fields = (
+        'valid_from',
+        'valid_to'
     )
     
     fieldsets = (
         ('Información Básica', {
             'fields': (
                 'strategy',
-                'service_type',
-                'base_price',
-                'currency'
+                'amount',
+                'currency',
+                'description'
             )
         }),
-        ('Duración', {
+        ('Vigencia', {
             'fields': (
-                'min_duration',
-                'max_duration'
+                'valid_from',
+                'valid_to'
+            )
+        }),
+        ('Configuración', {
+            'fields': (
+                'conditions',
             )
         })
     )
@@ -99,40 +136,45 @@ class DiscountRuleAdmin(admin.ModelAdmin):
     """Administración de Reglas de Descuento"""
     
     list_display = (
-        'strategy',
-        'service_type',
-        'discount_type',
-        'discount_value',
-        'min_amount',
-        'max_amount',
-        'active'
+        'type',
+        'value',
+        'is_active',
+        'valid_from',
+        'valid_to'
     )
     
     list_filter = (
-        'service_type',
-        'discount_type',
-        'active'
+        'type',
+        'is_active',
+        'valid_from'
     )
     
     search_fields = (
-        'strategy__name',
-        'service_type'
+        'type',
+    )
+    
+    readonly_fields = (
+        'valid_from',
+        'valid_to'
     )
     
     fieldsets = (
         ('Información Básica', {
             'fields': (
-                'strategy',
-                'service_type',
-                'discount_type',
-                'discount_value',
-                'active'
+                'type',
+                'value',
+                'is_active'
             )
         }),
-        ('Límites', {
+        ('Vigencia', {
             'fields': (
-                'min_amount',
-                'max_amount'
+                'valid_from',
+                'valid_to'
+            )
+        }),
+        ('Configuración', {
+            'fields': (
+                'conditions',
             )
         })
     )
@@ -142,40 +184,45 @@ class ReferralFeeAdmin(admin.ModelAdmin):
     """Administración de Comisiones por Referidos"""
     
     list_display = (
-        'strategy',
-        'service_type',
-        'fee_type',
-        'fee_value',
-        'min_amount',
-        'max_amount',
-        'active'
+        'type',
+        'value',
+        'is_active',
+        'valid_from',
+        'valid_to'
     )
     
     list_filter = (
-        'service_type',
-        'fee_type',
-        'active'
+        'type',
+        'is_active',
+        'valid_from'
     )
     
     search_fields = (
-        'strategy__name',
-        'service_type'
+        'type',
+    )
+    
+    readonly_fields = (
+        'valid_from',
+        'valid_to'
     )
     
     fieldsets = (
         ('Información Básica', {
             'fields': (
-                'strategy',
-                'service_type',
-                'fee_type',
-                'fee_value',
-                'active'
+                'type',
+                'value',
+                'is_active'
             )
         }),
-        ('Límites', {
+        ('Vigencia', {
             'fields': (
-                'min_amount',
-                'max_amount'
+                'valid_from',
+                'valid_to'
+            )
+        }),
+        ('Configuración', {
+            'fields': (
+                'conditions',
             )
         })
     )
@@ -185,58 +232,18 @@ class PricingCalculationAdmin(admin.ModelAdmin):
     """Administración de Cálculos de Precio"""
     
     list_display = (
-        'business_unit',
-        'service_type',
-        'base_price',
-        'discounts',
-        'referral_fees',
-        'total',
-        'currency',
+        'id',
         'created_at'
-    )
-    
-    list_filter = (
-        'service_type',
-        'currency',
-        'created_at'
-    )
-    
-    search_fields = (
-        'business_unit__name',
-        'service_type'
     )
     
     readonly_fields = (
         'created_at',
-        'updated_at'
     )
     
     fieldsets = (
         ('Información Básica', {
             'fields': (
-                'business_unit',
-                'service_type',
-                'base_price',
-                'currency'
-            )
-        }),
-        ('Cálculos', {
-            'fields': (
-                'discounts',
-                'referral_fees',
-                'total'
-            )
-        }),
-        ('Metadatos', {
-            'fields': (
-                'metadata',
-            ),
-            'classes': ('collapse',)
-        }),
-        ('Fechas', {
-            'fields': (
                 'created_at',
-                'updated_at'
             )
         })
     )
@@ -284,15 +291,10 @@ class PricingPaymentAdmin(admin.ModelAdmin):
         ('Transacción', {
             'fields': (
                 'id_transaccion',
+                'referencia_pago'
             )
         }),
-        ('Metadatos', {
-            'fields': (
-                'metadata',
-            ),
-            'classes': ('collapse',)
-        }),
-        ('Fechas', {
+        ('Temporal', {
             'fields': (
                 'fecha_creacion',
                 'fecha_actualizacion'
@@ -335,31 +337,27 @@ class PricingProposalAdmin(admin.ModelAdmin):
     fieldsets = (
         ('Información Básica', {
             'fields': (
-                'oportunidad',
                 'titulo',
                 'descripcion',
+                'oportunidad',
                 'estado'
             )
         }),
-        ('Detalles Financieros', {
+        ('Precios', {
             'fields': (
                 'monto_total',
-                'moneda'
+                'moneda',
+                'descuentos',
+                'comisiones'
             )
         }),
-        ('Fechas', {
+        ('Temporal', {
             'fields': (
                 'fecha_creacion',
                 'fecha_envio',
                 'fecha_aprobacion',
                 'fecha_rechazo'
             )
-        }),
-        ('Metadatos', {
-            'fields': (
-                'metadata',
-            ),
-            'classes': ('collapse',)
         })
     )
 
@@ -396,15 +394,13 @@ class ProposalSectionAdmin(admin.ModelAdmin):
                 'propuesta',
                 'tipo',
                 'titulo',
-                'contenido',
                 'orden'
             )
         }),
-        ('Metadatos', {
+        ('Contenido', {
             'fields': (
-                'metadata',
-            ),
-            'classes': ('collapse',)
+                'contenido',
+            )
         })
     )
 
@@ -414,7 +410,6 @@ class ProposalTemplateAdmin(admin.ModelAdmin):
     
     list_display = (
         'nombre',
-        'business_unit',
         'activo',
         'fecha_creacion'
     )
@@ -439,22 +434,15 @@ class ProposalTemplateAdmin(admin.ModelAdmin):
             'fields': (
                 'nombre',
                 'descripcion',
-                'activo',
-                'business_unit'
+                'activo'
             )
         }),
-        ('Secciones', {
+        ('Contenido', {
             'fields': (
-                'secciones',
+                'contenido',
             )
         }),
-        ('Metadatos', {
-            'fields': (
-                'metadata',
-            ),
-            'classes': ('collapse',)
-        }),
-        ('Fechas', {
+        ('Temporal', {
             'fields': (
                 'fecha_creacion',
                 'fecha_actualizacion'

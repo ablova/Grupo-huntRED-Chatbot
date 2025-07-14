@@ -8,46 +8,39 @@ class ChatSessionAdmin(admin.ModelAdmin):
     
     list_display = (
         'id',
-        'user',
+        'person',
         'status',
         'created_at',
-        'last_message_at'
+        'updated_at'
     )
     
     list_filter = (
         'status',
         'created_at',
-        'last_message_at'
+        'updated_at'
     )
     
     search_fields = (
-        'user__email',
-        'context'
+        'person__email',
+        'person__nombre'
     )
     
     readonly_fields = (
         'created_at',
-        'last_message_at'
+        'updated_at'
     )
     
     fieldsets = (
         ('Información Básica', {
             'fields': (
-                'user',
-                'status',
-                'context'
+                'person',
+                'status'
             )
         }),
         ('Temporal', {
             'fields': (
                 'created_at',
-                'last_message_at'
-            )
-        }),
-        ('Métricas', {
-            'fields': (
-                'message_count',
-                'average_response_time'
+                'updated_at'
             )
         })
     )
@@ -59,43 +52,35 @@ class ChatMessageAdmin(admin.ModelAdmin):
     list_display = (
         'id',
         'session',
-        'sender',
-        'type',
+        'is_bot',
         'created_at'
     )
     
     list_filter = (
-        'type',
+        'is_bot',
         'created_at'
     )
     
     search_fields = (
         'content',
-        'session__user__email'
+        'session__person__email'
     )
     
     readonly_fields = (
-        'created_at'
+        'created_at',
     )
     
     fieldsets = (
         ('Información Básica', {
             'fields': (
                 'session',
-                'sender',
-                'type',
+                'is_bot',
                 'content'
             )
         }),
         ('Temporal', {
             'fields': (
                 'created_at',
-            )
-        }),
-        ('Métricas', {
-            'fields': (
-                'response_time',
-                'processing_time'
             )
         })
     ) 

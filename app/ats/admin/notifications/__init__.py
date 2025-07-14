@@ -7,28 +7,32 @@ class NotificationAdmin(admin.ModelAdmin):
     
     list_display = (
         'id',
-        'type',
+        'notification_type',
         'status',
         'recipient',
+        'channel',
         'created_at',
         'sent_at'
     )
     
     list_filter = (
-        'type',
+        'notification_type',
         'status',
+        'channel',
         'created_at',
         'sent_at'
     )
     
     search_fields = (
         'recipient__email',
+        'recipient__nombre',
         'content',
-        'type'
+        'notification_type'
     )
     
     readonly_fields = (
         'created_at',
+        'updated_at',
         'sent_at',
         'error_message'
     )
@@ -36,26 +40,23 @@ class NotificationAdmin(admin.ModelAdmin):
     fieldsets = (
         ('Información Básica', {
             'fields': (
-                'type',
+                'notification_type',
                 'status',
-                'recipient'
+                'recipient',
+                'channel'
             )
         }),
         ('Contenido', {
             'fields': (
                 'content',
-                'template'
-            )
-        }),
-        ('Canal', {
-            'fields': (
-                'channel',
-                'channel_data'
+                'template',
+                'metadata'
             )
         }),
         ('Temporal', {
             'fields': (
                 'created_at',
+                'updated_at',
                 'sent_at'
             )
         }),
@@ -81,13 +82,20 @@ class NotificationTemplateAdmin(admin.ModelAdmin):
     
     list_filter = (
         'type',
-        'channel',
-        'is_active'
+        'channel__channel',
+        'is_active',
+        'created_at'
     )
     
     search_fields = (
         'name',
-        'content'
+        'content',
+        'subject'
+    )
+    
+    readonly_fields = (
+        'created_at',
+        'updated_at'
     )
     
     fieldsets = (
@@ -105,6 +113,12 @@ class NotificationTemplateAdmin(admin.ModelAdmin):
                 'content',
                 'variables'
             )
+        }),
+        ('Temporal', {
+            'fields': (
+                'created_at',
+                'updated_at'
+            )
         })
     )
 
@@ -113,27 +127,39 @@ class NotificationChannelAdmin(admin.ModelAdmin):
     """Administración de Canales de Notificación"""
     
     list_display = (
-        'name',
-        'type',
+        'business_unit',
+        'channel',
+        'enabled',
         'is_active',
-        'priority'
+        'priority',
+        'created_at'
     )
     
     list_filter = (
-        'type',
-        'is_active'
+        'channel',
+        'enabled',
+        'is_active',
+        'business_unit',
+        'created_at'
     )
     
     search_fields = (
-        'name',
+        'business_unit__name',
+        'channel',
         'config'
+    )
+    
+    readonly_fields = (
+        'created_at',
+        'updated_at'
     )
     
     fieldsets = (
         ('Información Básica', {
             'fields': (
-                'name',
-                'type',
+                'business_unit',
+                'channel',
+                'enabled',
                 'is_active',
                 'priority'
             )
@@ -143,6 +169,12 @@ class NotificationChannelAdmin(admin.ModelAdmin):
                 'config',
                 'rate_limit',
                 'retry_policy'
+            )
+        }),
+        ('Temporal', {
+            'fields': (
+                'created_at',
+                'updated_at'
             )
         })
     ) 

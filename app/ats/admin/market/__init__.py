@@ -9,42 +9,47 @@ class MarketTrendAdmin(admin.ModelAdmin):
     
     list_display = (
         'skill',
+        'location',
+        'business_unit',
         'demand_level',
-        'growth_rate',
-        'competition_level',
+        'demand_trend',
         'created_at'
     )
     
     list_filter = (
-        'demand_level',
-        'competition_level',
+        'location',
+        'business_unit',
         'created_at'
     )
     
     search_fields = (
-        'skill',
-        'trends'
+        'skill__name',
+        'location'
+    )
+    
+    readonly_fields = (
+        'created_at',
+        'updated_at'
     )
     
     fieldsets = (
         ('Información Básica', {
             'fields': (
                 'skill',
-                'demand_level',
-                'growth_rate',
-                'competition_level'
+                'location',
+                'business_unit'
             )
         }),
-        ('Tendencias', {
+        ('Datos', {
             'fields': (
-                'trends',
-                'insights'
+                'trend_data',
+                'predictions'
             )
         }),
-        ('Métricas', {
+        ('Temporal', {
             'fields': (
-                'confidence_score',
-                'data_points'
+                'created_at',
+                'updated_at'
             )
         })
     )
@@ -57,7 +62,8 @@ class MarketBenchmarkAdmin(admin.ModelAdmin):
         'skill',
         'location',
         'business_unit',
-        'salary_range',
+        'mean_salary',
+        'demand_level',
         'updated_at'
     )
     
@@ -68,9 +74,14 @@ class MarketBenchmarkAdmin(admin.ModelAdmin):
     )
     
     search_fields = (
-        'skill',
+        'skill__name',
         'location',
         'business_unit__name'
+    )
+    
+    readonly_fields = (
+        'created_at',
+        'updated_at'
     )
     
     fieldsets = (
@@ -81,16 +92,16 @@ class MarketBenchmarkAdmin(admin.ModelAdmin):
                 'business_unit'
             )
         }),
-        ('Métricas', {
+        ('Datos', {
             'fields': (
-                'salary_range',
+                'salary_data',
                 'market_metrics'
             )
         }),
-        ('Análisis', {
+        ('Temporal', {
             'fields': (
-                'trends',
-                'insights'
+                'created_at',
+                'updated_at'
             )
         })
     )
@@ -100,6 +111,7 @@ class MarketAnalysisAdmin(admin.ModelAdmin):
     """Administración de Análisis de Mercado"""
     
     list_display = (
+        'skill',
         'benchmark',
         'analysis_type',
         'confidence_score',
@@ -112,28 +124,34 @@ class MarketAnalysisAdmin(admin.ModelAdmin):
     )
     
     search_fields = (
-        'benchmark__skill',
+        'skill__name',
+        'benchmark__skill__name',
         'benchmark__location'
+    )
+    
+    readonly_fields = (
+        'created_at',
+        'updated_at'
     )
     
     fieldsets = (
         ('Información Básica', {
             'fields': (
+                'skill',
                 'benchmark',
-                'analysis_type',
-                'confidence_score'
+                'analysis_type'
             )
         }),
-        ('Resultados', {
+        ('Datos', {
             'fields': (
-                'findings',
-                'recommendations'
+                'metrics',
+                'results'
             )
         }),
-        ('Métricas', {
+        ('Temporal', {
             'fields': (
-                'data_points',
-                'accuracy_score'
+                'created_at',
+                'updated_at'
             )
         })
     ) 

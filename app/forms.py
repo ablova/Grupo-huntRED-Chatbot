@@ -6,7 +6,7 @@ from django.utils.translation import gettext_lazy as _
 from app.models import (
     WorkflowStage, Application, Vacante,
     Person, EnhancedNetworkGamificationProfile, UserPermission, LinkedInMessageTemplate,
-    DocumentVerification
+    DocumentVerification, LinkedInInvitationSchedule
 )
 from app.ats.accounts.models import CustomUser
 import logging
@@ -386,3 +386,11 @@ class LinkedInMessageTemplateForm(forms.ModelForm):
             )
             
         return template
+
+class LinkedInInvitationScheduleForm(forms.ModelForm):
+    class Meta:
+        model = LinkedInInvitationSchedule
+        fields = ['template', 'schedule_time', 'is_active']
+        widgets = {
+            'schedule_time': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
+        }

@@ -9,20 +9,22 @@ class AnalyticsEventAdmin(admin.ModelAdmin):
         'event_type',
         'user',
         'timestamp',
-        'source',
-        'value'
+        'event_data'
     )
     
     list_filter = (
         'event_type',
-        'source',
         'timestamp'
     )
     
     search_fields = (
         'user__email',
         'event_type',
-        'metadata'
+        'event_data'
+    )
+    
+    readonly_fields = (
+        'timestamp',
     )
     
     fieldsets = (
@@ -30,15 +32,12 @@ class AnalyticsEventAdmin(admin.ModelAdmin):
             'fields': (
                 'event_type',
                 'user',
-                'timestamp',
-                'source'
+                'event_data'
             )
         }),
-        ('Datos', {
+        ('Temporal', {
             'fields': (
-                'value',
-                'metadata',
-                'context'
+                'timestamp',
             )
         })
     )
@@ -49,43 +48,36 @@ class UserMetricAdmin(admin.ModelAdmin):
     
     list_display = (
         'user',
-        'metric_type',
-        'value',
-        'period',
-        'updated_at'
+        'metric_name',
+        'metric_value',
+        'timestamp'
     )
     
     list_filter = (
-        'metric_type',
-        'period',
-        'updated_at'
+        'metric_name',
+        'timestamp'
     )
     
     search_fields = (
         'user__email',
-        'metric_type'
+        'metric_name'
+    )
+    
+    readonly_fields = (
+        'timestamp',
     )
     
     fieldsets = (
         ('Información Básica', {
             'fields': (
                 'user',
-                'metric_type',
-                'value',
-                'period'
+                'metric_name',
+                'metric_value'
             )
         }),
-        ('Tendencias', {
+        ('Temporal', {
             'fields': (
-                'trend',
-                'comparison',
-                'target'
-            )
-        }),
-        ('Análisis', {
-            'fields': (
-                'insights',
-                'recommendations'
+                'timestamp',
             )
         })
     )
@@ -95,44 +87,38 @@ class SystemMetricAdmin(admin.ModelAdmin):
     """Administración de Métricas del Sistema"""
     
     list_display = (
-        'metric_type',
+        'name',
         'value',
-        'period',
-        'updated_at'
+        'value_type',
+        'timestamp'
     )
     
     list_filter = (
-        'metric_type',
-        'period',
-        'updated_at'
+        'value_type',
+        'timestamp'
     )
     
     search_fields = (
-        'metric_type',
-        'description'
+        'name',
+        'category'
+    )
+    
+    readonly_fields = (
+        'timestamp',
     )
     
     fieldsets = (
         ('Información Básica', {
             'fields': (
-                'metric_type',
+                'name',
                 'value',
-                'period',
-                'description'
+                'value_type',
+                'category'
             )
         }),
-        ('Tendencias', {
+        ('Temporal', {
             'fields': (
-                'trend',
-                'comparison',
-                'target'
-            )
-        }),
-        ('Análisis', {
-            'fields': (
-                'insights',
-                'recommendations',
-                'alerts'
+                'timestamp',
             )
         })
     )
@@ -142,47 +128,37 @@ class ReportAdmin(admin.ModelAdmin):
     """Administración de Reportes"""
     
     list_display = (
-        'name',
-        'type',
-        'period',
-        'created_at',
-        'status'
+        'title',
+        'report_type',
+        'created_at'
     )
     
     list_filter = (
-        'type',
-        'period',
-        'status',
+        'report_type',
         'created_at'
     )
     
     search_fields = (
-        'name',
-        'description',
-        'content'
+        'title',
+        'description'
+    )
+    
+    readonly_fields = (
+        'created_at',
     )
     
     fieldsets = (
         ('Información Básica', {
             'fields': (
-                'name',
-                'type',
-                'period',
-                'status'
+                'title',
+                'description',
+                'report_type',
+                'data'
             )
         }),
-        ('Contenido', {
+        ('Temporal', {
             'fields': (
-                'content',
-                'metrics',
-                'visualizations'
-            )
-        }),
-        ('Distribución', {
-            'fields': (
-                'recipients',
-                'schedule',
-                'format'
+                'created_at',
             )
         })
     ) 

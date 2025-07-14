@@ -12,9 +12,85 @@ import logging
 from asgiref.sync import sync_to_async
 from app.ats.chatbot.flow.conversational_flow import ConversationalFlowManager
 from app.ats.integrations.services import MessageService
-from app.models import Person, BusinessUnit
+from app.models import Person, BusinessUnit, Event, EventParticipant, EventStatus
 
 logger = logging.getLogger(__name__)
+
+@method_decorator(csrf_exempt, name='dispatch')
+class ProcessMessageView(View):
+    """
+    Vista específica para procesar mensajes del chatbot.
+    
+    Esta vista actúa como un endpoint dedicado para el procesamiento de mensajes,
+    permitiendo testing, simulación y integración con otros servicios.
+    """
+    
+    def __init__(self):
+        super().__init__()
+        self.message_service = MessageService()
+        self.flow_manager = ConversationalFlowManager()
+
+    async def post(self, request):
+        """
+        Procesa mensajes enviados al endpoint.
+        
+        Args:
+            request: HttpRequest con datos del mensaje
+            
+        Returns:
+            JsonResponse: Respuesta con el estado de la operación
+        """
+        try:
+            data = json.loads(request.body.decode('utf-8'))
+            user_id = data.get('user_id')
+            message = data.get('message')
+            platform = data.get('platform', 'webhook')
+            
+            if not all([user_id, message]):
+                return JsonResponse(
+                    {'error': 'Missing required parameters'}, 
+                    status=400
+                )
+                
+            # Obtener o crear el usuario
+            person, created = await sync_to_async(Person.objects.get_or_create)(
+                external_id=user_id,
+                defaults={'name': 'Unknown User'}
+            )
+            
+            # Procesar el mensaje
+            response = await self.flow_manager.process_message(
+                person=person,
+                message=message,
+                platform=platform
+            )
+            
+            return JsonResponse({
+                'status': 'success',
+                'response': response
+            })
+            
+        except json.JSONDecodeError:
+            return JsonResponse(
+                {'error': 'Invalid JSON'}, 
+                status=400
+            )
+        except Exception as e:
+            logger.error(f"Error processing message: {e}", exc_info=True)
+            return JsonResponse(
+                {'error': 'Internal server error'}, 
+                status=500
+            )
+            
+    async def get(self, request):
+        """
+        Endpoint GET para verificación de estado del servicio.
+        """
+        return JsonResponse({
+            'status': 'ok',
+            'service': 'chatbot',
+            'version': '1.0.0'
+        })
 
 class ChatbotView(View):
     """

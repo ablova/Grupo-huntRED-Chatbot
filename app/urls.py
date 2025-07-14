@@ -38,11 +38,7 @@ from app.views.candidatos_views import (
 )
 from app.views.ml_views import train_ml_api, predict_matches
 from app.views.ml_admin_views import MLDashboardView, vacancy_analysis_view, candidate_growth_plan_view, candidate_growth_plan_pdf_view, dashboard_charts_api_view
-from app.views.analytics import (
-    advanced_analytics_dashboard, matching_analytics,
-    performance_metrics, predictive_insights,
-    automated_matching, analytics_api
-)
+from app.views.analytics import advanced_analytics_dashboard, matching_analytics, performance_metrics, predictive_insights, automated_matching, analytics_api
 from app.views.dashboard import (
     dashboard, interview_slots_dashboard, generate_slots, 
     slot_details, edit_slot, delete_slot, slot_analytics
@@ -344,7 +340,7 @@ if settings.DEBUG:
 handler404 = 'app.views.main_views.Custom404View.as_view'
 
 
-from app.ats.views.talent import talent_views
+from app.views.talent import talent_views
 
 urlpatterns += [
     path('api/talent/team-synergy', talent_views.analyze_team_synergy, name='analyze_team_synergy'),
@@ -359,22 +355,21 @@ urlpatterns += [
 # ----------------------------------------
 # 📌 RUTAS DE FEEDBACK API
 # ----------------------------------------
-from app.ats.feedback import views as feedback_views
-from app.views import feedback_views as app_feedback_views
+from app.views.feedback_api_views import *
 from app.views.linkedin import message_templates, schedules
-from app.views.proposals import views as proposals_views
+from app.views.proposals import update_client_info, update_company_contacts, add_invitee, remove_invitee
 
 urlpatterns += [
     # Feedback URLs
-    path('api/feedback/submit/', feedback_views.submit_feedback, name='submit_feedback'),
-    path('api/feedback/stats/<str:skill_id>/', feedback_views.get_feedback_stats, name='get_feedback_stats'),
-    path('api/feedback/list/', feedback_views.list_feedback, name='list_feedback'),
-    path('api/feedback/<int:feedback_id>/', feedback_views.get_feedback_details, name='get_feedback_details'),
-    path('api/feedback/retrain/<str:skill_id>/', feedback_views.trigger_retraining, name='trigger_retraining'),
+    path('api/feedback/submit/', submit_feedback, name='submit_feedback'),
+    path('api/feedback/stats/<str:skill_id>/', get_feedback_stats, name='get_feedback_stats'),
+    path('api/feedback/list/', list_feedback, name='list_feedback'),
+    path('api/feedback/<int:feedback_id>/', get_feedback_details, name='get_feedback_details'),
+    path('api/feedback/retrain/<str:skill_id>/', trigger_retraining, name='trigger_retraining'),
 
-    # URLs para validación de skills (existen en app.views.feedback_views)
-    path('skill-assessment/<int:assessment_id>/', app_feedback_views.get_skill_assessment_details, name='skill_assessment_details'),
-    path('skill-assessment/<int:assessment_id>/validate/', app_feedback_views.validate_skill_assessment, name='validate_skill_assessment'),
+    # URLs para validación de skills (existen en app.views.feedback_api_views)
+    path('skill-assessment/<int:assessment_id>/', get_skill_assessment_details, name='skill_assessment_details'),
+    path('skill-assessment/<int:assessment_id>/validate/', validate_skill_assessment, name='validate_skill_assessment'),
 
     # LinkedIn Templates (existen en app.views.linkedin.message_templates)
     path('linkedin/templates/', message_templates.template_list, name='linkedin:template_list'),
@@ -391,10 +386,10 @@ urlpatterns += [
     path('linkedin/schedules/<int:pk>/delete/', schedules.schedule_delete, name='linkedin:schedule_delete'),
 
     # Rutas de edición inline (existen en app.views.proposals.views)
-    path('proposals/client/<int:client_id>/update-info/', proposals_views.update_client_info, name='update_client_info'),
-    path('proposals/company/<int:company_id>/update-contacts/', proposals_views.update_company_contacts, name='update_company_contacts'),
-    path('proposals/company/<int:company_id>/add-invitee/', proposals_views.add_invitee, name='add_invitee'),
-    path('proposals/company/<int:company_id>/remove-invitee/', proposals_views.remove_invitee, name='remove_invitee'),
+    path('proposals/client/<int:client_id>/update-info/', update_client_info, name='update_client_info'),
+    path('proposals/company/<int:company_id>/update-contacts/', update_company_contacts, name='update_company_contacts'),
+    path('proposals/company/<int:company_id>/add-invitee/', add_invitee, name='add_invitee'),
+    path('proposals/company/<int:company_id>/remove-invitee/', remove_invitee, name='remove_invitee'),
 ]
 
 # ----------------------------------------

@@ -496,7 +496,7 @@ El sistema está estructurado con una arquitectura modular:
 1. **Core (app/ats/feedback/)**
    - `feedback_models.py`: Modelos de datos para evaluaciones y feedback
    - `feedback_forms.py`: Generación y validación de formularios
-   - `feedback_views.py`: Vistas para la interacción con evaluaciones
+   - `feedback_views.py`: Vistas para la interacción con evaluaciones  --> Se le cambio el nombre a feedback_api_views por existir un conflicto de nombre
    - `process_views.py`: Vistas para procesamiento de resultados
    - `views.py`: Vistas generales del sistema
 

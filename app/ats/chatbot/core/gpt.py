@@ -1,4 +1,4 @@
-# app/com/chatbot/gpt.py - Extensión para integrar GROK como default en GenIA y AURA, con async para bajo CPU y respuestas rápidas.
+# app/ats/chatbot/core/gpt.py - Extensión para integrar GROK como default en GenIA y AURA, con async para bajo CPU y respuestas rápidas.
 # Optimización: Uso de aiohttp para llamadas API no bloqueantes, balanceando CPU (bajo overhead) y tiempo (respuestas <1s).
 # Mejora: Diseño dinámico vía clases, permitiendo herencia por BU sin alterar funcionalidades existentes.
 # Manteniendo nombres existentes como 'generate_response' para compatibilidad.
@@ -1056,3 +1056,99 @@ class BUModularGPT(GPTProvider):
         # Dinamismo: Ajuste por BU sin eventos aislados, usando herencia.
         combined_context = {**self.bu_specifics, **(bu_context or {})}
         return await super().generate_response(prompt, combined_context)
+
+def explain_aura_result(aura_result: Dict[str, Any], business_unit=None) -> str:
+    """
+    Explica un resultado de AURA usando GPT con prompts específicos y precisos.
+    
+    Args:
+        aura_result: Diccionario con los datos del resultado de AURA
+        business_unit: Unidad de negocio para contexto específico
+    
+    Returns:
+        str: Explicación detallada del resultado de AURA
+    """
+    try:
+        # Crear prompt específico y detallado para explicar resultados de AURA
+        prompt = f"""
+        CONTEXTO AURA - huntRED:
+        AURA es el sistema de Inteligencia Artificial Ética de huntRED que analiza candidatos y vacantes 
+        usando múltiples módulos: TruthSense™ (verificación de verdad), Bias Detection (detección de sesgos), 
+        SocialVerify™ (verificación social), Impact Analyzer (análisis de impacto), y Fairness Optimizer 
+        (optimización de equidad).
+
+        DATOS DEL RESULTADO AURA:
+        {json.dumps(aura_result, indent=2, ensure_ascii=False)}
+
+        TAREA:
+        Analiza estos datos de AURA y proporciona una explicación clara y detallada que incluya:
+        1. Qué módulos de AURA se ejecutaron y qué significan sus resultados
+        2. Interpretación de las métricas y scores mostrados
+        3. Estado de salud del sistema AURA
+        4. Análisis de las actividades recientes
+        5. Contexto para un ejecutivo de huntRED
+
+        Responde en español, de forma profesional pero comprensible para ejecutivos de RRHH.
+        """
+
+        # Usar el handler GPT existente para generar la respuesta
+        handler = GPTHandler()
+        asyncio.run(handler.initialize())
+        response = asyncio.run(handler.generate_response(prompt, business_unit))
+        asyncio.run(handler.close())
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error explicando resultado AURA: {str(e)}")
+        return f"Error al procesar la explicación: {str(e)}"
+
+def suggest_next_action(aura_result: Dict[str, Any], business_unit=None) -> str:
+    """
+    Sugiere próximas acciones basadas en un resultado de AURA usando GPT.
+    
+    Args:
+        aura_result: Diccionario con los datos del resultado de AURA
+        business_unit: Unidad de negocio para contexto específico
+    
+    Returns:
+        str: Sugerencias de acciones específicas y priorizadas
+    """
+    try:
+        # Crear prompt específico para sugerir acciones basadas en AURA
+        prompt = f"""
+        CONTEXTO AURA - huntRED:
+        AURA es el sistema de IA Ética de huntRED que analiza candidatos y vacantes. 
+        Los resultados de AURA indican el estado del sistema, calidad de análisis, 
+        y oportunidades de mejora en el proceso de contratación.
+
+        DATOS DEL RESULTADO AURA:
+        {json.dumps(aura_result, indent=2, ensure_ascii=False)}
+
+        TAREA:
+        Basándote en estos datos de AURA, sugiere acciones específicas y priorizadas que incluyan:
+        1. Acciones inmediatas (próximas 24-48 horas) si hay alertas o problemas
+        2. Mejoras del sistema AURA basadas en métricas de rendimiento
+        3. Optimizaciones del proceso de contratación según insights de AURA
+        4. Acciones estratégicas para mejorar la calidad de análisis
+        5. Recomendaciones para el equipo de huntRED
+
+        Formato de respuesta:
+        - Prioridad ALTA: [acciones críticas]
+        - Prioridad MEDIA: [mejoras importantes]
+        - Prioridad BAJA: [optimizaciones futuras]
+
+        Responde en español, de forma ejecutiva y accionable.
+        """
+
+        # Usar el handler GPT existente para generar la respuesta
+        handler = GPTHandler()
+        asyncio.run(handler.initialize())
+        response = asyncio.run(handler.generate_response(prompt, business_unit))
+        asyncio.run(handler.close())
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error sugiriendo acciones AURA: {str(e)}")
+        return f"Error al procesar las sugerencias: {str(e)}"
