@@ -66,90 +66,16 @@ class MarketingCampaignAdmin(admin.ModelAdmin):
     Admin avanzado para campañas de marketing.
     """
     list_display = [
-        'name', 'campaign_type', 'status', 'business_unit', 
-        'scheduled_date', 'engagement_score', 'roi_display', 
-        'approval_status', 'actions'
+        'name', 'campaign_type', 'status', 'start_date', 
+        'end_date', 'budget', 'created_at'
     ]
-    list_filter = ['status', 'campaign_type', 'business_unit', 'created_at']
-    search_fields = ['name', 'description', 'business_unit__name']
+    list_filter = ['status', 'campaign_type', 'created_at']
+    search_fields = ['name', 'description']
     readonly_fields = [
-        'engagement_score', 'total_revenue', 'total_spent', 
-        'roi', 'created_at', 'updated_at'
+        'created_at', 'updated_at'
     ]
     
-    def engagement_score(self, obj):
-        """Muestra el score de engagement."""
-        latest_metrics = obj.metrics.first()
-        if latest_metrics:
-            score = latest_metrics.engagement_score
-            if score > 7:
-                color = 'green'
-            elif score > 5:
-                color = 'orange'
-            else:
-                color = 'red'
-            return format_html(
-                '<span style="color: {}; font-weight: bold;">{:.1f}</span>',
-                color, score
-            )
-        return '-'
-    engagement_score.short_description = 'Engagement'
-    
-    def roi_display(self, obj):
-        """Muestra el ROI con formato."""
-        latest_metrics = obj.metrics.first()
-        if latest_metrics and latest_metrics.roi:
-            roi = latest_metrics.roi
-            if roi > 0:
-                color = 'green'
-                prefix = '+'
-            else:
-                color = 'red'
-                prefix = ''
-            return format_html(
-                '<span style="color: {}; font-weight: bold;">{}{:.1f}%</span>',
-                color, prefix, roi
-            )
-        return '-'
-    roi_display.short_description = 'ROI'
-    
-    def approval_status(self, obj):
-        """Muestra el estado de aprobación."""
-        latest_approval = obj.approvals.first()
-        if latest_approval:
-            status_colors = {
-                'pending': 'orange',
-                'reviewing': 'blue',
-                'approved': 'green',
-                'rejected': 'red',
-                'expired': 'gray',
-                'cancelled': 'gray'
-            }
-            color = status_colors.get(latest_approval.status, 'gray')
-            return format_html(
-                '<span style="color: {}; font-weight: bold;">{}</span>',
-                color, latest_approval.get_status_display()
-            )
-        return '-'
-    approval_status.short_description = 'Aprobación'
-    
-    def actions(self, obj):
-        """Botones de acción."""
-        buttons = []
-        
-        # Botón de métricas
-        buttons.append(
-            f'<a href="#" class="button" style="background: #3498db; color: white; padding: 5px 10px; text-decoration: none; border-radius: 3px;">Métricas</a>'
-        )
-        
-        # Botón de aprobación si está pendiente
-        if obj.approvals.filter(status='pending').exists():
-            buttons.append(
-                f'<a href="#" class="button" style="background: #e74c3c; color: white; padding: 5px 10px; text-decoration: none; border-radius: 3px;">Revisar</a>'
-            )
-        
-        return mark_safe(' '.join(buttons))
-    actions.short_description = 'Acciones'
+
 
 @admin.register(CampaignApproval)
 class CampaignApprovalAdmin(admin.ModelAdmin):
@@ -158,13 +84,12 @@ class CampaignApprovalAdmin(admin.ModelAdmin):
     """
     list_display = [
         'campaign_name', 'status', 'required_level', 'created_by', 
-        'created_at', 'approved_by', 'approved_at', 'digital_signature_status'
+        'created_at', 'approved_by', 'approved_at'
     ]
     list_filter = ['status', 'required_level', 'created_at']
     search_fields = ['campaign__name', 'created_by__username', 'approved_by__username']
     readonly_fields = [
-        'digital_signature', 'signature_timestamp', 'signature_ip', 
-        'signature_user_agent', 'created_at', 'submitted_at', 
+        'created_at', 'submitted_at', 
         'reviewed_at', 'approved_at'
     ]
     
@@ -177,16 +102,7 @@ class CampaignApprovalAdmin(admin.ModelAdmin):
         )
     campaign_name.short_description = 'Campaña'
     
-    def digital_signature_status(self, obj):
-        """Estado de la firma digital."""
-        if obj.digital_signature:
-            return format_html(
-                '<span style="color: green;">✓ Firma Válida</span>'
-            )
-        return format_html(
-            '<span style="color: red;">✗ Sin Firma</span>'
-        )
-    digital_signature_status.short_description = 'Firma Digital'
+
 
 @admin.register(CampaignMetrics)
 class CampaignMetricsAdmin(admin.ModelAdmin):
@@ -195,10 +111,9 @@ class CampaignMetricsAdmin(admin.ModelAdmin):
     """
     list_display = [
         'campaign_name', 'measurement_date', 'engagement_score', 
-        'open_rate', 'click_rate', 'conversion_rate', 'roi', 
-        'total_revenue', 'total_spent'
+        'open_rate', 'click_rate', 'conversion_rate', 'roi'
     ]
-    list_filter = ['measurement_date', 'campaign__campaign_type', 'campaign__business_unit']
+    list_filter = ['measurement_date', 'campaign__campaign_type']
     search_fields = ['campaign__name']
     readonly_fields = [
         'engagement_score', 'roi', 'cost_per_conversion', 
@@ -272,28 +187,18 @@ class AudienceSegmentAdmin(admin.ModelAdmin):
     """
     Admin para segmentos de audiencia.
     """
-    list_display = ['name', 'segment_type', 'business_unit', 'active', 'member_count']
-    list_filter = ['segment_type', 'active', 'business_unit', 'created_at']
-    search_fields = ['name', 'description', 'business_unit__name']
-    
-    def member_count(self, obj):
-        """Número de miembros en el segmento."""
-        return 'N/A'
-    member_count.short_description = 'Miembros'
+    list_display = ['name', 'segment_type', 'active', 'predicted_size', 'created_at']
+    list_filter = ['segment_type', 'active', 'created_at']
+    search_fields = ['name', 'description']
 
 @admin.register(ContentTemplate)
 class ContentTemplateAdmin(admin.ModelAdmin):
     """
     Admin para plantillas de contenido.
     """
-    list_display = ['name', 'template_type', 'active', 'target_segments_count', 'created_at']
+    list_display = ['name', 'template_type', 'active', 'created_at']
     list_filter = ['template_type', 'active', 'created_at']
     search_fields = ['name', 'description']
-    
-    def target_segments_count(self, obj):
-        """Número de segmentos objetivo."""
-        return obj.target_segments.count()
-    target_segments_count.short_description = 'Segmentos Objetivo'
 
 @admin.register(RetargetingCampaign)
 class RetargetingCampaignAdmin(admin.ModelAdmin):
@@ -309,8 +214,8 @@ class MarketingEventAdmin(admin.ModelAdmin):
     """
     Admin para eventos de marketing.
     """
-    list_display = ['title', 'event_type', 'scheduled_date', 'location', 'active']
-    list_filter = ['event_type', 'active', 'scheduled_date']
+    list_display = ['title', 'event_type', 'start_datetime', 'location', 'status']
+    list_filter = ['event_type', 'status', 'start_datetime']
     search_fields = ['title', 'description']
 
 @admin.register(JobBoard)
@@ -318,8 +223,8 @@ class JobBoardAdmin(admin.ModelAdmin):
     """
     Admin para job boards.
     """
-    list_display = ['name', 'platform_type', 'active', 'api_configured']
-    list_filter = ['platform_type', 'active']
+    list_display = ['name', 'job_board_type', 'active', 'api_configured']
+    list_filter = ['job_board_type', 'active']
     search_fields = ['name', 'description']
     
     def api_configured(self, obj):
