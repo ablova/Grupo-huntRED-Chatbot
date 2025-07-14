@@ -44,6 +44,6 @@ urlpatterns = [
     path('dashboard/', views.redirect_to_feedback_dashboard, name='old_dashboard'),
     
     # APIs
-    path('api/insights/', views.get_feedback_stats_json, name='api_insights'),
+    path('api/insights/', views.api_feedback_stats, name='api_insights'),
     path('api/webhook/', views.webhook_feedback, name='webhook'),
 ]
