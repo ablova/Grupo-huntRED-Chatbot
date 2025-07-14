@@ -25,7 +25,8 @@ from app.ats.talent.team_synergy import TeamSynergyAnalyzer
 from app.ats.talent.cultural_fit import CulturalFitAnalyzer
 from app.ats.talent.learning_engine import LearningEngine
 from app.ats.talent.mentor_matcher import MentorMatcher
-from app.models import Person, BusinessUnit, Role
+from app.models import Person, BusinessUnit
+# from app.models import Role
 from app.decorators import check_role_access
 
 logger = logging.getLogger(__name__)
