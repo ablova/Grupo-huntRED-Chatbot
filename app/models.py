@@ -7685,3 +7685,7 @@ class VerificationPackage(models.Model):
         
         features.extend(self.features)
         return features
+
+# Aliases para compatibilidad con código existente
+Client = Person
+Role = BusinessUnitMembership
