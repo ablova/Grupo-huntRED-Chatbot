@@ -12,9 +12,9 @@ from app.ats.pricing import views
 from app.ats.feedback.views import (
     proposal_feedback, feedback_dashboard, 
     schedule_meeting, meeting_requests_list, mark_meeting_completed,
-    api_feedback_stats, webhook_feedback,
-    FeedbackListView, FeedbackDetailView
+    api_feedback_stats, webhook_feedback
 )
+from app.ats.feedback.views import FeedbackListView as FeedbackListViewClass, FeedbackDetailView as FeedbackDetailViewClass
 from app.ats.pricing.views import update_company_contacts
 
 app_name = 'pricing'
@@ -36,8 +36,8 @@ urlpatterns = [
     # Sistema de retroalimentación de propuestas
     path('feedback/<str:token>/', proposal_feedback, name='proposal_feedback'),
     path('feedback/stats/', feedback_dashboard, name='feedback_dashboard'),
-    path('feedback/list/', FeedbackListView.as_view(), name='feedback_list'),
-    path('feedback/<int:pk>/detail/', FeedbackDetailView.as_view(), name='feedback_detail'),
+    path('feedback/list/', FeedbackListViewClass.as_view(), name='feedback_list'),
+    path('feedback/<int:pk>/detail/', FeedbackDetailViewClass.as_view(), name='feedback_detail'),
     path('feedback/<int:feedback_id>/schedule-meeting/', schedule_meeting, name='schedule_meeting'),
     path('meetings/', meeting_requests_list, name='meeting_requests_list'),
     path('meetings/<int:meeting_id>/mark-completed/', mark_meeting_completed, name='mark_meeting_completed'),
