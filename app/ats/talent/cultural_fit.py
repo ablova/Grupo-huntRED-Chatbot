@@ -14,9 +14,9 @@ from django.conf import settings
 from asgiref.sync import sync_to_async
 
 from app.models import (
-    Person, Company, BusinessUnit,
+    Person, Company, BusinessUnit
     # PersonCulturalProfile, CulturalFitReport,
-    OrganizationalCulture
+    # OrganizationalCulture
 )
 
 from app.ml.analyzers.cultural_analyzer import CulturalAnalyzer as CulturalAnalysis
