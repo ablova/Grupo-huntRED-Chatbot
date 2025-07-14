@@ -12,9 +12,9 @@ from app.ats.pricing import views
 from app.ats.feedback.views import (
     proposal_feedback, feedback_dashboard, 
     schedule_meeting, meeting_requests_list, mark_meeting_completed,
-    api_feedback_stats, webhook_feedback
+    api_feedback_stats, webhook_feedback,
+    FeedbackListView, FeedbackDetailView
 )
-from app.ats.feedback.views import FeedbackListView, FeedbackDetailView
 from app.ats.pricing.views import update_company_contacts
 
 app_name = 'pricing'
