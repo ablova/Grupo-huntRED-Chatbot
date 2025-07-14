@@ -15,7 +15,7 @@ from asgiref.sync import sync_to_async
 
 from app.models import (
     Person, Company, BusinessUnit,
-    PersonCulturalProfile, CulturalFitReport,
+    # PersonCulturalProfile, CulturalFitReport,
     OrganizationalCulture
 )
 
