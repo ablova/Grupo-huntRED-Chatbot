@@ -33,7 +33,7 @@ from app.ats.kanban.models import (
     KanbanComment, KanbanAttachment, KanbanNotification
 )
 from app.ats.kanban.ml_integration import KanbanMLIntegration, get_ml_recommendations
-from app.ats.utils.rbac import check_permission, has_organization_access
+# from app.ats.utils.rbac import check_permission, has_organization_access
 from app.ats.utils.cache import cache_result
 from app.ats.utils.logger_utils import get_module_logger
 from app.ats.integrations.services import send_message
