@@ -234,3 +234,48 @@ class RBAC:
                 keys = await cache.keys(pattern)
                 for key in keys:
                     await cache.adelete(key)
+
+# Funciones de conveniencia para importación directa
+async def check_permission(user_id, resource, action, bu_id=None):
+    """
+    Función de conveniencia para verificar permisos.
+    
+    Args:
+        user_id: ID del usuario
+        resource: Recurso (ej: 'vacante', 'person')
+        action: Acción (ej: 'view', 'edit', 'delete')
+        bu_id: ID de la business unit (opcional)
+        
+    Returns:
+        bool: True si tiene permiso, False en caso contrario
+    """
+    return await RBAC.check_permission(user_id, resource, action, bu_id)
+
+def has_organization_access(user, organization_id=None):
+    """
+    Verifica si el usuario tiene acceso a una organización específica.
+    
+    Args:
+        user: Usuario a verificar
+        organization_id: ID de la organización (opcional, si no se proporciona verifica acceso general)
+        
+    Returns:
+        bool: True si tiene acceso, False en caso contrario
+    """
+    # Super admin tiene acceso a todo
+    if user.is_superuser:
+        return True
+    
+    # Verificar si el usuario tiene rol de super admin
+    if hasattr(user, 'role') and user.role == 'super_admin':
+        return True
+    
+    # Si se especifica una organización, verificar acceso específico
+    if organization_id:
+        # Verificar si el usuario pertenece a esa organización
+        if hasattr(user, 'business_unit') and user.business_unit:
+            return str(user.business_unit.id) == str(organization_id)
+        return False
+    
+    # Si no se especifica organización, verificar si tiene acceso a alguna
+    return hasattr(user, 'business_unit') and user.business_unit is not None
