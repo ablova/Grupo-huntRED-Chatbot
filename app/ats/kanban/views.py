@@ -26,9 +26,11 @@ import json
 
 # Importaciones directas siguiendo reglas de Grupo huntRED®
 from app.models import (
-    KanbanBoard, KanbanColumn, KanbanCard, KanbanCardHistory,
-    KanbanComment, KanbanAttachment, KanbanNotification,
     Person, Vacante, Application, BusinessUnit, WorkflowStage
+)
+from app.ats.kanban.models import (
+    KanbanBoard, KanbanColumn, KanbanCard, KanbanCardHistory,
+    KanbanComment, KanbanAttachment, KanbanNotification
 )
 from app.ats.kanban.ml_integration import KanbanMLIntegration, get_ml_recommendations
 from app.ats.utils.rbac import check_permission, has_organization_access
