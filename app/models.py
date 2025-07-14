@@ -246,7 +246,7 @@ class BusinessUnit(models.Model):
     )
     
     # Configuración General
-    settings = models.JSONField(
+    business_settings = models.JSONField(
         default=dict,
         help_text="""Configuración general de la unidad de negocio:
         {
@@ -589,7 +589,7 @@ class BusinessUnit(models.Model):
         settings = cache.get(cache_key)
         
         if settings is None:
-            settings = self.settings
+            settings = self.business_settings
             cache.set(cache_key, settings, 3600)  # Cache por 1 hora
             
         if section is None:
@@ -603,10 +603,10 @@ class BusinessUnit(models.Model):
     
     def set_settings(self, section, key, value):
         """Actualiza configuración específica y limpia caché."""
-        if section not in self.settings:
-            self.settings[section] = {}
-        self.settings[section][key] = value
-        self.save(update_fields=['settings', 'updated_at'])
+        if section not in self.business_settings:
+            self.business_settings[section] = {}
+        self.business_settings[section][key] = value
+        self.save(update_fields=['business_settings', 'updated_at'])
         self._clear_caches()
     
     # Métodos de Integración
