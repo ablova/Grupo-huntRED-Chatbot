@@ -23,8 +23,8 @@ urlpatterns = [
     path('skills/<str:token>/', views.skill_feedback, name='skill_feedback'),
     
     # Vistas administrativas generales
-    path('list/', views.FeedbackListView.as_view(), name='feedback_list'),
-    path('detail/<int:pk>/', views.FeedbackDetailView.as_view(), name='feedback_detail'),
+    # path('list/', views.FeedbackListView.as_view(), name='feedback_list'),
+    # path('detail/<int:pk>/', views.FeedbackDetailView.as_view(), name='feedback_detail'),
     path('suggestions/', views.suggestions_list, name='suggestions_list'),
     path('suggestions/<int:suggestion_id>/update/', views.update_suggestion_status, name='update_suggestion'),
     path('testimonials/', views.testimonials_list, name='testimonials_list'),
