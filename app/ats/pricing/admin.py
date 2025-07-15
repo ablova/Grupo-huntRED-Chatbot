@@ -28,7 +28,7 @@ from .models import (
 )
 
 # Importar Person desde app.models.py
-from app.models import Person
+from app.models import Person, Company
 
 
 # ============================================================================
@@ -394,6 +394,40 @@ class PricingDashboardAdmin(admin.ModelAdmin):
 
 
 # El modelo PricingStrategy ya está registrado con @admin.register
+
+
+# ============================================================================
+# ADMIN DE COMPANY
+# ============================================================================
+
+@admin.register(Company)
+class CompanyAdmin(admin.ModelAdmin):
+    list_display = ('name', 'legal_name', 'industry', 'size', 'location', 'created_at')
+    search_fields = ('name', 'legal_name', 'tax_id', 'industry')
+    list_filter = ('industry', 'size', 'country', 'created_at')
+    readonly_fields = ('created_at', 'updated_at')
+    
+    fieldsets = (
+        ('Información Básica', {
+            'fields': ('name', 'legal_name', 'tax_id', 'industry', 'size')
+        }),
+        ('Ubicación', {
+            'fields': ('location', 'address', 'city', 'state', 'country')
+        }),
+        ('Contacto', {
+            'fields': ('website', 'description')
+        }),
+        ('Roles de Contacto', {
+            'fields': ('signer', 'payment_responsible', 'fiscal_responsible', 'process_responsible', 'report_invitees')
+        }),
+        ('Notificaciones', {
+            'fields': ('notification_preferences',)
+        }),
+        ('Fechas', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
 
 
 # ============================================================================
