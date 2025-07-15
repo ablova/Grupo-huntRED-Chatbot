@@ -390,8 +390,7 @@ class PricingDashboardAdmin(admin.ModelAdmin):
         return super().changelist_view(request, extra_context)
 
 
-# Registrar el dashboard
-admin.site.register(PricingStrategy, PricingDashboardAdmin)
+# El modelo PricingStrategy ya está registrado con @admin.register
 
 
 # Los modelos Person y Company están en otra app, no en pricing 
