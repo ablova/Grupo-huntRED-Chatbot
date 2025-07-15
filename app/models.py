@@ -565,6 +565,51 @@ class BusinessUnit(models.Model):
         help_text="Dominios permitidos para scraping"
     )
     
+    # Campos adicionales de configuración
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ('active', 'Activo'),
+            ('inactive', 'Inactivo'),
+            ('suspended', 'Suspendido'),
+            ('maintenance', 'En Mantenimiento')
+        ],
+        default='active',
+        help_text="Estado de la unidad de negocio"
+    )
+    
+    # Campos de auditoría
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_business_units',
+        help_text="Usuario que creó la unidad de negocio"
+    )
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='updated_business_units',
+        help_text="Usuario que actualizó la unidad de negocio"
+    )
+    
+    # Campos de configuración avanzada
+    max_candidates_per_month = models.PositiveIntegerField(
+        default=1000,
+        help_text="Número máximo de candidatos por mes"
+    )
+    max_vacancies_per_month = models.PositiveIntegerField(
+        default=100,
+        help_text="Número máximo de vacantes por mes"
+    )
+    auto_approval_enabled = models.BooleanField(
+        default=False,
+        help_text="¿Habilitar aprobación automática de candidatos?"
+    )
+    
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
