@@ -35,6 +35,12 @@ from app.models import Person, Company
 # ADMIN DE PRICING
 # ============================================================================
 
+# Desregistrar si ya está registrado para evitar conflictos
+try:
+    admin.site.unregister(PricingStrategy)
+except admin.sites.NotRegistered:
+    pass
+
 @admin.register(PricingStrategy)
 class PricingStrategyAdmin(admin.ModelAdmin):
     list_display = ['name', 'type', 'status', 'base_price', 'currency', 'success_rate', 'created_at']
@@ -62,6 +68,12 @@ class PricingStrategyAdmin(admin.ModelAdmin):
     )
 
 
+# Desregistrar si ya está registrado para evitar conflictos
+try:
+    admin.site.unregister(PricePoint)
+except admin.sites.NotRegistered:
+    pass
+
 @admin.register(PricePoint)
 class PricePointAdmin(admin.ModelAdmin):
     list_display = ['strategy', 'amount', 'currency', 'valid_from', 'valid_to']
@@ -70,12 +82,24 @@ class PricePointAdmin(admin.ModelAdmin):
     date_hierarchy = 'valid_from'
 
 
+# Desregistrar si ya está registrado para evitar conflictos
+try:
+    admin.site.unregister(DiscountRule)
+except admin.sites.NotRegistered:
+    pass
+
 @admin.register(DiscountRule)
 class DiscountRuleAdmin(admin.ModelAdmin):
     list_display = ['type', 'value', 'is_active', 'valid_from', 'valid_to']
     list_filter = ['type', 'is_active', 'valid_from', 'valid_to']
     search_fields = ['type']
 
+
+# Desregistrar si ya está registrado para evitar conflictos
+try:
+    admin.site.unregister(ReferralFee)
+except admin.sites.NotRegistered:
+    pass
 
 @admin.register(ReferralFee)
 class ReferralFeeAdmin(admin.ModelAdmin):
