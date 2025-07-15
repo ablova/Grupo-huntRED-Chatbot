@@ -253,22 +253,29 @@ SILKY_MAX_RECORDED_REQUESTS = 100
 SILKY_MAX_RECORDED_REQUESTS_CHECK_PERCENT = 10
 
 # Configuración de Sentry
-if env('SENTRY_DSN', default=None):
-    sentry_sdk.init(
-        dsn=env('SENTRY_DSN'),
-        integrations=[DjangoIntegration()],
-        traces_sample_rate=env.float('SENTRY_SAMPLE_RATE', default=0.1),
-        send_default_pii=True,
-        environment='production',
-        release=env('APP_VERSION', default='1.0.0'),
-        before_send=lambda event, hint: {
-            **event,
-            'tags': {
-                **event.get('tags', {}),
-                'environment': 'production',
+sentry_dsn = env('SENTRY_DSN', default=None)
+if sentry_dsn and sentry_dsn.strip():
+    try:
+        sentry_sdk.init(
+            dsn=sentry_dsn,
+            integrations=[DjangoIntegration()],
+            traces_sample_rate=env.float('SENTRY_SAMPLE_RATE', default=0.1),
+            send_default_pii=True,
+            environment='production',
+            release=env('APP_VERSION', default='1.0.0'),
+            before_send=lambda event, hint: {
+                **event,
+                'tags': {
+                    **event.get('tags', {}),
+                    'environment': 'production',
+                }
             }
-        }
-    )
+        )
+        logger.info('Sentry initialized successfully')
+    except Exception as e:
+        logger.warning(f'Failed to initialize Sentry: {e}')
+else:
+    logger.info('Sentry DSN not provided, skipping Sentry initialization')
 
 # Email backend
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
