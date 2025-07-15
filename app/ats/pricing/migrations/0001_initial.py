@@ -67,8 +67,8 @@ class Migration(migrations.Migration):
                 'verbose_name_plural': 'Banners promocionales',
                 'ordering': ['-priority', '-start_date'],
                 'indexes': [
-                    models.Index(fields=['is_active']),
-                    models.Index(fields=['start_date', 'end_date']),
+                    models.Index(fields=['is_active'], name='pricing_promotionalbanner_is_active_idx'),
+                    models.Index(fields=['start_date', 'end_date'], name='pricing_promotionalbanner_dates_idx'),
                 ],
             },
         ),
