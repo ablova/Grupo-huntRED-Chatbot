@@ -22,7 +22,8 @@ from django.core.cache import cache
 from asgiref.sync import sync_to_async
 
 from app.models import Vacante, BusinessUnit, Person
-from app.ats.chatbot.core.gpt import GPTHandler
+# Importación lazy para evitar importación circular
+# from app.ats.chatbot.core.gpt import GPTHandler
 from app.ats.chatbot.nlp.nlp import NLPProcessor
 # from app.core.monitoring_system import record_parser_metric  # Removed - using existing monitoring
 
@@ -413,6 +414,9 @@ class AdvancedParser:
         try:
             if not self.gpt_handler:
                 return None
+            
+            # Importación lazy para evitar importación circular
+            from app.ats.chatbot.core.gpt import GPTHandler
             
             parser_stats.record_gpt_fallback()
             
