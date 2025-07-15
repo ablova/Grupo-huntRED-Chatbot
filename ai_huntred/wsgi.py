@@ -38,30 +38,4 @@ except Exception as e:
     logger.error(f"Error al cargar la aplicación WSGI: {str(e)}")
     raise
 
-# Middleware de seguridad
-class SecurityHeadersMiddleware:
-    def __init__(self, get_response):
-        self.get_response = get_response
-
-    def __call__(self, request):
-        response = self.get_response(request)
-        
-        # Configuración de cabeceras de seguridad
-        security_headers = {
-            'X-Frame-Options': 'DENY',
-            'X-Content-Type-Options': 'nosniff',
-            'X-XSS-Protection': '1; mode=block',
-            'Referrer-Policy': 'strict-origin-when-cross-origin',
-            'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload',
-            'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self';",
-            'Permissions-Policy': "camera=(), microphone=(), geolocation=()",
-        }
-        
-        for header, value in security_headers.items():
-            if header not in response:
-                response[header] = value
-                
-        return response
-
-# Aplicar el middleware de seguridad
-application = SecurityHeadersMiddleware(application)
+# La aplicación ya incluye el middleware de seguridad en settings

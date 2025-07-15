@@ -12,6 +12,14 @@ class SecurityHeadersMiddleware(MiddlewareMixin):
     Middleware to add security headers to all responses.
     """
     
+    def __init__(self, get_response):
+        self.get_response = get_response
+        super().__init__(get_response)
+    
+    def __call__(self, request):
+        response = self.get_response(request)
+        return self.process_response(request, response)
+    
     def process_response(self, request, response):
         # Content Security Policy
         if not settings.DEBUG:
