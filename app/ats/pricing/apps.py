@@ -11,5 +11,5 @@ class PricingConfig(AppConfig):
     verbose_name = 'Gestión de Precios y Promociones'
     
     def ready(self):
-        # Importar señales para conectar los manejadores
-        import app.ats.pricing.signals
+        # Las señales se importan de forma lazy para evitar importaciones circulares
+        pass
