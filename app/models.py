@@ -1529,7 +1529,7 @@ class DominioScraping(models.Model):
 
 class Vacante(models.Model):
     titulo = models.CharField(max_length=1000)
-    empresa = models.ForeignKey('app.ats.pricing.Empleador', on_delete=models.CASCADE, related_name='vacantes')
+    empresa = models.ForeignKey('pricing.Empleador', on_delete=models.CASCADE, related_name='vacantes')
     business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE, related_name='vacantes', null=True, blank=True)
     proposal = models.ForeignKey('Proposal', on_delete=models.SET_NULL, null=True, blank=True, related_name='vacante_proposals')
     # Campo original (mantenido para compatibilidad)
@@ -1719,7 +1719,7 @@ class Invoice(models.Model):
     """Modelo para facturas con soporte para facturación electrónica y compliance."""
     
     # Relaciones principales
-    payment = models.ForeignKey('app.Pago', on_delete=models.CASCADE, related_name='invoices')
+    payment = models.ForeignKey('pricing.Pago', on_delete=models.CASCADE, related_name='invoices')
     service = models.ForeignKey('Service', on_delete=models.CASCADE, related_name='invoices', null=True, blank=True)
     business_unit = models.ForeignKey('BusinessUnit', on_delete=models.CASCADE, related_name='invoices')
     
@@ -4493,8 +4493,8 @@ class PaymentTransaction(models.Model):
 class Contrato(models.Model):
     """Modelo para gestionar contratos de trabajo."""
     
-    oportunidad = models.ForeignKey('app.ats.pricing.Oportunidad', on_delete=models.CASCADE)
-    empleado = models.ForeignKey('app.ats.pricing.Empleado', on_delete=models.CASCADE, related_name='contratos')
+    oportunidad = models.ForeignKey('pricing.Oportunidad', on_delete=models.CASCADE)
+    empleado = models.ForeignKey('pricing.Empleado', on_delete=models.CASCADE, related_name='contratos')
     status = models.CharField(max_length=20, choices=CONTRATO_STATUS_CHOICES, default='PENDING_APPROVAL')
     fecha_inicio = models.DateField()
     fecha_fin = models.DateField(null=True, blank=True)
@@ -4552,7 +4552,7 @@ class Entrevista(models.Model):
 class CartaOferta(models.Model):
     """Modelo para gestionar cartas de oferta."""
     candidato = models.ForeignKey('Person', on_delete=models.CASCADE)
-    oportunidad = models.ForeignKey('app.ats.pricing.Oportunidad', on_delete=models.CASCADE)
+    oportunidad = models.ForeignKey('pricing.Oportunidad', on_delete=models.CASCADE)
     salario = models.DecimalField(max_digits=10, decimal_places=2)
     beneficios = models.JSONField(default=dict)
     fecha_inicio = models.DateField()
@@ -4579,7 +4579,7 @@ class Application(models.Model):
     """Modelo para gestionar aplicaciones a oportunidades."""
     # Campos originales
     candidato = models.ForeignKey('Person', on_delete=models.CASCADE)
-    oportunidad = models.ForeignKey('app.ats.pricing.Oportunidad', on_delete=models.CASCADE)
+    oportunidad = models.ForeignKey('pricing.Oportunidad', on_delete=models.CASCADE)
     estado = models.CharField(max_length=20, choices=[
         ('PENDIENTE', 'Pendiente'),
         ('EN_REVISION', 'En Revisión'),
@@ -4681,7 +4681,7 @@ class TalentConfig(models.Model):
 
 class OpportunityAnalysis(models.Model):
     """Análisis de oportunidades de trabajo."""
-    oportunidad = models.ForeignKey('app.ats.pricing.Oportunidad', on_delete=models.CASCADE)
+    oportunidad = models.ForeignKey('pricing.Oportunidad', on_delete=models.CASCADE)
     analisis = models.JSONField(default=dict)
     recomendaciones = models.TextField()
     fecha_analisis = models.DateTimeField(auto_now_add=True)
@@ -4737,7 +4737,7 @@ class ActionPlan(models.Model):
 class JobTracker(models.Model):
     """Seguimiento de trabajos y oportunidades."""
     candidato = models.ForeignKey('Person', on_delete=models.CASCADE)
-    oportunidad = models.ForeignKey('app.ats.pricing.Oportunidad', on_delete=models.CASCADE)
+    oportunidad = models.ForeignKey('pricing.Oportunidad', on_delete=models.CASCADE)
     estado = models.CharField(max_length=20, choices=[
         ('APLICADO', 'Aplicado'),
         ('ENTREVISTA', 'En Entrevista'),
