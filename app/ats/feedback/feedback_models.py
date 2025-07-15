@@ -10,6 +10,7 @@ prestación del servicio, y evaluación final.
 from django.db import models
 from django.utils import timezone
 from django.contrib.auth.models import User
+from django.conf import settings
 
 class ServiceFeedback(models.Model):
     """Modelo base para todas las retroalimentaciones de servicios."""
