@@ -140,6 +140,13 @@ LOGGING = {
     },
 }
 
+# Configuración de archivos estáticos para desarrollo
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+WHITENOISE_MAX_AGE = 31536000  # 1 año
+WHITENOISE_USE_FINDERS = True
+WHITENOISE_MANIFEST_STRICT = True
+WHITENOISE_ALLOW_ALL_ORIGINS = False
+
 # Configuración de entorno
 ENVIRONMENT = 'development'
 

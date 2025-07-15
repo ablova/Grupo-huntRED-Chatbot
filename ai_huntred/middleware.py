@@ -33,8 +33,8 @@ class PermissionMiddleware(MiddlewareMixin):
             messages.error(request, 'Tu cuenta está inactiva o pendiente de aprobación.')
             return redirect('dashboard')
 
-        # Verificar si el usuario está verificado
-        if request.user.verification_status != 'APPROVED':
+        # Verificar si el usuario está verificado (excluir superusuarios)
+        if not request.user.is_superuser and request.user.verification_status != 'VERIFIED':
             messages.error(request, 'Tu cuenta aún no está verificada.')
             return redirect('document_verification')
 

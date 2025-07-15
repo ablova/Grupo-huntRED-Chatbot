@@ -1,0 +1,8 @@
+<svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <pattern id="logoPattern" patternUnits="userSpaceOnUse" width="200" height="200">
+      <image href="Grupo_huntred.png" x="0" y="0" width="200" height="200" />
+    </pattern>
+  </defs>
+  <rect width="200" height="200" fill="url(#logoPattern)" />
+</svg> 

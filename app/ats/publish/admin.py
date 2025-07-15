@@ -236,7 +236,7 @@ class JobBoardAdmin(admin.ModelAdmin):
     api_configured.short_description = 'API Configurada'
 
 # Personalización del admin
-admin.site.site_header = "huntRED - Sistema de Publicación"
+admin.site.site_header = "Grupo huntRED - Sistema de Administración de Talento & IA"
 admin.site.site_title = "huntRED Admin"
 admin.site.index_title = "Panel de Administración"
 
