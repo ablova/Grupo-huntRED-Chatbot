@@ -27,6 +27,9 @@ from .models import (
     ScheduledPayment, ScheduledPaymentExecution,
 )
 
+# Importar Person desde app.models.py
+from app.models import Person
+
 
 # ============================================================================
 # ADMIN DE PRICING
@@ -393,4 +396,20 @@ class PricingDashboardAdmin(admin.ModelAdmin):
 # El modelo PricingStrategy ya está registrado con @admin.register
 
 
-# Los modelos Person y Company están en otra app, no en pricing 
+# ============================================================================
+# ADMIN DE PERSON
+# ============================================================================
+
+@admin.register(Person)
+class PersonAdmin(admin.ModelAdmin):
+    list_display = ('name', 'signer', 'payment_responsible', 'fiscal_responsible', 'process_responsible')
+    search_fields = ('name', 'signer__nombre', 'payment_responsible__nombre', 'fiscal_responsible__nombre', 'process_responsible__nombre')
+    filter_horizontal = ('report_invitees',)
+    fieldsets = (
+        (None, {
+            'fields': ('name', 'legal_name', 'tax_id', 'industry', 'size', 'website', 'address', 'city', 'state', 'country')
+        }),
+        ('Contactos y notificaciones', {
+            'fields': ('signer', 'payment_responsible', 'fiscal_responsible', 'process_responsible', 'report_invitees', 'notification_preferences')
+        }),
+    ) 
