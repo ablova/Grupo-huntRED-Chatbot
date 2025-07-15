@@ -93,11 +93,11 @@ class PayrollCompany(models.Model):
         verbose_name_plural = "Empresas de Nómina"
         db_table = 'payroll_company'
         indexes = [
-            models.Index(fields=['country_code']),
-            models.Index(fields=['is_active']),
-            models.Index(fields=['business_unit']),
-            models.Index(fields=['ats_integration_enabled']),
-            models.Index(fields=['ml_attendance_mode']),
+            models.Index(fields=['country_code'], name='payroll_company_country_code_idx'),
+            models.Index(fields=['is_active'], name='payroll_company_is_active_idx'),
+            models.Index(fields=['business_unit'], name='payroll_company_business_unit_idx'),
+            models.Index(fields=['ats_integration_enabled'], name='payroll_company_ats_integration_idx'),
+            models.Index(fields=['ml_attendance_mode'], name='payroll_company_ml_attendance_idx'),
         ]
     
     def __str__(self):
@@ -217,13 +217,13 @@ class PayrollEmployee(models.Model):
         verbose_name_plural = "Empleados"
         db_table = 'payroll_employee'
         indexes = [
-            models.Index(fields=['employee_number']),
-            models.Index(fields=['email']),
-            models.Index(fields=['is_active']),
-            models.Index(fields=['company']),
-            models.Index(fields=['supervisor']),
-            models.Index(fields=['ats_candidate_id']),
-            models.Index(fields=['ml_confidence_score']),
+            models.Index(fields=['employee_number'], name='payroll_employee_employee_number_idx'),
+            models.Index(fields=['email'], name='payroll_employee_email_idx'),
+            models.Index(fields=['is_active'], name='payroll_employee_is_active_idx'),
+            models.Index(fields=['company'], name='payroll_employee_company_idx'),
+            models.Index(fields=['supervisor'], name='payroll_employee_supervisor_idx'),
+            models.Index(fields=['ats_candidate_id'], name='payroll_employee_ats_candidate_idx'),
+            models.Index(fields=['ml_confidence_score'], name='payroll_employee_ml_confidence_idx'),
         ]
     
     def __str__(self):
@@ -367,9 +367,9 @@ class PayrollPeriod(models.Model):
         db_table = 'payroll_period'
         unique_together = ['company', 'start_date', 'end_date']
         indexes = [
-            models.Index(fields=['company', 'status']),
-            models.Index(fields=['start_date', 'end_date']),
-            models.Index(fields=['attendance_accuracy']),
+            models.Index(fields=['company', 'status'], name='payroll_period_company_status_idx'),
+            models.Index(fields=['start_date', 'end_date'], name='payroll_period_dates_idx'),
+            models.Index(fields=['attendance_accuracy'], name='payroll_period_attendance_accuracy_idx'),
         ]
     
     def __str__(self):
@@ -442,8 +442,8 @@ class PayrollCalculation(models.Model):
         db_table = 'payroll_calculation'
         unique_together = ['period', 'employee']
         indexes = [
-            models.Index(fields=['period', 'employee']),
-            models.Index(fields=['calculation_date']),
+            models.Index(fields=['period', 'employee'], name='payroll_calculation_period_employee_idx'),
+            models.Index(fields=['calculation_date'], name='payroll_calculation_date_idx'),
         ]
     
     def __str__(self):
@@ -535,11 +535,11 @@ class AttendanceRecord(models.Model):
         db_table = 'payroll_attendance'
         unique_together = ['employee', 'date']
         indexes = [
-            models.Index(fields=['employee', 'date']),
-            models.Index(fields=['status']),
-            models.Index(fields=['check_in_time']),
-            models.Index(fields=['ml_anomaly_detected']),
-            models.Index(fields=['ml_confidence']),
+            models.Index(fields=['employee', 'date'], name='payroll_attendance_employee_date_idx'),
+            models.Index(fields=['status'], name='payroll_attendance_status_idx'),
+            models.Index(fields=['check_in_time'], name='payroll_attendance_checkin_idx'),
+            models.Index(fields=['ml_anomaly_detected'], name='payroll_attendance_ml_anomaly_idx'),
+            models.Index(fields=['ml_confidence'], name='payroll_attendance_ml_confidence_idx'),
         ]
     
     def __str__(self):
@@ -605,9 +605,9 @@ class EmployeeRequest(models.Model):
         verbose_name_plural = "Solicitudes de Empleados"
         db_table = 'payroll_employee_request'
         indexes = [
-            models.Index(fields=['employee', 'status']),
-            models.Index(fields=['request_type']),
-            models.Index(fields=['start_date', 'end_date']),
+            models.Index(fields=['employee', 'status'], name='payroll_request_employee_status_idx'),
+            models.Index(fields=['request_type'], name='payroll_request_type_idx'),
+            models.Index(fields=['start_date', 'end_date'], name='payroll_request_dates_idx'),
         ]
     
     def __str__(self):
@@ -673,9 +673,9 @@ class MLAttendanceModel(models.Model):
         verbose_name_plural = "Modelos ML de Asistencia"
         db_table = 'payroll_ml_attendance_model'
         indexes = [
-            models.Index(fields=['company', 'is_active']),
-            models.Index(fields=['model_type']),
-            models.Index(fields=['accuracy']),
+            models.Index(fields=['company', 'is_active'], name='payroll_ml_company_active_idx'),
+            models.Index(fields=['model_type'], name='payroll_ml_model_type_idx'),
+            models.Index(fields=['accuracy'], name='payroll_ml_accuracy_idx'),
         ]
     
     def __str__(self):
@@ -719,8 +719,8 @@ class TaxTable(models.Model):
         db_table = 'payroll_tax_tables'
         unique_together = ['table_type', 'concept', 'effective_date']
         indexes = [
-            models.Index(fields=['table_type', 'is_active']),
-            models.Index(fields=['effective_date']),
+            models.Index(fields=['table_type', 'is_active'], name='payroll_tax_table_type_active_idx'),
+            models.Index(fields=['effective_date'], name='payroll_tax_effective_date_idx'),
         ]
     
     def __str__(self):
@@ -745,8 +745,8 @@ class UMARegistry(models.Model):
         db_table = 'payroll_uma_registry'
         unique_together = ['country_code', 'year']
         indexes = [
-            models.Index(fields=['country_code', 'is_active']),
-            models.Index(fields=['year']),
+            models.Index(fields=['country_code', 'is_active'], name='payroll_uma_country_active_idx'),
+            models.Index(fields=['year'], name='payroll_uma_year_idx'),
         ]
     
     def __str__(self):
@@ -781,9 +781,9 @@ class TaxUpdateLog(models.Model):
     class Meta:
         db_table = 'payroll_tax_update_log'
         indexes = [
-            models.Index(fields=['update_type', 'country_code']),
-            models.Index(fields=['created_at']),
-            models.Index(fields=['success']),
+            models.Index(fields=['update_type', 'country_code'], name='payroll_tax_update_type_country_idx'),
+            models.Index(fields=['created_at'], name='payroll_tax_update_created_idx'),
+            models.Index(fields=['success'], name='payroll_tax_update_success_idx'),
         ]
     
     def __str__(self):
@@ -819,9 +819,9 @@ class TaxValidationLog(models.Model):
     class Meta:
         db_table = 'payroll_tax_validation_log'
         indexes = [
-            models.Index(fields=['validation_type', 'company']),
-            models.Index(fields=['validation_status']),
-            models.Index(fields=['created_at']),
+            models.Index(fields=['validation_type', 'company'], name='payroll_tax_validation_type_company_idx'),
+            models.Index(fields=['validation_status'], name='payroll_tax_validation_status_idx'),
+            models.Index(fields=['created_at'], name='payroll_tax_validation_created_idx'),
         ]
     
     def __str__(self):
@@ -898,9 +898,9 @@ class OverheadCategory(models.Model):
         db_table = 'payroll_overhead_category'
         unique_together = ['company', 'name']
         indexes = [
-            models.Index(fields=['company', 'is_active']),
-            models.Index(fields=['aura_category']),
-            models.Index(fields=['ml_enabled']),
+            models.Index(fields=['company', 'is_active'], name='payroll_overhead_category_company_active_idx'),
+            models.Index(fields=['aura_category'], name='payroll_overhead_category_aura_idx'),
+            models.Index(fields=['ml_enabled'], name='payroll_overhead_category_ml_idx'),
         ]
     
     def __str__(self):
@@ -961,10 +961,10 @@ class EmployeeOverheadCalculation(models.Model):
         db_table = 'payroll_employee_overhead'
         unique_together = ['employee', 'period']
         indexes = [
-            models.Index(fields=['employee', 'period']),
-            models.Index(fields=['ml_confidence_score']),
-            models.Index(fields=['aura_ethics_score']),
-            models.Index(fields=['calculated_at']),
+            models.Index(fields=['employee', 'period'], name='payroll_employee_overhead_employee_period_idx'),
+            models.Index(fields=['ml_confidence_score'], name='payroll_employee_overhead_ml_confidence_idx'),
+            models.Index(fields=['aura_ethics_score'], name='payroll_employee_overhead_aura_ethics_idx'),
+            models.Index(fields=['calculated_at'], name='payroll_employee_overhead_calculated_idx'),
         ]
     
     def __str__(self):
@@ -1040,10 +1040,10 @@ class TeamOverheadAnalysis(models.Model):
         db_table = 'payroll_team_overhead_analysis'
         unique_together = ['company', 'team_name', 'period']
         indexes = [
-            models.Index(fields=['company', 'period']),
-            models.Index(fields=['department']),
-            models.Index(fields=['efficiency_score']),
-            models.Index(fields=['team_ethics_score']),
+            models.Index(fields=['company', 'period'], name='payroll_team_overhead_company_period_idx'),
+            models.Index(fields=['department'], name='payroll_team_overhead_department_idx'),
+            models.Index(fields=['efficiency_score'], name='payroll_team_overhead_efficiency_idx'),
+            models.Index(fields=['team_ethics_score'], name='payroll_team_overhead_ethics_idx'),
         ]
     
     def __str__(self):
@@ -1135,10 +1135,10 @@ class OverheadMLModel(models.Model):
         verbose_name_plural = "Modelos ML Overhead"
         db_table = 'payroll_overhead_ml_model'
         indexes = [
-            models.Index(fields=['company', 'is_active']),
-            models.Index(fields=['model_type']),
-            models.Index(fields=['accuracy']),
-            models.Index(fields=['is_production']),
+            models.Index(fields=['company', 'is_active'], name='payroll_overhead_ml_company_active_idx'),
+            models.Index(fields=['model_type'], name='payroll_overhead_ml_model_type_idx'),
+            models.Index(fields=['accuracy'], name='payroll_overhead_ml_accuracy_idx'),
+            models.Index(fields=['is_production'], name='payroll_overhead_ml_production_idx'),
         ]
     
     def __str__(self):
@@ -1218,10 +1218,10 @@ class OverheadBenchmark(models.Model):
         db_table = 'payroll_overhead_benchmark'
         unique_together = ['industry', 'region', 'company_size_range']
         indexes = [
-            models.Index(fields=['industry']),
-            models.Index(fields=['region']),
-            models.Index(fields=['company_size_range']),
-            models.Index(fields=['total_overhead_benchmark']),
+            models.Index(fields=['industry'], name='payroll_overhead_benchmark_industry_idx'),
+            models.Index(fields=['region'], name='payroll_overhead_benchmark_region_idx'),
+            models.Index(fields=['company_size_range'], name='payroll_overhead_benchmark_size_idx'),
+            models.Index(fields=['total_overhead_benchmark'], name='payroll_overhead_benchmark_total_idx'),
         ]
     
     def __str__(self):

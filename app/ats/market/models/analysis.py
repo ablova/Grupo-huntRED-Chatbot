@@ -51,10 +51,10 @@ class MarketAnalysis(models.Model):
         verbose_name_plural = "Análisis de Mercado"
         ordering = ['-created_at']
         indexes = [
-            models.Index(fields=['skill']),
-            models.Index(fields=['benchmark']),
-            models.Index(fields=['analysis_type']),
-            models.Index(fields=['created_at'])
+            models.Index(fields=['skill'], name='market_analysis_skill_idx'),
+            models.Index(fields=['benchmark'], name='market_analysis_benchmark_idx'),
+            models.Index(fields=['analysis_type'], name='market_analysis_type_idx'),
+            models.Index(fields=['created_at'], name='market_analysis_created_at_idx')
         ]
     
     def __str__(self):

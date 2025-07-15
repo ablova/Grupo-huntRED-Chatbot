@@ -574,9 +574,9 @@ class BusinessUnit(models.Model):
         verbose_name_plural = "Unidades de Negocio"
         ordering = ['name']
         indexes = [
-            models.Index(fields=['name', 'code']),
-            models.Index(fields=['active', 'created_at']),
-            models.Index(fields=['owner', 'active']),
+            models.Index(fields=['name', 'code'], name='business_unit_name_code_idx'),
+            models.Index(fields=['active', 'created_at'], name='business_unit_active_created_idx'),
+            models.Index(fields=['owner', 'active'], name='business_unit_owner_active_idx'),
         ]
     
     def __str__(self):
@@ -787,8 +787,8 @@ class BusinessUnitMembership(models.Model):
         verbose_name_plural = "Membresías de Unidades de Negocio"
         unique_together = ['business_unit', 'user']
         indexes = [
-            models.Index(fields=['business_unit', 'role']),
-            models.Index(fields=['user', 'role']),
+            models.Index(fields=['business_unit', 'role'], name='business_unit_membership_bu_role_idx'),
+            models.Index(fields=['user', 'role'], name='business_unit_membership_user_role_idx'),
         ]
     
     def __str__(self):
@@ -1086,11 +1086,11 @@ class Skill(models.Model):
         verbose_name_plural = "Habilidades"
         ordering = ['name']
         indexes = [
-            models.Index(fields=['name']),
-            models.Index(fields=['category']),
-            models.Index(fields=['level']),
-            models.Index(fields=['demand_score']),
-            models.Index(fields=['is_active'])
+            models.Index(fields=['name'], name='skill_name_idx'),
+            models.Index(fields=['category'], name='skill_category_idx'),
+            models.Index(fields=['level'], name='skill_level_idx'),
+            models.Index(fields=['demand_score'], name='skill_demand_score_idx'),
+            models.Index(fields=['is_active'], name='skill_is_active_idx')
         ]
     
     def __str__(self):
@@ -1177,7 +1177,10 @@ class SocialConnection(models.Model):
         verbose_name = "Conexión Social"
         verbose_name_plural = "Conexiones Sociales"
         unique_together = ('from_person', 'to_person')  # Evita duplicados
-        indexes = [models.Index(fields=['from_person']), models.Index(fields=['to_person'])]
+        indexes = [
+            models.Index(fields=['from_person'], name='social_connection_from_person_idx'),
+            models.Index(fields=['to_person'], name='social_connection_to_person_idx')
+        ]
     
     def __str__(self):
         return f"{self.from_person} → {self.to_person} ({self.get_relationship_type_display()})"
@@ -1208,7 +1211,7 @@ class Company(models.Model):
     description = models.TextField(blank=True, null=True, help_text="Descripción general de la empresa.")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    indexes = [models.Index(fields=['name'])]
+    indexes = [models.Index(fields=['name'], name='company_name_idx')]
 
     def __str__(self):
         return self.name
@@ -1279,9 +1282,9 @@ class FamilyRelationship(models.Model):
         verbose_name_plural = "Relaciones Familiares"
         unique_together = ('person', 'related_person', 'relationship_type')
         indexes = [
-            models.Index(fields=['person']),
-            models.Index(fields=['related_person']),
-            models.Index(fields=['relationship_type'])
+            models.Index(fields=['person'], name='family_relationship_person_idx'),
+            models.Index(fields=['related_person'], name='family_relationship_related_person_idx'),
+            models.Index(fields=['relationship_type'], name='family_relationship_type_idx')
         ]
     
     def __str__(self):

@@ -210,9 +210,9 @@ class PaymentGateway(models.Model):
         verbose_name_plural = "Gateways de Pago"
         ordering = ['name']
         indexes = [
-            models.Index(fields=['gateway_type']),
-            models.Index(fields=['status']),
-            models.Index(fields=['business_unit']),
+            models.Index(fields=['gateway_type'], name='pricing_gateway_type_idx'),
+            models.Index(fields=['status'], name='pricing_gateway_status_idx'),
+            models.Index(fields=['business_unit'], name='pricing_gateway_business_unit_idx'),
         ]
 
     def __str__(self):
@@ -291,9 +291,9 @@ class BankAccount(models.Model):
         verbose_name_plural = "Cuentas Bancarias"
         ordering = ['-is_primary', 'account_name']
         indexes = [
-            models.Index(fields=['bank']),
-            models.Index(fields=['is_active']),
-            models.Index(fields=['business_unit']),
+            models.Index(fields=['bank'], name='pricing_bank_account_bank_idx'),
+            models.Index(fields=['is_active'], name='pricing_bank_account_active_idx'),
+            models.Index(fields=['business_unit'], name='pricing_bank_account_business_unit_idx'),
         ]
 
     def __str__(self):
@@ -373,12 +373,12 @@ class PaymentTransaction(models.Model):
         verbose_name_plural = "Transacciones de Pago"
         ordering = ['-created_at']
         indexes = [
-            models.Index(fields=['transaction_id']),
-            models.Index(fields=['external_id']),
-            models.Index(fields=['status']),
-            models.Index(fields=['transaction_type']),
-            models.Index(fields=['payment_method']),
-            models.Index(fields=['created_at']),
+            models.Index(fields=['transaction_id'], name='pricing_transaction_id_idx'),
+            models.Index(fields=['external_id'], name='pricing_transaction_external_id_idx'),
+            models.Index(fields=['status'], name='pricing_transaction_status_idx'),
+            models.Index(fields=['transaction_type'], name='pricing_transaction_type_idx'),
+            models.Index(fields=['payment_method'], name='pricing_transaction_payment_method_idx'),
+            models.Index(fields=['created_at'], name='pricing_transaction_created_at_idx'),
         ]
 
     def __str__(self):
@@ -487,9 +487,9 @@ class PACConfiguration(models.Model):
         verbose_name_plural = "Configuraciones de PAC"
         ordering = ['name']
         indexes = [
-            models.Index(fields=['pac_type']),
-            models.Index(fields=['status']),
-            models.Index(fields=['business_unit']),
+            models.Index(fields=['pac_type'], name='pricing_pac_type_idx'),
+            models.Index(fields=['status'], name='pricing_pac_status_idx'),
+            models.Index(fields=['business_unit'], name='pricing_pac_business_unit_idx'),
         ]
 
     def __str__(self):

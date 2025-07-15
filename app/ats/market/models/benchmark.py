@@ -31,10 +31,10 @@ class MarketBenchmark(models.Model):
         verbose_name = "Benchmark de Mercado"
         verbose_name_plural = "Benchmarks de Mercado"
         indexes = [
-            models.Index(fields=['skill']),
-            models.Index(fields=['location']),
-            models.Index(fields=['business_unit']),
-            models.Index(fields=['updated_at'])
+            models.Index(fields=['skill'], name='market_benchmark_skill_idx'),
+            models.Index(fields=['location'], name='market_benchmark_location_idx'),
+            models.Index(fields=['business_unit'], name='market_benchmark_business_unit_idx'),
+            models.Index(fields=['updated_at'], name='market_benchmark_updated_at_idx')
         ]
         unique_together = ['skill', 'location', 'business_unit']
     

@@ -114,9 +114,9 @@ class ServiceFeedback(models.Model):
         verbose_name = "Retroalimentación de Servicio"
         verbose_name_plural = "Retroalimentaciones de Servicios"
         indexes = [
-            models.Index(fields=['stage', 'service_type']),
-            models.Index(fields=['company']),
-            models.Index(fields=['created_at']),
+            models.Index(fields=['stage', 'service_type'], name='feedback_service_stage_type_idx'),
+            models.Index(fields=['company'], name='feedback_service_company_idx'),
+            models.Index(fields=['created_at'], name='feedback_service_created_at_idx'),
         ]
     
     def __str__(self):
@@ -565,9 +565,9 @@ class SkillFeedback(models.Model):
         verbose_name = "Feedback de Skills"
         verbose_name_plural = "Feedback de Skills"
         indexes = [
-            models.Index(fields=['development_status']),
-            models.Index(fields=['critical_skills_alert']),
-            models.Index(fields=['next_review_date']),
+            models.Index(fields=['development_status'], name='feedback_skill_development_status_idx'),
+            models.Index(fields=['critical_skills_alert'], name='feedback_skill_critical_alert_idx'),
+            models.Index(fields=['next_review_date'], name='feedback_skill_next_review_idx'),
         ]
     
     def __str__(self):
