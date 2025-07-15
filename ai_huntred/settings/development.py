@@ -1,3 +1,4 @@
+# /home/pablo/ai_huntred/settings/development.py
 """
 Configuración de desarrollo para Grupo huntRED®.
 """
@@ -55,7 +56,8 @@ INSTALLED_APPS += [
     'debug_toolbar',
     'django_extensions',
 ]
-MIDDLEWARE.insert(0, 'debug_toolbar.middleware.DebugToolbarMiddleware')
+if 'debug_toolbar.middleware.DebugToolbarMiddleware' not in MIDDLEWARE:
+    MIDDLEWARE.insert(0, 'debug_toolbar.middleware.DebugToolbarMiddleware')
 INTERNAL_IPS = ['127.0.0.1']
 
 # Configuración de Silk

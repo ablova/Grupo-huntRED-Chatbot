@@ -107,7 +107,6 @@ urlpatterns = [
     #path('workflow/', include('app.views.workflow.urls')), Se convirtieron en las rutas de workflow de más adelante 218-222
     path('sexsi/', include('app.sexsi.urls')),
 
-    path('pricing/', include('app.ats.pricing.urls')),
     path('publish/', include('app.ats.publish.urls')),
     path('ml/', include('app.views.ml.urls')),
     path('webhooks/', include('app.views.webhook.urls')),
