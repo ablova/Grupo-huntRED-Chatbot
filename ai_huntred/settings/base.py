@@ -97,7 +97,7 @@ MIDDLEWARE = [
     'app.middleware.database_adapter.DatabaseAdapterMiddleware',
     'app.middleware.PermissionMiddleware',
     'app.middleware.RoleMiddleware',
-    'app.middleware.BusinessUnitMiddleware',
+    'ai_huntred.middleware.BusinessUnitMiddleware',
     'ai_huntred.middleware.DivisionMiddleware',
     'silk.middleware.SilkyMiddleware',
     'ai_huntred.error_handling.ErrorHandlerMiddleware',

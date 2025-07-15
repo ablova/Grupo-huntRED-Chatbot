@@ -17,12 +17,14 @@ class AppConfig(DjangoAppConfig):
             logger.info("Ejecución mínima durante comandos de migración")
             return
 
-        # Importar signals centralizados
+        # Importar signals centralizados (opcional)
         try:
             from app.ats.signals import user_signals, model_signals, system_signals  # noqa
             logger.info("Signals centralizados cargados correctamente")
         except ImportError as e:
-            logger.error(f"Error importing signals: {str(e)}")
+            logger.info(f"Signals no disponibles: {str(e)}")
+        except Exception as e:
+            logger.warning(f"Error importing signals: {str(e)}")
 
         # Registrar handlers solo en entornos de ejecución
         if 'runserver' in sys.argv or 'gunicorn' in os.environ.get('SERVER_SOFTWARE', ''):
