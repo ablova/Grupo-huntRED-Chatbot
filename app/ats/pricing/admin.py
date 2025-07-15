@@ -368,8 +368,7 @@ class PricingDashboardAdmin(admin.ModelAdmin):
         
         # Estadísticas de pagos
         total_transactions = PaymentTransaction.objects.count()
-        completed_transactions = PaymentTransaction.objects
-        .filter(status='completed').count()
+        completed_transactions = PaymentTransaction.objects.filter(status='completed').count()
         total_amount = PaymentTransaction.objects.filter(status='completed').aggregate(total=Sum('amount'))['total'] or 0
         
         # Estadísticas de gateways
