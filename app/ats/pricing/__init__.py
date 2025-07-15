@@ -14,72 +14,17 @@ Este módulo incluye:
 # ============================================================================
 # MODELOS DE PRICING
 # ============================================================================
-from .models import (
-    # Modelos principales de pricing
-    PricingStrategy,
-    PricePoint,
-    DiscountRule,
-    ReferralFee,
-    
-    # Modelos de gateways y pagos
-    PaymentGateway,
-    BankAccount,
-    PaymentTransaction,
-    PACConfiguration,
-    
-    # Modelos de CFDI en exhibiciones
-    CFDIExhibition,
-    PartialPayment,
-    
-    # Modelos de pagos programados
-    ScheduledPayment,
-    ScheduledPaymentExecution,
-    
-    # Modelos migrados
-    Empleador,
-    Empleado,
-    Oportunidad,
-    PagoRecurrente,
-    SincronizacionLog,
-    SincronizacionError,
-)
+# Los modelos se importan de forma lazy para evitar AppRegistryNotReady
 
 # ============================================================================
 # SERVICIOS
 # ============================================================================
-from .services import (
-    # Servicios principales
-    PricingService,
-    BillingService,
-    DiscountService,
-    PaymentProcessingService,
-    ElectronicBillingService,
-    ScheduledPaymentService,
-    
-    # Servicios de integración
-    WordPressSyncService,
-    UnifiedPricingService,
-)
-
-# Importamos los gateways de pago desde el módulo correcto
-from .gateways.paypal import PayPalGateway
-from .gateways.stripe import StripeGateway
-from .gateways.conekta import ConektaGateway
-from .gateways.clip import ClipGateway
+# Los servicios se importan de forma lazy para evitar AppRegistryNotReady
 
 # ============================================================================
 # TAREAS
 # ============================================================================
-from .tasks import (
-    execute_daily_scheduled_payments,
-    execute_paypal_scheduled_payments,
-    execute_stripe_scheduled_payments,
-    process_pending_electronic_invoices,
-    sync_wordpress_pricing,
-    sync_wordpress_opportunities,
-    cleanup_old_payment_transactions,
-    generate_payment_reports,
-)
+# Las tareas se importan de forma lazy para evitar AppRegistryNotReady
 
 # ============================================================================
 # CONFIGURACIÓN
@@ -142,4 +87,4 @@ __version__ = '2.0.0'
 __author__ = 'huntRED Team'
 __description__ = 'Módulo de pricing unificado con facturación electrónica y pagos programados'
 
-__all__ = ['Bundle', 'PricingService']
+__all__ = []
