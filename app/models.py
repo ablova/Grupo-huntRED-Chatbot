@@ -1719,7 +1719,7 @@ class Invoice(models.Model):
     """Modelo para facturas con soporte para facturación electrónica y compliance."""
     
     # Relaciones principales
-    payment = models.ForeignKey('pricing.PaymentTransaction', on_delete=models.CASCADE, related_name='invoices')
+    payment = models.ForeignKey('app.PaymentTransaction', on_delete=models.CASCADE, related_name='invoices')
     service = models.ForeignKey('Service', on_delete=models.CASCADE, related_name='invoices', null=True, blank=True)
     business_unit = models.ForeignKey('BusinessUnit', on_delete=models.CASCADE, related_name='invoices')
     
