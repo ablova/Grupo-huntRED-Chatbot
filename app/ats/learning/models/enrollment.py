@@ -3,6 +3,7 @@ from app.ats.learning.models.course import Course
 from app.ats.learning.models.learning_path import LearningPath, LearningPathStep
 
 from app.models import Skill
+from django.conf import settings
 
 __all__ = [
     'Course',
