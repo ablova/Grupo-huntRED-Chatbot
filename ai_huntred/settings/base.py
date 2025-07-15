@@ -42,7 +42,7 @@ ASGI_APPLICATION = 'ai_huntred.asgi.application'
 ENVIRONMENT = env('DJANGO_ENVIRONMENT', default='development')
 
 # Configuración del modelo de usuario personalizado
-AUTH_USER_MODEL = 'app.CustomUser'
+AUTH_USER_MODEL = 'app.ats.accounts.CustomUser'
 
 INSTALLED_APPS = [
     # Django apps
