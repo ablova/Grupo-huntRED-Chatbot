@@ -6,6 +6,7 @@ from django.contrib.auth.models import User
 import uuid
 from django.urls import reverse
 from datetime import date
+from django.conf import settings
 
 # Importación diferida para evitar problemas circulares
 #Person = apps.get_model('app', 'Person')
