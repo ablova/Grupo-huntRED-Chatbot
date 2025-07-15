@@ -240,7 +240,7 @@ class Migration(migrations.Migration):
                 ('contenido', models.TextField()),
                 ('orden', models.IntegerField(default=0)),
                 ('metadata', models.JSONField(default=dict)),
-                ('propuesta', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='pricing.pricingproposal')),
+                ('propuesta', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='pricing.PricingProposal')),
             ],
             options={
                 'verbose_name': 'Sección de Propuesta',
