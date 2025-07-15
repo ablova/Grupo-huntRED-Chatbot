@@ -38,9 +38,6 @@ class Migration(migrations.Migration):
                 ('use_count', models.PositiveIntegerField(default=0, help_text='Número de veces que se ha utilizado', verbose_name='Contador de usos')),
                 ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='pricing_discount_coupons', to=settings.AUTH_USER_MODEL, verbose_name='Usuario', help_text='Usuario al que se le asigna el cupón')),
                 ('proposal', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='discount_coupons', to='app.proposal', verbose_name='Propuesta')),
-                ('description', models.TextField(blank=True, help_text='Descripción del cupón', null=True, verbose_name='Descripción')),
-                ('max_uses', models.PositiveIntegerField(default=1, help_text='Número máximo de usos permitidos')),
-                ('use_count', models.PositiveIntegerField(default=0, help_text='Número de veces que se ha usado el cupón')),
             ],
             options={
                 'verbose_name': 'Cupón de descuento',
