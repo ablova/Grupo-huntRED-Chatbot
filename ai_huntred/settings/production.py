@@ -185,7 +185,7 @@ LOGGING = {
         'file': {
             'level': 'INFO',
             'class': 'logging.handlers.RotatingFileHandler',
-            'filename': BASE_DIR / 'logs' / 'production.log',
+            'filename': PROJECT_ROOT / 'logs' / 'production.log',
             'maxBytes': 1024 * 1024 * 5,  # 5 MB
             'backupCount': 5,
             'formatter': 'verbose',
@@ -198,7 +198,7 @@ LOGGING = {
         'error_file': {
             'level': 'ERROR',
             'class': 'logging.handlers.RotatingFileHandler',
-            'filename': BASE_DIR / 'logs' / 'error.log',
+            'filename': PROJECT_ROOT / 'logs' / 'error.log',
             'maxBytes': 1024 * 1024 * 5,  # 5 MB
             'backupCount': 5,
             'formatter': 'verbose',
