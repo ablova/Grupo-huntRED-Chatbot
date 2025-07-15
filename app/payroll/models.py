@@ -13,6 +13,7 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
+from django.conf import settings
 
 from app.models import BusinessUnit
 from app.models import Vacante as Job, Person as Candidate  # Integración ATS
