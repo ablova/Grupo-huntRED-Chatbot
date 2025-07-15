@@ -14,7 +14,8 @@ import {
   CheckCircle,
   BarChart3,
   Zap,
-  Shield
+  Shield,
+  Sparkles
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -33,17 +34,20 @@ const TalentLifecycleSection = () => {
       description: 'Construcción de una marca empleadora atractiva',
       objective: 'Posicionar a la empresa cliente como un empleador de elección mediante estrategias de employer branding impulsadas por IA.',
       actions: [
-        'Análisis predictivo de IA para identificar perfiles de candidatos ideales',
-        'Campañas de marketing de reclutamiento personalizadas',
-        'Contenido dinámico (videos, testimonios, historias)',
-        'Monitoreo de percepción de marca empleadora en tiempo real'
+        'Análisis predictivo GenIA para identificar perfiles ideales según tendencias del mercado',
+        'Campañas de huntRED® Publish multicanal (LinkedIn, WhatsApp, Telegram, Email)',
+        'Contenido dinámico generado por GenIA (videos, testimonios, historias de empleados)',
+        'Monitoreo TruthSense de percepción de marca empleadora en tiempo real'
       ],
       tools: [
-        'Algoritmos de IA para segmentar audiencias',
-        'Análisis de sentimiento en redes sociales'
+        'GenIA: Algoritmos de segmentación de audiencias y optimización de anuncios',
+        'AURA: Análisis de sentimiento en redes sociales y ajuste de estrategias',
+        'SocialLink: Integración con LinkedIn, WhatsApp, Telegram para publicación',
+        'huntRED® Publish: Motor de campañas multicanal inteligentes'
       ],
-      result: 'Incremento en la atracción de candidatos de alto potencial',
-      metrics: '+40% candidatos calificados'
+      businessUnits: ['huntRED® Executive', 'huntRED®', 'huntRED® Inspiration', 'huntU', 'amigro'],
+      result: 'Incremento en la atracción de candidatos de alto potencial alineados con cultura y necesidades',
+      metrics: '+40% candidatos calificados, 2.5x engagement'
     },
     {
       id: 'selection',
@@ -51,20 +55,24 @@ const TalentLifecycleSection = () => {
       subtitle: 'Contratación',
       icon: Search,
       color: 'from-tech-cyan to-tech-purple',
-      description: 'Identificación del talento ideal',
-      objective: 'Implementar un proceso de selección eficiente y basado en datos para garantizar la contratación de los mejores candidatos.',
+      description: 'Identificación del talento ideal con ML y NLP',
+      objective: 'Implementar un proceso de selección eficiente basado en 29 analyzers especializados para garantizar matching perfecto.',
       actions: [
-        'Herramientas de IA para filtrar currículums y evaluar competencias',
-        'Entrevistas estructuradas con evaluaciones basadas en competencias',
-        'Assessments gamificados para evaluar habilidades',
-        'Reportes detallados del proceso de selección'
+        'CVParser + NLP para filtrar currículums y evaluar competencias técnicas y blandas',
+        'Entrevistas estructuradas con Assessments ML gamificados',
+        'Matchmaking inteligente con scoring predictivo AURA',
+        'Workflows automatizados de aprobación y reportes detallados'
       ],
       tools: [
-        'Plataformas de evaluación con IA para reducir sesgos',
-        'Dashboards personalizados para seguimiento en tiempo real'
+        'CVParser: Extracción inteligente de datos de CV con NLP avanzado',
+        'AURA: 29 analyzers especializados (TechnicalSkillAnalyzer, CulturalFitAnalyzer)',
+        'Assessments: Evaluaciones gamificadas con IA para reducir sesgos',
+        'Workflow Engine: Automatización de procesos de selección',
+        'Matchmaking ML: Scoring y ranking de candidatos'
       ],
-      result: 'Contrataciones más rápidas y precisas',
-      metrics: '60% reducción tiempo de selección'
+      businessUnits: ['huntRED® Executive', 'huntRED®', 'huntRED® Experience', 'huntU'],
+      result: 'Contrataciones más rápidas, precisas y con menor riesgo de rotación temprana',
+      metrics: '60% reducción tiempo, 85% precisión matching'
     },
     {
       id: 'onboarding',
@@ -72,20 +80,24 @@ const TalentLifecycleSection = () => {
       subtitle: 'Integración',
       icon: UserCheck,
       color: 'from-tech-purple to-tech-red',
-      description: 'Integración eficiente y personalizada',
-      objective: 'Facilitar una integración rápida y efectiva de los nuevos empleados para maximizar su compromiso desde el inicio.',
+      description: 'Integración conversacional con Chatbot multicanal',
+      objective: 'Facilitar onboarding personalizado con Chatbot IA, gamificación y workflows automáticos para maximizar engagement inicial.',
       actions: [
-        'Programas de onboarding personalizados basados en el perfil',
-        'Plataformas digitales con IA para guiar la incorporación',
-        'Asignación de mentores o buddies',
-        'Feedback continuo durante el onboarding'
+        'Chatbot conversacional multicanal (WhatsApp, Telegram, Slack) para guía paso a paso',
+        'Workflows automatizados con triggers y tareas programadas (Celery)',
+        'Gamificación: puntos, insignias y niveles por completar etapas de onboarding',
+        'Feedback continuo y análisis de engagement en tiempo real'
       ],
       tools: [
-        'Chatbots de IA para resolver dudas en tiempo real',
-        'Análisis de datos para medir efectividad del onboarding'
+        'Chatbot: Sistema conversacional NLP con contexto persistente multicanal',
+        'GenIA: Generación de contenido personalizado de bienvenida',
+        'Workflow Engine: Automatización de procesos de integración',
+        'Gamification: Sistema de puntos, logros y leaderboards',
+        'Notifications: Recordatorios automáticos multicanal (Email, WhatsApp, Slack)'
       ],
-      result: 'Nuevos empleados integrados rápidamente',
-      metrics: '85% satisfacción inicial'
+      businessUnits: ['huntRED® Inspiration', 'huntU', 'amigro', 'huntRED® Experience'],
+      result: 'Nuevos empleados integrados con mayor satisfacción y productividad inicial',
+      metrics: '85% satisfacción, 40% faster onboarding'
     },
     {
       id: 'development',
@@ -93,20 +105,24 @@ const TalentLifecycleSection = () => {
       subtitle: 'Formación',
       icon: GraduationCap,
       color: 'from-tech-red to-huntred-primary',
-      description: 'Crecimiento continuo del talento',
-      objective: 'Fomentar el desarrollo profesional continuo para alinear las habilidades del equipo con los objetivos estratégicos.',
+      description: 'Crecimiento con IA predictiva y análisis de brechas',
+      objective: 'Desarrollo profesional continuo con AURA predictive analytics y GenIA para alinear skills con objetivos estratégicos.',
       actions: [
-        'Planes de formación personalizados con análisis de brechas',
-        'Programas de aprendizaje continuo (e-learning, talleres)',
-        'Planes de carrera claros con metas alcanzables',
-        'Evaluación de impacto mediante métricas de desempeño'
+        'AURA Skill Gap Analysis: análisis predictivo de brechas de habilidades',
+        'GenIA Learning Plans: planes personalizados de formación con IA',
+        'Assessments continuos con feedback 360° automatizado',
+        'Calendaring automático con Google Calendar para sesiones de mentoring'
       ],
       tools: [
-        'Plataformas de e-learning con recomendaciones de IA',
-        'Reportes analíticos para medir ROI de formación'
+        'AURA: Predictive analytics para identificar skill gaps y recomendaciones',
+        'GenIA: Generación de contenido de formación personalizado',
+        'Assessments: Evaluaciones técnicas y soft skills con ML',
+        'Calendar Integration: Sincronización automática de eventos de formación',
+        'Analytics: Dashboards de progreso y ROI de formación'
       ],
-      result: 'Equipos más capacitados y motivados',
-      metrics: '3.2x ROI en formación'
+      businessUnits: ['huntRED® Solutions', 'huntRED® Experience', 'huntU'],
+      result: 'Equipos más capacitados, motivados y alineados con objetivos estratégicos',
+      metrics: '3.2x ROI formación, 90% skill alignment'
     },
     {
       id: 'performance',
@@ -114,20 +130,24 @@ const TalentLifecycleSection = () => {
       subtitle: 'Reconocimiento',
       icon: TrendingUp,
       color: 'from-huntred-primary to-tech-blue',
-      description: 'Motivación y productividad',
-      objective: 'Monitorear el desempeño y recompensar los logros para mantener un equipo comprometido y productivo.',
+      description: 'Motivación con gamificación y analytics predictivos',
+      objective: 'Monitorear desempeño con AURA analytics y recompensar con gamificación para mantener equipos de alto rendimiento.',
       actions: [
-        'Sistemas de evaluación basados en objetivos (OKRs/KPIs)',
-        'IA para retroalimentación continua y personalizada',
-        'Programas de reconocimiento con incentivos diversos',
-        'Análisis de datos para identificar tendencias'
+        'Performance Analytics: dashboards en tiempo real con métricas OKRs/KPIs',
+        'Gamification: puntos, badges, leaderboards y recompensas por logros',
+        'AURA Pattern Detection: identificación de high performers y riesgos',
+        'Feedback 360° automatizado con assessments periódicos'
       ],
       tools: [
-        'Dashboards de desempeño con visualización en tiempo real',
-        'Algoritmos de IA para detectar patrones de alto rendimiento'
+        'AURA: Algoritmos predictivos para detectar patrones de rendimiento',
+        'Gamification Analytics: métricas de engagement y motivation tracking',
+        'Performance Dashboard: visualización en tiempo real con alertas',
+        'Assessments: Evaluaciones 360° automatizadas',
+        'Notifications: Alertas automáticas de performance y reconocimientos'
       ],
-      result: 'Mayor productividad y compromiso',
-      metrics: '+25% productividad'
+      businessUnits: ['huntRED® Executive', 'huntRED®', 'huntRED® Solutions'],
+      result: 'Mayor productividad, compromiso y retención de high performers',
+      metrics: '+25% productividad, 90% engagement score'
     },
     {
       id: 'retention',
@@ -135,20 +155,24 @@ const TalentLifecycleSection = () => {
       subtitle: 'Retención',
       icon: Heart,
       color: 'from-tech-blue to-tech-cyan',
-      description: 'Retención del talento',
-      objective: 'Crear un entorno que promueva la satisfacción y el bienestar para reducir la rotación.',
+      description: 'Retención predictiva con AURA churn analysis',
+      objective: 'Crear ecosistema de bienestar con AURA predictive analytics para identificar riesgos de rotación y acciones preventivas.',
       actions: [
-        'Programas de bienestar con flexibilidad laboral',
-        'Encuestas de clima laboral analizadas con IA',
-        'Cultura de inclusión y diversidad',
-        'Beneficios personalizados adaptados a necesidades'
+        'AURA Churn Prediction: análisis predictivo de riesgos de rotación',
+        'Engagement Surveys automatizadas con sentiment analysis',
+        'Referral Programs con gamificación e incentivos',
+        'Beneficios personalizados con IA según preferencias del empleado'
       ],
       tools: [
-        'Análisis predictivo para identificar riesgos de rotación',
-        'Plataformas de engagement para medir satisfacción'
+        'AURA: Predictive analytics para churn prevention y engagement scoring',
+        'Sentiment Analysis: NLP para analizar clima laboral en tiempo real',
+        'Referral System: Programa de referidos con tracking y recompensas',
+        'Gamification: Loyalty points y recognition programs',
+        'Notifications: Alertas proactivas de riesgo y acciones preventivas'
       ],
-      result: 'Mayor retención y cultura empresarial sólida',
-      metrics: '70% reducción rotación'
+      businessUnits: ['huntRED® Inspiration', 'huntRED® Experience', 'amigro'],
+      result: 'Mayor retención, cultura empresarial sólida y employee advocacy',
+      metrics: '70% reducción rotación, 88% satisfaction score'
     },
     {
       id: 'offboarding',
@@ -156,20 +180,24 @@ const TalentLifecycleSection = () => {
       subtitle: 'Outplacement',
       icon: LogOut,
       color: 'from-tech-cyan to-tech-purple',
-      description: 'Salidas positivas',
-      objective: 'Gestionar las desvinculaciones de manera profesional y ética, preservando la reputación de la empresa.',
+      description: 'Outplacement inteligente con GenIA y network huntRED®',
+      objective: 'Gestionar desvinculaciones profesionales con GenIA feedback analysis y servicios de outplacement personalizados.',
       actions: [
-        'Entrevistas de salida estructuradas para feedback',
-        'Servicios de outplacement para transición',
-        'Comunicación transparente y respetuosa',
-        'Análisis de datos de desvinculaciones'
+        'Exit Interviews estructuradas con GenIA sentiment analysis',
+        'Outplacement Services: conexión con red huntRED® para nuevas oportunidades',
+        'Knowledge Transfer automatizado con documentación GenIA',
+        'Alumni Network: mantener relación con ex-empleados para futuras colaboraciones'
       ],
       tools: [
-        'IA para analizar feedback y generar reportes accionables',
-        'Programas de outplacement personalizados'
+        'GenIA: Análisis de feedback de salida y generación de reportes accionables',
+        'huntRED® Network: Acceso a oportunidades en red de empresas clientes',
+        'CVParser: Actualización automática de CV para outplacement',
+        'Workflow: Automatización de procesos de desvinculación',
+        'TruthSense: Monitoreo de reputación employer brand post-salida'
       ],
-      result: 'Experiencias de salida positivas',
-      metrics: '90% satisfacción en salida'
+      businessUnits: ['huntRED® Solutions', 'huntRED® Executive', 'huntRED®'],
+      result: 'Experiencias de salida positivas que refuerzan employer brand y generan referrals',
+      metrics: '90% satisfacción salida, 25% rehire rate'
     },
     {
       id: 'payroll',
@@ -177,20 +205,24 @@ const TalentLifecycleSection = () => {
       subtitle: 'Nómina',
       icon: Calculator,
       color: 'from-tech-purple to-tech-red',
-      description: 'Eficiencia y cumplimiento',
-      objective: 'Garantizar una gestión de nómina precisa, eficiente y alineada con las regulaciones locales.',
+      description: 'Nómina automatizada con Payments y compliance IA',
+      objective: 'Garantizar gestión de nómina con Payments automation, compliance multi-región y analytics financieros predictivos.',
       actions: [
-        'Sistemas automatizados de nómina integrados con IA',
-        'Gestión de cumplimiento normativo laboral y fiscal',
-        'Portales de autoservicio para empleados',
-        'Reportes financieros y analíticos'
+        'Payments Integration: procesamiento automático con Stripe/PayPal/bancos',
+        'Compliance IA: cumplimiento normativo multi-región automatizado',
+        'Employee Self-Service: portales con Chatbot para consultas de nómina',
+        'Financial Analytics: reportes predictivos y optimización de costos laborales'
       ],
       tools: [
-        'Software de nómina con IA para detectar errores',
-        'Dashboards financieros con métricas clave'
+        'Payments: Sistema automatizado con IA para detectar errores y optimización',
+        'Compliance Engine: Cumplimiento GDPR, SOC2, normativas laborales locales',
+        'Chatbot: Asistente para consultas de nómina y beneficios',
+        'Analytics Dashboard: Métricas financieras y optimización presupuestaria',
+        'Audit Trail: Trazabilidad completa y logs de cambios'
       ],
-      result: 'Procesos eficientes y cumplimiento garantizado',
-      metrics: '99.8% precisión nómina'
+      businessUnits: ['huntRED® Solutions', 'Todas las BUs como servicio'],
+      result: 'Procesos de nómina eficientes, compliance garantizado y optimización de costos',
+      metrics: '99.8% precisión, 80% reducción errores'
     }
   ];
 
@@ -223,9 +255,9 @@ const TalentLifecycleSection = () => {
   const IconComponent = currentStage.icon;
 
   return (
-    <section id="talent-lifecycle" className="py-20 relative overflow-hidden bg-gradient-to-br from-background to-background/80">
+    <section id="talent-lifecycle" className="py-20 relative overflow-hidden bg-gradient-to-br from-background to-background">
       {/* Background Elements */}
-      <div className="absolute inset-0 bg-hero-pattern opacity-20" />
+      <div className="absolute inset-0 bg-hero-pattern opacity-10" />
       <div className="absolute top-40 left-40 w-96 h-96 bg-gradient-to-r from-tech-blue/10 to-tech-purple/10 rounded-full blur-3xl" />
       <div className="absolute bottom-40 right-40 w-80 h-80 bg-gradient-to-r from-huntred-primary/10 to-tech-cyan/10 rounded-full blur-3xl" />
 
@@ -267,24 +299,34 @@ const TalentLifecycleSection = () => {
         </div>
 
         {/* Lifecycle Visualization */}
-        <div className="max-w-7xl mx-auto mb-16">
-          <div className="relative">
-            {/* Central Hub */}
+        <div className="w-full mx-auto mb-16">
+          <div className="relative max-w-none">
+            {/* Central Hub with GenIA & AURA */}
             <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20">
-              <div className="w-40 h-40 rounded-full bg-gradient-to-r from-huntred-primary to-tech-blue glass border-4 border-white/20 flex items-center justify-center animate-pulse-slow">
+              <div className="w-56 h-56 rounded-full bg-gradient-to-r from-huntred-primary to-tech-blue glass border-4 border-white/20 flex flex-col items-center justify-center animate-pulse-slow">
                 <div className="text-center text-white">
-                  <Target className="h-10 w-10 mx-auto mb-2" />
-                  <span className="text-sm font-bold">huntRED®</span>
-                  <div className="text-xs opacity-80">Ciclo Virtuoso</div>
+                  <Target className="h-12 w-12 mx-auto mb-2" />
+                  <span className="text-lg font-bold">huntRED®</span>
+                  <div className="text-sm opacity-90 mb-3">Ciclo Virtuoso</div>
+                  <div className="flex space-x-4 text-xs">
+                    <div className="flex items-center space-x-1">
+                      <Sparkles className="h-3 w-3" />
+                      <span>GenIA</span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <Brain className="h-3 w-3" />
+                      <span>AURA</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
 
             {/* Lifecycle Stages */}
-            <div className="relative w-full h-[700px] mx-auto">
+            <div className="relative w-full h-[800px] mx-auto">
               {lifecycleStages.map((stage, index) => {
                 const angle = (index * 360) / lifecycleStages.length;
-                const radius = 250;
+                const radius = 320;
                 const x = Math.cos((angle - 90) * (Math.PI / 180)) * radius;
                 const y = Math.sin((angle - 90) * (Math.PI / 180)) * radius;
                 
@@ -309,7 +351,7 @@ const TalentLifecycleSection = () => {
                         isActive ? 'opacity-100' : 'opacity-30'
                       }`}
                       style={{
-                        height: `${radius - 80}px`,
+                        height: `${radius - 110}px`,
                         left: '50%',
                         top: '100%',
                         transformOrigin: 'top center',
@@ -318,27 +360,43 @@ const TalentLifecycleSection = () => {
                     />
                     
                     {/* Stage Card */}
-                    <div className={`glass rounded-xl p-4 border-2 transition-all duration-500 w-56 ${
+                    <div className={`glass rounded-xl p-5 border-2 transition-all duration-500 w-64 ${
                       isActive 
-                        ? `border-primary shadow-2xl bg-gradient-to-r ${stage.color} text-white` 
+                        ? `border-white shadow-2xl bg-background/95 backdrop-blur-xl` 
                         : 'border-border/20 hover:border-primary/50'
                     }`}>
-                      <div className="text-center space-y-2">
-                        <div className={`w-12 h-12 rounded-full mx-auto flex items-center justify-center ${
-                          isActive ? 'bg-white/20' : 'bg-primary/10'
+                      <div className="text-center space-y-3">
+                        <div className={`w-14 h-14 rounded-full mx-auto flex items-center justify-center ${
+                          isActive ? `bg-gradient-to-r ${stage.color} shadow-lg` : 'bg-primary/10'
                         }`}>
-                          <StageIcon className={`h-6 w-6 ${isActive ? 'text-white' : 'text-primary'}`} />
+                          <StageIcon className={`h-7 w-7 ${isActive ? 'text-white' : 'text-primary'}`} />
                         </div>
                         
-                        <h3 className={`font-bold text-lg ${isActive ? 'text-white' : ''}`}>
+                        <h3 className={`font-bold text-xl ${isActive ? `bg-gradient-to-r ${stage.color} bg-clip-text text-transparent` : ''}`}>
                           {stage.title}
                         </h3>
                         
-                        <p className={`text-sm ${isActive ? 'text-white/90' : 'text-muted-foreground'}`}>
+                        <p className={`text-sm ${isActive ? `bg-gradient-to-r ${stage.color} bg-clip-text text-transparent opacity-80` : 'text-muted-foreground'}`}>
                           {stage.subtitle}
                         </p>
                         
-                        <div className={`text-xs font-medium ${isActive ? 'text-white/80' : 'text-primary'}`}>
+                        {/* GenIA & AURA indicators */}
+                        <div className="flex justify-center space-x-3 py-2">
+                          {(index === 0 || index === 1 || index === 2 || index === 6) && (
+                            <div className="flex items-center space-x-1">
+                              <Sparkles className={`h-3 w-3 ${isActive ? 'text-tech-cyan' : 'text-tech-cyan'}`} />
+                              <span className={`text-xs ${isActive ? 'text-tech-cyan font-medium' : 'text-tech-cyan'}`}>GenIA</span>
+                            </div>
+                          )}
+                          {(index === 3 || index === 4 || index === 5 || index === 7) && (
+                            <div className="flex items-center space-x-1">
+                              <Brain className={`h-3 w-3 ${isActive ? 'text-tech-purple' : 'text-tech-purple'}`} />
+                              <span className={`text-xs ${isActive ? 'text-tech-purple font-medium' : 'text-tech-purple'}`}>AURA</span>
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className={`text-xs font-medium ${isActive ? `bg-gradient-to-r ${stage.color} bg-clip-text text-transparent` : 'text-primary'}`}>
                           {stage.metrics}
                         </div>
                       </div>
@@ -351,20 +409,20 @@ const TalentLifecycleSection = () => {
         </div>
 
         {/* Stage Details */}
-        <div className="max-w-6xl mx-auto animate-fade-in">
-          <div className="grid lg:grid-cols-2 gap-8">
-            {/* Left Column - Details */}
+        <div className="max-w-7xl mx-auto animate-fade-in">
+          <div className="grid lg:grid-cols-3 gap-8">
+            {/* Left Column - Stage Header */}
             <div className="space-y-6">
               <div className="glass rounded-2xl p-8 border border-primary/20">
                 <div className="flex items-center space-x-4 mb-6">
-                  <div className={`w-16 h-16 rounded-full bg-gradient-to-r ${currentStage.color} flex items-center justify-center`}>
-                    <IconComponent className="h-8 w-8 text-white" />
+                  <div className={`w-20 h-20 rounded-full bg-gradient-to-r ${currentStage.color} flex items-center justify-center`}>
+                    <IconComponent className="h-10 w-10 text-white" />
                   </div>
                   <div>
-                    <h3 className={`text-3xl font-bold bg-gradient-to-r ${currentStage.color} bg-clip-text text-transparent`}>
+                    <h3 className={`text-4xl font-bold bg-gradient-to-r ${currentStage.color} bg-clip-text text-transparent`}>
                       {currentStage.title}
                     </h3>
-                    <p className="text-lg text-muted-foreground">{currentStage.subtitle}</p>
+                    <p className="text-xl text-muted-foreground">{currentStage.subtitle}</p>
                   </div>
                 </div>
 
@@ -377,21 +435,40 @@ const TalentLifecycleSection = () => {
                     <p className="text-muted-foreground">{currentStage.objective}</p>
                   </div>
 
-                  <div>
-                    <h4 className="font-semibold text-lg mb-3 flex items-center">
-                      <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
-                      Acciones Clave
-                    </h4>
-                    <ul className="space-y-2">
-                      {currentStage.actions.map((action, index) => (
-                        <li key={index} className="flex items-start space-x-2">
-                          <ArrowRight className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-                          <span className="text-sm text-muted-foreground">{action}</span>
-                        </li>
-                      ))}
-                    </ul>
+                  {/* AI Assistants */}
+                  <div className="flex space-x-4 pt-4">
+                    {(activeStage === 0 || activeStage === 1 || activeStage === 2 || activeStage === 6) && (
+                      <div className="flex items-center space-x-2 glass rounded-full px-4 py-2 border border-tech-cyan/30">
+                        <Sparkles className="h-4 w-4 text-tech-cyan" />
+                        <span className="text-sm font-medium text-tech-cyan">Asistido por GenIA</span>
+                      </div>
+                    )}
+                    {(activeStage === 3 || activeStage === 4 || activeStage === 5 || activeStage === 7) && (
+                      <div className="flex items-center space-x-2 glass rounded-full px-4 py-2 border border-tech-purple/30">
+                        <Brain className="h-4 w-4 text-tech-purple" />
+                        <span className="text-sm font-medium text-tech-purple">Asistido por AURA</span>
+                      </div>
+                    )}
                   </div>
                 </div>
+              </div>
+            </div>
+
+            {/* Center Column - Actions */}
+            <div className="space-y-6">
+              <div className="glass rounded-2xl p-8 border border-primary/20">
+                <h4 className="font-semibold text-lg mb-3 flex items-center">
+                  <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
+                  Acciones Clave
+                </h4>
+                <ul className="space-y-3">
+                  {currentStage.actions.map((action, index) => (
+                    <li key={index} className="flex items-start space-x-2">
+                      <ArrowRight className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                      <span className="text-sm text-muted-foreground">{action}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             </div>
 

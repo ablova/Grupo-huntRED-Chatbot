@@ -97,8 +97,8 @@ const TalentEcosystemSection = () => {
   return (
     <section id="talent-ecosystem" className="py-20 relative overflow-hidden">
       {/* Background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-background via-background/50 to-background" />
-      <div className="absolute inset-0 bg-hero-pattern opacity-30" />
+      <div className="absolute inset-0 bg-gradient-to-br from-background to-background" />
+      <div className="absolute inset-0 bg-hero-pattern opacity-10" />
       
       {/* Floating particles */}
       <div className="absolute top-20 left-20 w-2 h-2 bg-tech-blue rounded-full animate-ping" />
@@ -188,25 +188,25 @@ const TalentEcosystemSection = () => {
                   {/* Step Card */}
                   <div className={`glass rounded-xl p-6 border-2 transition-all duration-500 w-48 ${
                     isActive 
-                      ? `border-primary shadow-xl bg-gradient-to-r ${step.color} text-white` 
+                      ? `border-white shadow-2xl bg-background/95 backdrop-blur-xl` 
                       : 'border-border/20 hover:border-primary/50'
                   }`}>
                     <div className="text-center space-y-3">
                       <div className={`w-12 h-12 rounded-full mx-auto flex items-center justify-center ${
-                        isActive ? 'bg-white/20' : 'bg-primary/10'
+                        isActive ? `bg-gradient-to-r ${step.color} shadow-lg` : 'bg-primary/10'
                       }`}>
                         <IconComponent className={`h-6 w-6 ${isActive ? 'text-white' : 'text-primary'}`} />
                       </div>
                       
-                      <h3 className={`font-bold text-lg ${isActive ? 'text-white' : ''}`}>
+                      <h3 className={`font-bold text-lg ${isActive ? `bg-gradient-to-r ${step.color} bg-clip-text text-transparent` : ''}`}>
                         {step.title}
                       </h3>
                       
-                      <p className={`text-sm ${isActive ? 'text-white/90' : 'text-muted-foreground'}`}>
+                      <p className={`text-sm ${isActive ? 'text-foreground/80' : 'text-muted-foreground'}`}>
                         {step.description}
                       </p>
                       
-                      <div className={`text-xs font-medium ${isActive ? 'text-white/80' : 'text-primary'}`}>
+                      <div className={`text-xs font-medium ${isActive ? `bg-gradient-to-r ${step.color} bg-clip-text text-transparent` : 'text-primary'}`}>
                         {step.assistant} • {step.metrics}
                       </div>
                     </div>

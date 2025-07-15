@@ -69,6 +69,8 @@ import PayrollCalculator from '@/components/PayrollCalculator';
 import BusinessUnitCalculator from '@/components/BusinessUnitCalculator';
 import AICustomizationSection from '@/components/AICustomizationSection';
 import ClientsSection from '@/components/ClientsSection';
+import TalentJourneyOverview from '@/components/TalentJourneyOverview';
+import GenerationalAnalysisSection from '@/components/GenerationalAnalysisSection';
 
 
 const Index = () => {
@@ -82,6 +84,8 @@ const Index = () => {
           <HeroSection />
           <TalentEcosystemSection />
           <TalentLifecycleSection />
+          <TalentJourneyOverview />
+          <GenerationalAnalysisSection />
           
           {/* ===== HERO & IMPACT SECTIONS ===== */}
           <NewHeroSection />
