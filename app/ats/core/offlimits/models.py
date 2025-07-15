@@ -30,7 +30,7 @@ class OffLimitsRestriction(models.Model):
     
     class Meta:
         indexes = [
-            models.Index(fields=['client', 'business_unit', 'service_type', 'is_active']),
+            models.Index(fields=['client', 'business_unit', 'service_type', 'is_active'], name='offlimitsrestriction_client_bu_type_active_idx'),
             models.Index(fields=['end_date']),
         ]
         verbose_name = 'Restricción OffLimits'

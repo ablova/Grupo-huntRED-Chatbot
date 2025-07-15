@@ -34,7 +34,7 @@ class Course(models.Model):
             models.Index(fields=['name']),
             models.Index(fields=['provider']),
             models.Index(fields=['business_unit']),
-            models.Index(fields=['is_active'])
+            models.Index(fields=['is_active'], name='course_is_active_idx')
         ]
     
     def __str__(self):

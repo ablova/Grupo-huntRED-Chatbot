@@ -574,9 +574,9 @@ class BusinessUnit(models.Model):
         verbose_name_plural = "Unidades de Negocio"
         ordering = ['name']
         indexes = [
-            models.Index(fields=['name', 'code'], name='business_unit_name_code_idx'),
-            models.Index(fields=['active', 'created_at'], name='business_unit_active_created_idx'),
-            models.Index(fields=['owner', 'active'], name='business_unit_owner_active_idx'),
+            models.Index(fields=['name', 'code'], name='bu_name_code_idx'),
+            models.Index(fields=['active', 'created_at'], name='bu_active_created_idx'),
+            models.Index(fields=['owner', 'active'], name='bu_owner_active_idx'),
         ]
     
     def __str__(self):
@@ -787,8 +787,8 @@ class BusinessUnitMembership(models.Model):
         verbose_name_plural = "Membresías de Unidades de Negocio"
         unique_together = ['business_unit', 'user']
         indexes = [
-            models.Index(fields=['business_unit', 'role'], name='business_unit_membership_bu_role_idx'),
-            models.Index(fields=['user', 'role'], name='business_unit_membership_user_role_idx'),
+            models.Index(fields=['business_unit', 'role'], name='bu_membership_bu_role_idx'),
+            models.Index(fields=['user', 'role'], name='bu_membership_user_role_idx'),
         ]
     
     def __str__(self):
@@ -1178,8 +1178,8 @@ class SocialConnection(models.Model):
         verbose_name_plural = "Conexiones Sociales"
         unique_together = ('from_person', 'to_person')  # Evita duplicados
         indexes = [
-            models.Index(fields=['from_person'], name='social_connection_from_person_idx'),
-            models.Index(fields=['to_person'], name='social_connection_to_person_idx')
+            models.Index(fields=['from_person'], name='social_conn_from_idx'),
+            models.Index(fields=['to_person'], name='social_conn_to_idx')
         ]
     
     def __str__(self):
@@ -1282,9 +1282,9 @@ class FamilyRelationship(models.Model):
         verbose_name_plural = "Relaciones Familiares"
         unique_together = ('person', 'related_person', 'relationship_type')
         indexes = [
-            models.Index(fields=['person'], name='family_relationship_person_idx'),
-            models.Index(fields=['related_person'], name='family_relationship_related_person_idx'),
-            models.Index(fields=['relationship_type'], name='family_relationship_type_idx')
+            models.Index(fields=['person'], name='family_rel_person_idx'),
+            models.Index(fields=['related_person'], name='family_rel_related_idx'),
+            models.Index(fields=['relationship_type'], name='family_rel_type_idx')
         ]
     
     def __str__(self):
@@ -1323,9 +1323,9 @@ class Provider(models.Model):
         verbose_name_plural = "Proveedores de IA"
         ordering = ['name']
         indexes = [
-            models.Index(fields=['name']),
-            models.Index(fields=['is_active']),
-            models.Index(fields=['last_used']),
+            models.Index(fields=['name'], name='provider_name_idx'),
+            models.Index(fields=['is_active'], name='provider_active_idx'),
+            models.Index(fields=['last_used'], name='provider_last_used_idx'),
         ]
 
     def __str__(self):
@@ -1426,9 +1426,9 @@ class GptApi(models.Model):
         verbose_name_plural = "Configuraciones de APIs de IA"
         unique_together = ['provider', 'model']
         indexes = [
-            models.Index(fields=['provider', 'model']),
-            models.Index(fields=['is_active']),
-            models.Index(fields=['last_used']),
+            models.Index(fields=['provider', 'model'], name='ai_api_provider_model_idx'),
+            models.Index(fields=['is_active'], name='ai_api_active_idx'),
+            models.Index(fields=['last_used'], name='ai_api_last_used_idx'),
         ]
 
     def __str__(self):
@@ -7043,10 +7043,10 @@ class Metric(models.Model):
         verbose_name_plural = "Métricas"
         ordering = ['-timestamp']
         indexes = [
-            models.Index(fields=['name', 'category']),
-            models.Index(fields=['entity_type', 'entity_id']),
-            models.Index(fields=['timestamp']),
-            models.Index(fields=['business_unit']),
+            models.Index(fields=['name', 'category'], name='metric_name_cat_idx'),
+            models.Index(fields=['entity_type', 'entity_id'], name='metric_entity_idx'),
+            models.Index(fields=['timestamp'], name='metric_timestamp_idx'),
+            models.Index(fields=['business_unit'], name='metric_bu_idx'),
         ]
     
     def __str__(self):
@@ -7148,9 +7148,9 @@ class Consultant(models.Model):
         verbose_name_plural = "Consultores"
         ordering = ['business_unit', '-is_senior', 'user']
         indexes = [
-            models.Index(fields=['consultant_id']),
-            models.Index(fields=['business_unit', 'is_senior']),
-            models.Index(fields=['active']),
+            models.Index(fields=['consultant_id'], name='consultant_id_idx'),
+            models.Index(fields=['business_unit', 'is_senior'], name='consultant_bu_senior_idx'),
+            models.Index(fields=['active'], name='consultant_active_idx'),
         ]
     
     def __str__(self):
@@ -7255,9 +7255,9 @@ class NotificationPreference(models.Model):
         verbose_name_plural = "Preferencias de notificación"
         unique_together = [('person', 'vacante')]
         indexes = [
-            models.Index(fields=['person']),
-            models.Index(fields=['notify_on_slot_available']),
-            models.Index(fields=['last_notification']),
+            models.Index(fields=['person'], name='notif_pref_person_idx'),
+            models.Index(fields=['notify_on_slot_available'], name='notif_pref_slot_idx'),
+            models.Index(fields=['last_notification'], name='notif_pref_last_idx'),
         ]
     
     def __str__(self):
@@ -7338,9 +7338,9 @@ class Addons(models.Model):
         verbose_name_plural = "Complementos"
         ordering = ['name']
         indexes = [
-            models.Index(fields=['active']),
-            models.Index(fields=['for_ai_model']),
-            models.Index(fields=['bu', 'active']),
+            models.Index(fields=['active'], name='addons_active_idx'),
+            models.Index(fields=['for_ai_model'], name='addons_ai_model_idx'),
+            models.Index(fields=['bu', 'active'], name='addons_bu_active_idx'),
         ]
     
     def __str__(self):
@@ -7415,10 +7415,10 @@ class INCODEVerification(models.Model):
         verbose_name_plural = "Verificaciones INCODE"
         ordering = ['-created_at']
         indexes = [
-            models.Index(fields=['candidate', 'status']),
-            models.Index(fields=['business_unit', 'status']),
-            models.Index(fields=['created_at', 'status']),
-            models.Index(fields=['expires_at']),
+            models.Index(fields=['candidate', 'status'], name='incode_candidate_status_idx'),
+            models.Index(fields=['business_unit', 'status'], name='incode_bu_status_idx'),
+            models.Index(fields=['created_at', 'status'], name='incode_created_status_idx'),
+            models.Index(fields=['expires_at'], name='incode_expires_idx'),
         ]
     
     def __str__(self):
@@ -7704,9 +7704,9 @@ class BackgroundCheck(models.Model):
         verbose_name_plural = "Verificaciones de Antecedentes"
         ordering = ['-created_at']
         indexes = [
-            models.Index(fields=['candidate', 'status']),
-            models.Index(fields=['business_unit', 'check_type']),
-            models.Index(fields=['created_at', 'status']),
+            models.Index(fields=['candidate', 'status'], name='bg_check_candidate_status_idx'),
+            models.Index(fields=['business_unit', 'check_type'], name='bg_check_bu_type_idx'),
+            models.Index(fields=['created_at', 'status'], name='bg_check_created_status_idx'),
         ]
     
     def __str__(self):

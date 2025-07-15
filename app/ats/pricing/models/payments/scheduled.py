@@ -206,9 +206,9 @@ class ScheduledPaymentExecution(models.Model):
         verbose_name_plural = 'Ejecuciones de Pagos Programados'
         ordering = ['-scheduled_date']
         indexes = [
-            models.Index(fields=['scheduled_payment', 'status'], name='pricing_scheduled_payment_execution_payment_status_idx'),
-            models.Index(fields=['scheduled_date'], name='pricing_scheduled_payment_execution_date_idx'),
-            models.Index(fields=['success'], name='pricing_scheduled_payment_execution_success_idx'),
+            models.Index(fields=['scheduled_payment', 'status'], name='pricing_sched_pay_stat_idx'),
+            models.Index(fields=['scheduled_date'], name='pricing_sched_pay_date_idx'),
+            models.Index(fields=['success'], name='pricing_sched_pay_succ_idx'),
         ]
     
     def __str__(self):
