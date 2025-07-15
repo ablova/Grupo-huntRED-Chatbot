@@ -35,7 +35,7 @@ from app.models import Person, Company
 # ADMIN DE PRICING
 # ============================================================================
 
-# @admin.register(PricingStrategy)  # Comentado para evitar registro duplicado
+@admin.register(PricingStrategy)
 class PricingStrategyAdmin(admin.ModelAdmin):
     list_display = ['name', 'type', 'status', 'base_price', 'currency', 'success_rate', 'created_at']
     list_filter = ['type', 'status', 'currency', 'created_at']
@@ -62,7 +62,7 @@ class PricingStrategyAdmin(admin.ModelAdmin):
     )
 
 
-# @admin.register(PricePoint)  # Comentado para evitar registro duplicado
+@admin.register(PricePoint)
 class PricePointAdmin(admin.ModelAdmin):
     list_display = ['strategy', 'amount', 'currency', 'valid_from', 'valid_to']
     list_filter = ['currency', 'valid_from', 'valid_to']
@@ -70,14 +70,14 @@ class PricePointAdmin(admin.ModelAdmin):
     date_hierarchy = 'valid_from'
 
 
-# @admin.register(DiscountRule)  # Comentado para evitar registro duplicado
+@admin.register(DiscountRule)
 class DiscountRuleAdmin(admin.ModelAdmin):
     list_display = ['type', 'value', 'is_active', 'valid_from', 'valid_to']
     list_filter = ['type', 'is_active', 'valid_from', 'valid_to']
     search_fields = ['type']
 
 
-# @admin.register(ReferralFee)  # Comentado para evitar registro duplicado
+@admin.register(ReferralFee)
 class ReferralFeeAdmin(admin.ModelAdmin):
     list_display = ['type', 'value', 'is_active', 'valid_from', 'valid_to']
     list_filter = ['type', 'is_active', 'valid_from', 'valid_to']
