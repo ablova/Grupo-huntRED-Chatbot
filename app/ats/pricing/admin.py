@@ -155,10 +155,10 @@ class BankAccountAdmin(admin.ModelAdmin):
 
 @admin.register(PaymentTransaction)
 class PaymentTransactionAdmin(admin.ModelAdmin):
-    list_display = ['transaction_id', 'transaction_type', 'status', 'amount', 'currency', 'payment_method', 'created_at']
-    list_filter = ['transaction_type', 'status', 'payment_method', 'currency', 'created_at']
-    search_fields = ['transaction_id', 'external_id', 'description']
-    readonly_fields = ['transaction_id', 'created_at', 'processed_at', 'completed_at']
+    list_display = ['transaction_id', 'status', 'amount', 'currency', 'payment_method', 'created_at']
+    list_filter = ['status', 'payment_method', 'currency', 'created_at']
+    search_fields = ['transaction_id', 'user__username']
+    readonly_fields = ['transaction_id', 'created_at', 'updated_at']
     date_hierarchy = 'created_at'
     
     fieldsets = (
@@ -460,14 +460,30 @@ class CompanyAdmin(admin.ModelAdmin):
 
 @admin.register(Person)
 class PersonAdmin(admin.ModelAdmin):
-    list_display = ('name', 'signer', 'payment_responsible', 'fiscal_responsible', 'process_responsible')
-    search_fields = ('name', 'signer__nombre', 'payment_responsible__nombre', 'fiscal_responsible__nombre', 'process_responsible__nombre')
-    filter_horizontal = ('report_invitees',)
+    list_display = ('nombre', 'apellido_paterno', 'email', 'phone', 'fecha_creacion')
+    search_fields = ('nombre', 'apellido_paterno', 'apellido_materno', 'email', 'phone')
+    list_filter = ('sexo', 'job_search_status', 'fecha_creacion')
+    readonly_fields = ('fecha_creacion', 'points')
+    
     fieldsets = (
-        (None, {
-            'fields': ('name', 'legal_name', 'tax_id', 'industry', 'size', 'website', 'address', 'city', 'state', 'country')
+        ('Información Personal', {
+            'fields': ('nombre', 'apellido_paterno', 'apellido_materno', 'nacionalidad', 'fecha_nacimiento', 'sexo')
         }),
-        ('Contactos y notificaciones', {
-            'fields': ('signer', 'payment_responsible', 'fiscal_responsible', 'process_responsible', 'report_invitees', 'notification_preferences')
+        ('Información de Contacto', {
+            'fields': ('email', 'company_email', 'phone', 'linkedin_url')
+        }),
+        ('Información Profesional', {
+            'fields': ('skills', 'experience_years', 'desired_job_types', 'job_search_status')
+        }),
+        ('Documentos', {
+            'fields': ('cv_file', 'cv_parsed', 'cv_analysis')
+        }),
+        ('Datos Adicionales', {
+            'fields': ('salary_data', 'personality_data', 'experience_data', 'metadata'),
+            'classes': ('collapse',)
+        }),
+        ('Sistema', {
+            'fields': ('fecha_creacion', 'points', 'tos_accepted'),
+            'classes': ('collapse',)
         }),
     ) 
