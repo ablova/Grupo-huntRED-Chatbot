@@ -3547,6 +3547,35 @@ class ConfiguracionBU(models.Model):
     """Modelo para configuración de Business Units."""
     business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE)
     config = models.JSONField()
+    
+    # Información de contacto
+    direccion_bu = models.CharField(max_length=255, blank=True, null=True, help_text="Dirección de la Business Unit")
+    telefono_bu = models.CharField(max_length=20, blank=True, null=True, help_text="Teléfono de la Business Unit")
+    correo_bu = models.EmailField(blank=True, null=True, help_text="Correo electrónico de la Business Unit")
+    
+    # Configuración de WordPress
+    jwt_token = models.CharField(max_length=500, blank=True, null=True, help_text="Token JWT para autenticación con WordPress")
+    dominio_bu = models.URLField(max_length=255, blank=True, null=True, help_text="Dominio principal de la Business Unit")
+    dominio_rest_api = models.URLField(max_length=255, blank=True, null=True, help_text="URL de la API REST de WordPress")
+    
+    # Configuración SMTP
+    smtp_host = models.CharField(max_length=255, blank=True, null=True, help_text="Servidor SMTP")
+    smtp_port = models.IntegerField(blank=True, null=True, help_text="Puerto SMTP")
+    smtp_username = models.CharField(max_length=255, blank=True, null=True, help_text="Usuario SMTP")
+    smtp_password = models.CharField(max_length=255, blank=True, null=True, help_text="Contraseña SMTP")
+    smtp_use_tls = models.BooleanField(default=False, help_text="Usar TLS para SMTP")
+    smtp_use_ssl = models.BooleanField(default=False, help_text="Usar SSL para SMTP")
+    
+    # Configuración de scoring/weights
+    weight_location = models.FloatField(default=0.1, help_text="Peso para ubicación en scoring")
+    weight_hard_skills = models.FloatField(default=0.3, help_text="Peso para habilidades técnicas en scoring")
+    weight_soft_skills = models.FloatField(default=0.3, help_text="Peso para habilidades blandas en scoring")
+    weight_contract = models.FloatField(default=0.3, help_text="Peso para tipo de contrato en scoring")
+    
+    # Branding
+    logo_url = models.CharField(max_length=255, blank=True, null=True, help_text="URL del logo de la BU")
+    
+    # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
