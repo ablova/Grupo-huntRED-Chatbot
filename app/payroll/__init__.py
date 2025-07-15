@@ -371,7 +371,12 @@ VOLUME_DISCOUNTS = {
 # ============================================================================
 
 # Países soportados
-SUPPORTED_COUNTRIES = {
+SUPPORTED_COUNTRIES = [
+    ('MEX', 'México'),
+]
+
+# Configuración detallada de países
+COUNTRY_CONFIG = {
     'MEX': {
         'name': 'México',
         'currency': 'MXN',
@@ -423,6 +428,7 @@ __all__ = [
     'PAYROLL_PRICING',
     'PREMIUM_SERVICES',
     'SUPPORTED_COUNTRIES',
+    'COUNTRY_CONFIG',
     'MESSAGING_CHANNELS',
     'MESSAGE_PRIORITIES',
 ] 

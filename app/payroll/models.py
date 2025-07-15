@@ -105,7 +105,8 @@ class PayrollCompany(models.Model):
     
     def clean(self):
         """Validaciones del modelo"""
-        if self.country_code not in SUPPORTED_COUNTRIES:
+        from . import COUNTRY_CONFIG
+        if self.country_code not in COUNTRY_CONFIG:
             raise ValidationError(f"País no soportado: {self.country_code}")
         
         if not self.whatsapp_webhook_token:
@@ -113,7 +114,8 @@ class PayrollCompany(models.Model):
     
     def get_country_config(self):
         """Obtiene configuración del país"""
-        return SUPPORTED_COUNTRIES.get(self.country_code, {})
+        from . import COUNTRY_CONFIG
+        return COUNTRY_CONFIG.get(self.country_code, {})
     
     def get_employee_count(self):
         """Obtiene número de empleados activos"""
