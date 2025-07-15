@@ -1531,7 +1531,7 @@ class Vacante(models.Model):
     titulo = models.CharField(max_length=1000)
     empresa = models.ForeignKey('Empleador', on_delete=models.CASCADE, related_name='vacantes')
     business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE, related_name='vacantes', null=True, blank=True)
-    proposal = models.ForeignKey('Proposal', on_delete=models.SET_NULL, null=True, blank=True, related_name='vacancies')
+    proposal = models.ForeignKey('Proposal', on_delete=models.SET_NULL, null=True, blank=True, related_name='vacante_proposals')
     # Campo original (mantenido para compatibilidad)
     salario = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     # Nuevos campos para rango salarial
