@@ -98,7 +98,7 @@ MIDDLEWARE = [
     'app.middleware.PermissionMiddleware',
     'app.middleware.RoleMiddleware',
     'app.middleware.BusinessUnitMiddleware',
-    'app.middleware.DivisionMiddleware',
+    'ai_huntred.middleware.DivisionMiddleware',
     'silk.middleware.SilkyMiddleware',
     'ai_huntred.error_handling.ErrorHandlerMiddleware',
 ]
