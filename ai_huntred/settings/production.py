@@ -49,10 +49,14 @@ required_env_vars = [
     'DB_PASSWORD',
     'DB_HOST',
     'REDIS_HOST',
-    'REDIS_PASSWORD',
     'EMAIL_HOST',
     'EMAIL_HOST_USER',
     'EMAIL_HOST_PASSWORD',
+]
+
+# Variables opcionales
+optional_env_vars = [
+    'REDIS_PASSWORD',  # Opcional - puede estar vacío si Redis no tiene password
 ]
 
 # Las configuraciones de los canales se obtienen de sus respectivos modelos API:
