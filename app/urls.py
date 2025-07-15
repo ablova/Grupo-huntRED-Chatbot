@@ -337,7 +337,7 @@ if settings.DEBUG:
 # -------------------------------
 # 📌 MANEJO DE ERRORES
 # -------------------------------
-handler404 = 'app.views.main_views.Custom404View.as_view'
+# handler404 = 'app.views.main_views.Custom404View.as_view'
 
 
 from app.views.talent import talent_views

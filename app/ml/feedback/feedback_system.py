@@ -17,7 +17,7 @@ class FeedbackEntry(models.Model):
         ('EXTRA', 'Skill Detectado Incorrectamente')
     ]
 
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     candidate_id = models.CharField(max_length=100)
     skill_id = models.CharField(max_length=100)
     feedback_type = models.CharField(max_length=20, choices=FEEDBACK_TYPES)

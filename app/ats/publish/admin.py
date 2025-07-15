@@ -1,3 +1,4 @@
+# app/ats/publish/admin.py
 """
 Admin de Django Avanzado para el Sistema de Publicación.
 """

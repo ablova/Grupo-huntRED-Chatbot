@@ -15,7 +15,7 @@ User = get_user_model()
 class UserBadge(models.Model):
     """User badge assignment model."""
     
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='badges')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='badges')
     badge = models.ForeignKey(Badge, on_delete=models.CASCADE, related_name='user_assignments')
     earned_at = models.DateTimeField(auto_now_add=True)
     is_active = models.BooleanField(default=True)

@@ -1,4 +1,4 @@
-# /home/pablo/app/admin/config.py
+# app/admin/config.py
 from django.utils.translation import gettext_lazy as _
 from datetime import datetime, timedelta
 from typing import List, Dict, Any
@@ -117,3 +117,20 @@ class AdminConfig:
     # Configuración de campos de fecha
     DATE_FORMAT = '%Y-%m-%d'
     DATETIME_FORMAT = '%Y-%m-%d %H:%M:%S'
+    
+    @staticmethod
+    def get_ordered_apps():
+        """Retorna la lista ordenada de aplicaciones para el admin."""
+        return [
+            'app',
+            'ats',
+            'payroll',
+            'sexsi',
+            'accounts',
+            'django.contrib.admin',
+            'django.contrib.auth',
+            'django.contrib.contenttypes',
+            'django.contrib.sessions',
+            'django.contrib.messages',
+            'django.contrib.staticfiles',
+        ]

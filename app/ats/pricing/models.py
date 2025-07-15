@@ -1,3 +1,4 @@
+# app/ats/pricing/models.py
 """
 Modelos unificados para pricing, pagos, facturación, gateways y integraciones.
 """
@@ -202,7 +203,7 @@ class PaymentGateway(models.Model):
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='created_gateways')
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='created_gateways')
 
     class Meta:
         verbose_name = "Gateway de Pago"
@@ -283,7 +284,7 @@ class BankAccount(models.Model):
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='created_bank_accounts')
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='created_bank_accounts')
 
     class Meta:
         verbose_name = "Cuenta Bancaria"
@@ -365,7 +366,7 @@ class PaymentTransaction(models.Model):
     description = models.TextField(help_text="Descripción de la transacción")
     notes = models.TextField(blank=True, help_text="Notas adicionales")
     
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='created_transactions')
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='created_transactions')
 
     class Meta:
         verbose_name = "Transacción de Pago"
@@ -479,7 +480,7 @@ class PACConfiguration(models.Model):
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='created_pac_configs')
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='created_pac_configs')
 
     class Meta:
         verbose_name = "Configuración de PAC"
@@ -885,7 +886,7 @@ class PartialPayment(models.Model):
     # Estado
     is_verified = models.BooleanField(default=False, help_text="¿El pago ha sido verificado?")
     verified_at = models.DateTimeField(null=True, blank=True)
-    verified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='verified_payments')
+    verified_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='verified_payments')
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -984,7 +985,7 @@ class ScheduledPayment(models.Model):
     # Control
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='created_scheduled_payments')
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='created_scheduled_payments')
     
     class Meta:
         verbose_name = "Pago Programado"

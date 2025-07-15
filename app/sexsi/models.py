@@ -50,8 +50,8 @@ class ConsentAgreement(models.Model):
     ]
 
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
-    creator = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_agreements')
-    invitee = models.ForeignKey(User, on_delete=models.CASCADE, related_name='invited_agreements', null=True, blank=True)
+    creator = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='created_agreements')
+    invitee = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='invited_agreements', null=True, blank=True)
     date_created = models.DateTimeField(auto_now_add=True)
     date_of_encounter = models.DateTimeField()
     location = models.CharField(max_length=200)
@@ -219,7 +219,7 @@ class SexsiPaymentTransaction(models.Model):
 
 class SexsiDiscountCoupon(models.Model):
     """Modelo para almacenar cupones de descuento con diferentes porcentajes y un cupón de 100%."""
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sexsi_discount_coupons')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='sexsi_discount_coupons')
     code = models.CharField(max_length=10, unique=True)
     discount_percentage = models.PositiveIntegerField()
     expiration_date = models.DateTimeField()

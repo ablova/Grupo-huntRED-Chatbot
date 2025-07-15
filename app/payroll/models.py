@@ -343,7 +343,7 @@ class PayrollPeriod(models.Model):
     disbursement_date = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de dispersión")
     
     # Usuario que aprobó
-    approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Aprobado por")
+    approved_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Aprobado por")
     
     # ML Y AI - ANÁLISIS DEL PERÍODO
     ml_analysis = models.JSONField(default=dict, verbose_name="Análisis ML del período")
@@ -587,7 +587,7 @@ class EmployeeRequest(models.Model):
     status = models.CharField(max_length=20, choices=REQUEST_STATUSES, default='pending', verbose_name="Estado")
     
     # Aprobación
-    approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Aprobado por")
+    approved_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Aprobado por")
     approval_date = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de aprobación")
     approval_notes = models.TextField(blank=True, verbose_name="Notas de aprobación")
     

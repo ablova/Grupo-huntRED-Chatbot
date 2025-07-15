@@ -504,7 +504,7 @@ class BusinessUnit(models.Model):
     members = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
         through='BusinessUnitMembership',
-        related_name='business_units',
+        related_name='member_business_units',
         help_text="Miembros de la unidad de negocio"
     )
     
@@ -1704,7 +1704,7 @@ class Proposal(models.Model):
     qr_code = models.ImageField(upload_to='proposals/qr/', null=True, blank=True)
     company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='proposals')
     business_units = models.ManyToManyField(BusinessUnit, related_name='proposals')
-    vacancies = models.ManyToManyField('Vacante', related_name='proposals')
+    vacancies = models.ManyToManyField('Vacante', related_name='proposal_vacancies')
     pricing_total = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     pricing_details = models.JSONField(default=dict, blank=True)
 
@@ -1783,7 +1783,7 @@ class Invoice(models.Model):
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='created_invoices')
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='created_invoices')
 
     class Meta:
         verbose_name = "Factura"
@@ -1977,6 +1977,153 @@ class LineItem(models.Model):
         self.total_amount = self.subtotal + self.tax_amount - self.discount_amount
         self.save(update_fields=['subtotal', 'tax_amount', 'total_amount'])
 
+class Pago(models.Model):
+    """Modelo para gestionar pagos y transacciones."""
+    
+    # Relaciones principales
+    invoice = models.ForeignKey('Invoice', on_delete=models.CASCADE, related_name='payments')
+    business_unit = models.ForeignKey('BusinessUnit', on_delete=models.CASCADE, related_name='payments')
+    
+    # Información del pago
+    payment_number = models.CharField(max_length=100, unique=True, help_text="Número de pago")
+    amount = models.DecimalField(max_digits=12, decimal_places=2, help_text="Monto del pago")
+    currency = models.CharField(max_length=3, default='MXN', help_text="Moneda del pago")
+    
+    # Estados del pago
+    STATUS_CHOICES = [
+        ('pending', 'Pendiente'),
+        ('processing', 'Procesando'),
+        ('completed', 'Completado'),
+        ('failed', 'Fallido'),
+        ('cancelled', 'Cancelado'),
+        ('refunded', 'Reembolsado'),
+    ]
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    
+    # Método de pago
+    PAYMENT_METHOD_CHOICES = [
+        ('credit_card', 'Tarjeta de Crédito'),
+        ('debit_card', 'Tarjeta de Débito'),
+        ('bank_transfer', 'Transferencia Bancaria'),
+        ('paypal', 'PayPal'),
+        ('cash', 'Efectivo'),
+        ('check', 'Cheque'),
+        ('other', 'Otro'),
+    ]
+    payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES)
+    
+    # Fechas
+    created_at = models.DateTimeField(auto_now_add=True, help_text="Fecha de creación")
+    processed_at = models.DateTimeField(null=True, blank=True, help_text="Fecha de procesamiento")
+    completed_at = models.DateTimeField(null=True, blank=True, help_text="Fecha de completado")
+    
+    # Información de la transacción
+    transaction_id = models.CharField(max_length=255, blank=True, help_text="ID de transacción del proveedor")
+    gateway_response = models.JSONField(default=dict, help_text="Respuesta del gateway de pago")
+    
+    # Datos del pagador
+    payer_name = models.CharField(max_length=200, blank=True, help_text="Nombre del pagador")
+    payer_email = models.EmailField(blank=True, help_text="Email del pagador")
+    payer_phone = models.CharField(max_length=20, blank=True, help_text="Teléfono del pagador")
+    
+    # Notas y metadata
+    notes = models.TextField(blank=True, help_text="Notas adicionales")
+    metadata = models.JSONField(default=dict, help_text="Metadatos adicionales")
+    
+    # Campos de auditoría
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='created_payments')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Pago"
+        verbose_name_plural = "Pagos"
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['payment_number']),
+            models.Index(fields=['status']),
+            models.Index(fields=['created_at']),
+            models.Index(fields=['transaction_id']),
+            models.Index(fields=['business_unit']),
+        ]
+
+    def __str__(self):
+        return f"Pago {self.payment_number} - {self.amount} {self.currency}"
+    
+    def save(self, *args, **kwargs):
+        # Generar número de pago si no existe
+        if not self.payment_number:
+            self.payment_number = self.generate_payment_number()
+        
+        super().save(*args, **kwargs)
+    
+    def generate_payment_number(self):
+        """Genera un número de pago único."""
+        from datetime import datetime
+        year = datetime.now().year
+        month = datetime.now().month
+        
+        # Buscar el último número de pago del mes
+        last_payment = Pago.objects.filter(
+            payment_number__startswith=f"P{year}{month:02d}"
+        ).order_by('-payment_number').first()
+        
+        if last_payment:
+            try:
+                last_number = int(last_payment.payment_number[-4:])
+                new_number = last_number + 1
+            except ValueError:
+                new_number = 1
+        else:
+            new_number = 1
+        
+        return f"P{year}{month:02d}{new_number:04d}"
+    
+    def process_payment(self):
+        """Procesa el pago."""
+        if self.status != 'pending':
+            return False
+        
+        self.status = 'processing'
+        self.processed_at = timezone.now()
+        self.save(update_fields=['status', 'processed_at'])
+        
+        # Aquí implementarías la lógica de procesamiento con el gateway
+        # Por ahora, simulamos un procesamiento exitoso
+        self.complete_payment()
+        
+        return True
+    
+    def complete_payment(self):
+        """Marca el pago como completado."""
+        self.status = 'completed'
+        self.completed_at = timezone.now()
+        self.save(update_fields=['status', 'completed_at'])
+        
+        # Actualizar la factura relacionada
+        if self.invoice:
+            self.invoice.status = 'paid'
+            self.invoice.payment_date = timezone.now()
+            self.invoice.save(update_fields=['status', 'payment_date'])
+    
+    def fail_payment(self, reason=None):
+        """Marca el pago como fallido."""
+        self.status = 'failed'
+        if reason:
+            self.notes = f"Pago fallido: {reason}"
+        self.save(update_fields=['status', 'notes'])
+    
+    def refund_payment(self, amount=None):
+        """Reembolsa el pago."""
+        if self.status != 'completed':
+            return False
+        
+        self.status = 'refunded'
+        if amount:
+            self.amount = amount
+        self.save(update_fields=['status', 'amount'])
+        
+        return True
+
 class Order(models.Model):
     """Modelo para órdenes de servicio (punto intermedio antes de facturar)."""
     
@@ -2032,7 +2179,7 @@ class Order(models.Model):
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='created_orders')
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='created_orders')
 
     class Meta:
         verbose_name = "Orden de Servicio"
@@ -2642,7 +2789,7 @@ class Contract(models.Model):
 
 class UserPermission(models.Model):
     """Modelo para permisos de usuario."""
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     permission = models.CharField(max_length=50, choices=PERMISSION_CHOICES)
     business_unit = models.ForeignKey('BusinessUnit', on_delete=models.CASCADE, null=True, blank=True)
     division = models.ForeignKey('Division', on_delete=models.CASCADE, null=True, blank=True)
@@ -2672,7 +2819,7 @@ class DiscountCoupon(models.Model):
         description: Descripción del cupón (opcional)
     """
     user = models.ForeignKey(
-        User, 
+        settings.AUTH_USER_MODEL, 
         on_delete=models.CASCADE, 
         related_name='discount_coupons',
         help_text="Usuario al que se le asigna el cupón"
@@ -4000,7 +4147,7 @@ class GenerationalProfile(models.Model):
         ('Z', 'Generación Z'),
     ]
     
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     generation = models.CharField(max_length=2, choices=GENERATION_CHOICES)
     birth_year = models.IntegerField()
     
@@ -4033,7 +4180,7 @@ class GenerationalProfile(models.Model):
 class MotivationalProfile(models.Model):
     """Perfil motivacional que analiza factores intrínsecos y extrínsecos de motivación."""
     
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     
     # Motivadores Intrínsecos
     autonomy_need = models.IntegerField(default=0)  # 0-100
@@ -4067,7 +4214,7 @@ class MotivationalProfile(models.Model):
 class CareerAspiration(models.Model):
     """Aspiraciones de carrera del usuario, incluyendo objetivos y preferencias."""
     
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     
     # Objetivos de Carrera
     short_term_goal = models.TextField()
@@ -4098,7 +4245,7 @@ class CareerAspiration(models.Model):
 class WorkStylePreference(models.Model):
     """Preferencias de estilo de trabajo del usuario."""
     
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     
     # Estilo de Trabajo
     collaboration_preference = models.IntegerField(default=0)  # 0-100
@@ -4127,7 +4274,7 @@ class WorkStylePreference(models.Model):
 class CulturalAlignment(models.Model):
     """Alineación cultural del usuario con la organización."""
     
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     
     # Valores Organizacionales
     company_values_alignment = models.JSONField()
@@ -4314,7 +4461,7 @@ class SocialNetworkVerification(models.Model):
 
 class PaymentTransaction(models.Model):
     """Modelo para transacciones de pago."""
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='payment_transactions')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='payment_transactions')
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     currency = models.CharField(max_length=3, default='USD')
     payment_method = models.CharField(max_length=50, choices=[
@@ -5052,7 +5199,7 @@ class FailedLoginAttempt(models.Model):
 
 class UserActivityLog(models.Model):
     """Registro de actividad de usuarios."""
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='activity_logs')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='activity_logs')
     action = models.CharField(max_length=100)
     details = models.JSONField(default=dict, blank=True)
     ip_address = models.GenericIPAddressField()
@@ -5160,7 +5307,7 @@ class DivisionTransition(models.Model):
         ('rejected', 'Rechazado'),
         ('completed', 'Completado')
     ], default='pending')
-    approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_transitions')
+    approved_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_transitions')
     approved_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -5360,7 +5507,7 @@ class SlackAPI(models.Model):
 
 class Chat(models.Model):
     """Modelo para chats."""
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='chats')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='chats')
     title = models.CharField(max_length=255)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -5428,7 +5575,7 @@ class SmtpConfig(models.Model):
 
 class UserInteractionLog(models.Model):
     """Modelo para registro de interacciones de usuario."""
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='interaction_logs')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='interaction_logs')
     action = models.CharField(max_length=100)
     entity_type = models.CharField(max_length=50)
     entity_id = models.PositiveIntegerField()
@@ -5531,7 +5678,7 @@ class QuarterlyInsight(models.Model):
 
 class VerificationCode(models.Model):
     """Modelo para códigos de verificación."""
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='verification_codes')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='verification_codes')
     code = models.CharField(max_length=6)
     purpose = models.CharField(max_length=50, choices=[
         ('email', 'Verificación de email'),
@@ -5553,7 +5700,7 @@ class VerificationCode(models.Model):
 
 class Interaction(models.Model):
     """Modelo para interacciones."""
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='interactions')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='interactions')
     type = models.CharField(max_length=50, choices=[
         ('view', 'Visualización'),
         ('click', 'Clic'),
@@ -5582,7 +5729,7 @@ class Interaction(models.Model):
 
 class AgreementPreference(models.Model):
     """Modelo para preferencias de acuerdos."""
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='agreement_preferences')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='agreement_preferences')
     agreement_type = models.CharField(max_length=50, choices=[
         ('privacy', 'Privacidad'),
         ('terms', 'Términos y condiciones'),
@@ -5605,7 +5752,7 @@ class AgreementPreference(models.Model):
 
 class OnboardingProcess(models.Model):
     """Modelo para procesos de onboarding."""
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='onboarding_processes')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='onboarding_processes')
     status = models.CharField(max_length=20, choices=[
         ('pending', 'Pendiente'),
         ('in_progress', 'En progreso'),
@@ -5697,7 +5844,7 @@ class NotificationLog(models.Model):
 class Assessment(models.Model):
     """Modelo para evaluaciones de candidatos."""
     application = models.ForeignKey(Application, on_delete=models.CASCADE, related_name='assessments')
-    evaluator = models.ForeignKey(User, on_delete=models.CASCADE)
+    evaluator = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     score = models.IntegerField()
     feedback = models.TextField()
     status = models.CharField(max_length=50, choices=[
@@ -6268,7 +6415,7 @@ class Service(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     created_by = models.ForeignKey(
-        User,
+        settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         related_name='created_services'
@@ -6930,7 +7077,7 @@ class Consultant(models.Model):
     """
     # Relaciones principales
     user = models.OneToOneField(
-        'User', 
+        settings.AUTH_USER_MODEL, 
         on_delete=models.CASCADE,
         related_name='consultant_profile',
         help_text="Usuario asociado al consultor"
@@ -6996,7 +7143,7 @@ class Consultant(models.Model):
     class Meta:
         verbose_name = "Consultor"
         verbose_name_plural = "Consultores"
-        ordering = ['business_unit', '-is_senior', 'user__first_name']
+        ordering = ['business_unit', '-is_senior', 'user']
         indexes = [
             models.Index(fields=['consultant_id']),
             models.Index(fields=['business_unit', 'is_senior']),
@@ -7173,7 +7320,7 @@ class Addons(models.Model):
         BusinessUnit, 
         on_delete=models.CASCADE, 
         verbose_name="Unidad de negocio",
-        related_name="addons"
+        related_name="pricing_addons"
     )
     
     # Configuración específica del addon (opcional)
@@ -7352,7 +7499,7 @@ class Interview(models.Model):
     
     candidate = models.ForeignKey('Person', on_delete=models.CASCADE, related_name='interviews')
     job = models.ForeignKey('Vacante', on_delete=models.CASCADE, related_name='interviews')
-    interviewer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='interviews_conducted')
+    interviewer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='interviews_conducted')
     interview_type = models.CharField(max_length=20, choices=INTERVIEW_TYPES)
     scheduled_date = models.DateTimeField()
     duration = models.IntegerField(help_text='Duración en minutos')
@@ -7379,7 +7526,7 @@ class InterviewFeedback(models.Model):
     ]
     
     interview = models.OneToOneField(Interview, on_delete=models.CASCADE, related_name='feedback')
-    interviewer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='interview_feedbacks')
+    interviewer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='interview_feedbacks')
     
     # Ratings principales
     overall_rating = models.IntegerField(choices=[(i, str(i)) for i in range(1, 6)])
@@ -7418,7 +7565,7 @@ class CompetencyEvaluation(models.Model):
 class CandidateFeedback(models.Model):
     """Feedback general de un candidato (no específico de entrevista)."""
     candidate = models.ForeignKey('Person', on_delete=models.CASCADE, related_name='general_feedbacks')
-    evaluator = models.ForeignKey(User, on_delete=models.CASCADE, related_name='candidate_feedbacks')
+    evaluator = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='candidate_feedbacks')
     evaluation_date = models.DateTimeField(auto_now_add=True)
     
     # Evaluaciones
@@ -7453,7 +7600,7 @@ class RecruitmentProcess(models.Model):
     ]
     
     job = models.ForeignKey('Vacante', on_delete=models.CASCADE, related_name='recruitment_processes')
-    recruiter = models.ForeignKey(User, on_delete=models.CASCADE, related_name='managed_processes')
+    recruiter = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='managed_processes')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
     start_date = models.DateTimeField(auto_now_add=True)
     end_date = models.DateTimeField(null=True, blank=True)
@@ -7472,7 +7619,7 @@ class RecruitmentProcess(models.Model):
 class ProcessFeedback(models.Model):
     """Feedback sobre el proceso de reclutamiento."""
     process = models.ForeignKey(RecruitmentProcess, on_delete=models.CASCADE, related_name='feedbacks')
-    evaluator = models.ForeignKey(User, on_delete=models.CASCADE, related_name='process_feedbacks')
+    evaluator = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='process_feedbacks')
     
     # Evaluaciones del proceso
     overall_satisfaction = models.IntegerField(choices=[(i, str(i)) for i in range(1, 6)])

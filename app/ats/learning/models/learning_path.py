@@ -10,7 +10,7 @@ class LearningPath(models.Model):
     
     name = models.CharField(max_length=200)
     description = models.TextField()
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE)
     
     # Metadatos

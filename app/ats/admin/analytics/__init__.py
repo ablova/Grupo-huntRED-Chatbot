@@ -1,3 +1,4 @@
+# app/ats/admin/analytics/__init__.py
 from django.contrib import admin
 from django.conf import settings
 from app.ats.analytics.models import AnalyticsEvent, UserMetric, SystemMetric, Report
@@ -129,7 +130,7 @@ class ReportAdmin(admin.ModelAdmin):
     )
     
     list_filter = (
-        'created_at'
+        'created_at',
     )
     
     search_fields = (

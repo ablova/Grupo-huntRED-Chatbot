@@ -1,5 +1,7 @@
+# app/ats/core/offlimits/models.py
 from django.db import models
 from django.utils import timezone
+from django.conf import settings
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
@@ -24,7 +26,7 @@ class OffLimitsRestriction(models.Model):
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    created_by = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, related_name='created_offlimits')
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='created_offlimits')
     
     class Meta:
         indexes = [
@@ -67,7 +69,7 @@ class CandidateInitiatedContact(models.Model):
         ]
     )
     evidence_reference = models.CharField(max_length=255, help_text='URL o referencia al documento/evidencia')
-    verified_by = models.ForeignKey('auth.User', on_delete=models.CASCADE, related_name='verified_contacts')
+    verified_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='verified_contacts')
     verification_date = models.DateTimeField(null=True, blank=True)
     notes = models.TextField(blank=True)
     
@@ -94,7 +96,7 @@ class OffLimitsAudit(models.Model):
     """
     Registra acciones relacionadas con OffLimits para fines de auditoría.
     """
-    user = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
     candidate = models.ForeignKey('ats.Candidate', on_delete=models.CASCADE)
     client = models.ForeignKey('ats.Client', on_delete=models.CASCADE)
     business_unit = models.ForeignKey('ats.BusinessUnit', on_delete=models.CASCADE)

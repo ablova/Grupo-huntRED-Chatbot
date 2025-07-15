@@ -1,4 +1,4 @@
-# /home/pablo/app/ats/admin/pricing/__init__.py
+# app/ats/admin/pricing/__init__.py
 from django.contrib import admin
 from django.utils.html import format_html
 from django.utils import timezone
@@ -233,18 +233,54 @@ class PricingCalculationAdmin(admin.ModelAdmin):
     
     list_display = (
         'id',
-        'created_at'
+        'oportunidad',
+        'estado',
+        'monto_base',
+        'monto_final',
+        'moneda',
+        'fecha_creacion'
+    )
+    
+    list_filter = (
+        'estado',
+        'moneda',
+        'fecha_creacion'
+    )
+    
+    search_fields = (
+        'oportunidad__nombre',
+        'id'
     )
     
     readonly_fields = (
-        'created_at',
+        'fecha_creacion',
+        'fecha_actualizacion'
     )
     
     fieldsets = (
         ('Información Básica', {
             'fields': (
-                'created_at',
+                'oportunidad',
+                'estado',
+                'monto_base',
+                'monto_final',
+                'moneda'
             )
+        }),
+        ('Configuración', {
+            'fields': (
+                'descuentos',
+                'addons',
+                'metadata'
+            ),
+            'classes': ('collapse',)
+        }),
+        ('Temporal', {
+            'fields': (
+                'fecha_creacion',
+                'fecha_actualizacion'
+            ),
+            'classes': ('collapse',)
         })
     )
 

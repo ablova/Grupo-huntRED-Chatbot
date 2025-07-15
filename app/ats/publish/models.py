@@ -1,5 +1,7 @@
+# app/ats/publish/models.py
 from django.db import models
 from django.utils import timezone
+from django.conf import settings
 from app.models import JobOpportunity
 
 class ChannelType(models.Model):
@@ -76,7 +78,7 @@ class ChannelSubscription(models.Model):
     Suscripciones a canales por usuario
     """
     channel = models.ForeignKey(Channel, on_delete=models.CASCADE)
-    user = models.ForeignKey('auth.User', on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     subscribed_at = models.DateTimeField(auto_now_add=True)
     active = models.BooleanField(default=True)
     
@@ -509,19 +511,19 @@ class CampaignApproval(models.Model):
     
     # Usuarios involucrados
     created_by = models.ForeignKey(
-        'auth.User',
+        settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name='campaign_approvals_created'
     )
     reviewed_by = models.ForeignKey(
-        'auth.User',
+        settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name='campaign_approvals_reviewed'
     )
     approved_by = models.ForeignKey(
-        'auth.User',
+        settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -826,7 +828,7 @@ class CampaignAuditLog(models.Model):
     
     # Usuario que realizó la acción
     user = models.ForeignKey(
-        'auth.User',
+        settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True
@@ -1109,7 +1111,7 @@ class IntelligentProspecting(models.Model):
     
     # Información del prospecto
     domain_analysis = models.ForeignKey(DomainAnalysis, on_delete=models.CASCADE, related_name='prospecting_efforts')
-    assigned_to = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True)
+    assigned_to = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     
     # Estado del proceso
     status = models.CharField(max_length=20, choices=PROSPECTING_STATUS_CHOICES, default='research')
@@ -1173,7 +1175,7 @@ class CrossSellingOpportunity(models.Model):
     ]
     
     # Relación con el análisis de uso
-    usage_analysis = models.ForeignKey(UsageFrequencyAnalysis, on_delete=models.CASCADE, related_name='cross_sell_opportunities')
+    usage_analysis = models.ForeignKey(UsageFrequencyAnalysis, on_delete=models.CASCADE, related_name='cross_selling_opportunities')
     
     # Información de la oportunidad
     opportunity_type = models.CharField(max_length=20, choices=OPPORTUNITY_TYPE_CHOICES)
@@ -1263,7 +1265,7 @@ class CampaignExecutionPhase(models.Model):
     progress_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     
     # Recursos asignados
-    assigned_users = models.ManyToManyField('auth.User', blank=True)
+    assigned_users = models.ManyToManyField(settings.AUTH_USER_MODEL, blank=True)
     required_resources = models.JSONField(default=list)
     
     # Métricas de la fase
@@ -1351,7 +1353,7 @@ class CampaignTask(models.Model):
     ], default='pending')
     
     # Asignación
-    assigned_to = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True)
+    assigned_to = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     
     # Dependencias
     dependencies = models.ManyToManyField('self', blank=True, symmetrical=False)
@@ -1479,7 +1481,7 @@ class CampaignGanttView(models.Model):
     color_scheme = models.JSONField(default=dict)
     
     # Usuario que creó la vista
-    created_by = models.ForeignKey('auth.User', on_delete=models.CASCADE)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     
     # Fechas
     created_at = models.DateTimeField(auto_now_add=True)

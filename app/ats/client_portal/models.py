@@ -1,6 +1,6 @@
 # app/ats/client_portal/models.py
 from django.db import models
-from django.contrib.auth.models import User
+from django.conf import settings
 from app.models import Company
 from django.utils import timezone
 from app.ats.utils.notification_service import NotificationService
@@ -32,7 +32,7 @@ class ClientPortalAccess(models.Model):
         ('enterprise', 'Enterprise')
     ]
 
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     company = models.ForeignKey(Company, on_delete=models.CASCADE)
     tier = models.CharField(max_length=20, choices=TIER_CHOICES, default='basic')
     addons = models.ManyToManyField(PortalAddon, blank=True)
@@ -119,12 +119,12 @@ class AddonRequest(models.Model):
         default='pending'
     )
     requested_by = models.ForeignKey(
-        'auth.User',
+        settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name='addon_requests'
     )
     approved_by = models.ForeignKey(
-        'auth.User',
+        settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,

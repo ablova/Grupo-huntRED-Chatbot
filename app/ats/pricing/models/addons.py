@@ -6,7 +6,7 @@ class BusinessUnitAddon(models.Model):
     """
     Relación entre una BusinessUnit y un Addon (PortalAddon por ahora).
     """
-    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE, related_name='addons')
+    business_unit = models.ForeignKey(BusinessUnit, on_delete=models.CASCADE, related_name='business_unit_addons')
     addon = models.ForeignKey(PortalAddon, on_delete=models.CASCADE, related_name='business_unit_addons')
     is_active = models.BooleanField(default=True)
     activated_at = models.DateTimeField(auto_now_add=True)
