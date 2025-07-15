@@ -107,7 +107,7 @@ urlpatterns = [
     #path('workflow/', include('app.views.workflow.urls')), Se convirtieron en las rutas de workflow de más adelante 218-222
     path('sexsi/', include('app.sexsi.urls')),
 
-    path('pricing/', include('app.ats.pricing.urls', namespace='pricing')),
+    path('pricing/', include('app.ats.pricing.urls')),
     path('publish/', include('app.ats.publish.urls')),
     path('ml/', include('app.views.ml.urls')),
     path('webhooks/', include('app.views.webhook.urls')),
@@ -205,7 +205,7 @@ urlpatterns += [
     path('login/', login_view, name='login'),
     
     # Rutas de pagos
-    path('pricing/', include('app.ats.pricing.urls', namespace='pricing')),
+    path('pricing/', include('app.ats.pricing.urls')),
 ]
 
 # ----------------------------------------
@@ -372,18 +372,18 @@ urlpatterns += [
     path('skill-assessment/<int:assessment_id>/validate/', validate_skill_assessment, name='validate_skill_assessment'),
 
     # LinkedIn Templates (existen en app.views.linkedin.message_templates)
-    path('linkedin/templates/', message_templates.template_list, name='linkedin:template_list'),
-    path('linkedin/templates/create/', message_templates.template_create, name='linkedin:template_create'),
-    path('linkedin/templates/<int:pk>/edit/', message_templates.template_edit, name='linkedin:template_edit'),
-    path('linkedin/templates/<int:pk>/toggle/', message_templates.template_toggle, name='linkedin:template_toggle'),
-    path('linkedin/templates/<int:pk>/delete/', message_templates.template_delete, name='linkedin:template_delete'),
+    path('linkedin/templates/', message_templates.template_list, name='linkedin_template_list'),
+    path('linkedin/templates/create/', message_templates.template_create, name='linkedin_template_create'),
+    path('linkedin/templates/<int:pk>/edit/', message_templates.template_edit, name='linkedin_template_edit'),
+    path('linkedin/templates/<int:pk>/toggle/', message_templates.template_toggle, name='linkedin_template_toggle'),
+    path('linkedin/templates/<int:pk>/delete/', message_templates.template_delete, name='linkedin_template_delete'),
 
     # LinkedIn Schedules (existen en app.views.linkedin.schedules)
-    path('linkedin/schedules/', schedules.schedule_list, name='linkedin:schedule_list'),
-    path('linkedin/schedules/create/', schedules.schedule_create, name='linkedin:schedule_create'),
-    path('linkedin/schedules/<int:pk>/edit/', schedules.schedule_edit, name='linkedin:schedule_edit'),
-    path('linkedin/schedules/<int:pk>/toggle/', schedules.schedule_toggle, name='linkedin:schedule_toggle'),
-    path('linkedin/schedules/<int:pk>/delete/', schedules.schedule_delete, name='linkedin:schedule_delete'),
+    path('linkedin/schedules/', schedules.schedule_list, name='linkedin_schedule_list'),
+    path('linkedin/schedules/create/', schedules.schedule_create, name='linkedin_schedule_create'),
+    path('linkedin/schedules/<int:pk>/edit/', schedules.schedule_edit, name='linkedin_schedule_edit'),
+    path('linkedin/schedules/<int:pk>/toggle/', schedules.schedule_toggle, name='linkedin_schedule_toggle'),
+    path('linkedin/schedules/<int:pk>/delete/', schedules.schedule_delete, name='linkedin_schedule_delete'),
 
     # Rutas de edición inline (existen en app.views.proposals.views)
     path('proposals/client/<int:client_id>/update-info/', update_client_info, name='update_client_info'),
