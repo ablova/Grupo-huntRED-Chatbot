@@ -20,10 +20,10 @@ class AppConfig(DjangoAppConfig):
         # Importar signals centralizados (opcional)
         try:
             # Importar signals desde diferentes módulos
-            from app.signals import *  # noqa
-            from app.sexsi.signals import *  # noqa
-            from app.ats.feedback.signals import *  # noqa
-            from app.signals.core import *  # noqa
+            import app.signals  # noqa
+            import app.sexsi.signals  # noqa
+            import app.ats.feedback.signals  # noqa
+            import app.signals.core  # noqa
             logger.info("Signals centralizados cargados correctamente")
         except ImportError as e:
             logger.info(f"Signals no disponibles: {str(e)}")
