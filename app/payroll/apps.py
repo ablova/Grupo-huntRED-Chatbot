@@ -12,16 +12,17 @@ class PayrollConfig(AppConfig):
     
     def ready(self):
         """Inicialización de la aplicación"""
-        # Importar señales
-        import app.payroll.signals
+        # Importar señales (comentado para evitar error si no existe)
+        # import app.payroll.signals
         
-        # Registrar tareas de Celery
-        from app.payroll.tasks import register_tasks
-        register_tasks()
+        # Registrar tareas de Celery (comentado para evitar error si no existe)
+        # from app.payroll.tasks import register_tasks
+        # register_tasks()
         
-        # Configurar webhooks de WhatsApp
-        from app.payroll.services.whatsapp_service import setup_webhooks
-        setup_webhooks()
+        # Configurar webhooks de WhatsApp usando el MessageService existente
+        # from app.ats.integrations.services import MessageService
+        # message_service = MessageService()
+        # setup_webhooks()  # Comentado hasta implementar si es necesario
     
     def post_migrate(self, sender, **kwargs):
         """Configuración post-migración"""

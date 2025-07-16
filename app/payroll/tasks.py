@@ -5,7 +5,7 @@ Actualización automática de tablas fiscales y valores legales
 import logging
 import requests
 import json
-from typing import Dict, Any, Optional
+from typing import List, Dict, Any, Optional
 from datetime import datetime, date
 from decimal import Decimal
 import xml.etree.ElementTree as ET

@@ -23,6 +23,7 @@ from . import (
     ATTENDANCE_STATUSES, REQUEST_TYPES, REQUEST_STATUSES,
     PAYROLL_ROLES, SUPPORTED_COUNTRIES
 )
+# Importación corregida - el modelo PermisoEspecial se define al final del archivo
 
 logger = logging.getLogger(__name__)
 
@@ -1235,3 +1236,663 @@ class OverheadBenchmark(models.Model):
             'median': self.percentile_50,
             'top_decile': self.percentile_90
         } 
+
+# ============================================================================
+# NUEVOS MODELOS PARA GESTIÓN DE TURNOS Y HORARIOS
+# ============================================================================
+
+class EmployeeShift(models.Model):
+    """
+    Modelo para gestión de turnos y horarios de empleados
+    """
+    SHIFT_TYPES = [
+        ('morning', 'Matutino'),
+        ('afternoon', 'Vespertino'),
+        ('night', 'Nocturno'),
+        ('rotating', 'Rotativo'),
+        ('flexible', 'Flexible'),
+        ('remote', 'Remoto'),
+        ('hybrid', 'Híbrido'),
+    ]
+    
+    SHIFT_STATUS = [
+        ('active', 'Activo'),
+        ('inactive', 'Inactivo'),
+        ('temporary', 'Temporal'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    employee = models.ForeignKey(PayrollEmployee, on_delete=models.CASCADE, related_name='shifts', verbose_name="Empleado")
+    
+    # Información del turno
+    shift_name = models.CharField(max_length=100, verbose_name="Nombre del turno")
+    shift_type = models.CharField(max_length=20, choices=SHIFT_TYPES, verbose_name="Tipo de turno")
+    status = models.CharField(max_length=20, choices=SHIFT_STATUS, default='active', verbose_name="Estado")
+    
+    # Horarios
+    start_time = models.TimeField(verbose_name="Hora de inicio")
+    end_time = models.TimeField(verbose_name="Hora de fin")
+    break_start = models.TimeField(null=True, blank=True, verbose_name="Inicio de descanso")
+    break_end = models.TimeField(null=True, blank=True, verbose_name="Fin de descanso")
+    
+    # Días de trabajo
+    work_days = models.JSONField(default=list, verbose_name="Días de trabajo")  # [1,2,3,4,5] para L-V
+    
+    # Ubicación
+    location = models.JSONField(default=dict, verbose_name="Ubicación del turno")
+    is_location_variable = models.BooleanField(default=False, verbose_name="Ubicación variable")
+    
+    # Configuración
+    hours_per_day = models.DecimalField(max_digits=4, decimal_places=2, verbose_name="Horas por día")
+    overtime_threshold = models.DecimalField(max_digits=4, decimal_places=2, default=8.0, verbose_name="Umbral horas extra")
+    
+    # Fechas
+    effective_date = models.DateField(verbose_name="Fecha efectiva")
+    end_date = models.DateField(null=True, blank=True, verbose_name="Fecha de fin")
+    
+    # Aprobación
+    approved_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Aprobado por")
+    approval_date = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de aprobación")
+    
+    # Notas
+    notes = models.TextField(blank=True, verbose_name="Notas")
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Turno de Empleado"
+        verbose_name_plural = "Turnos de Empleados"
+        db_table = 'payroll_employee_shift'
+        indexes = [
+            models.Index(fields=['employee', 'effective_date'], name='payroll_shift_emp_date_idx'),
+            models.Index(fields=['shift_type'], name='payroll_shift_type_idx'),
+            models.Index(fields=['status'], name='payroll_shift_status_idx'),
+        ]
+    
+    def __str__(self):
+        return f"{self.employee.get_full_name()} - {self.shift_name}"
+    
+    def get_current_shift(self, date=None):
+        """Obtiene el turno actual para una fecha"""
+        if not date:
+            date = timezone.now().date()
+        
+        return EmployeeShift.objects.filter(
+            employee=self.employee,
+            effective_date__lte=date,
+            end_date__isnull=True
+        ).first()
+    
+    def get_weekly_schedule(self, week_start_date):
+        """Obtiene horario semanal"""
+        from datetime import timedelta
+        
+        schedule = {}
+        for i in range(7):
+            current_date = week_start_date + timedelta(days=i)
+            day_of_week = current_date.weekday()
+            
+            if day_of_week in self.work_days:
+                schedule[current_date] = {
+                    'start_time': self.start_time,
+                    'end_time': self.end_time,
+                    'break_start': self.break_start,
+                    'break_end': self.break_end,
+                    'location': self.location,
+                    'hours': self.hours_per_day
+                }
+        
+        return schedule
+
+
+class ShiftChangeRequest(models.Model):
+    """
+    Solicitudes de cambio de turno
+    """
+    REQUEST_TYPES = [
+        ('temporary', 'Cambio temporal'),
+        ('permanent', 'Cambio permanente'),
+        ('swap', 'Intercambio'),
+        ('emergency', 'Emergencia'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('pending', 'Pendiente'),
+        ('approved', 'Aprobada'),
+        ('rejected', 'Rechazada'),
+        ('cancelled', 'Cancelada'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    employee = models.ForeignKey(PayrollEmployee, on_delete=models.CASCADE, related_name='shift_requests', verbose_name="Empleado")
+    
+    # Información de la solicitud
+    request_type = models.CharField(max_length=20, choices=REQUEST_TYPES, verbose_name="Tipo de solicitud")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name="Estado")
+    
+    # Fechas del cambio
+    start_date = models.DateField(verbose_name="Fecha de inicio")
+    end_date = models.DateField(verbose_name="Fecha de fin")
+    
+    # Turno solicitado
+    requested_shift = models.ForeignKey(EmployeeShift, on_delete=models.CASCADE, verbose_name="Turno solicitado")
+    
+    # Motivo
+    reason = models.TextField(verbose_name="Motivo")
+    emergency_details = models.TextField(blank=True, verbose_name="Detalles de emergencia")
+    
+    # Aprobación
+    approved_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Aprobado por")
+    approval_date = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de aprobación")
+    approval_notes = models.TextField(blank=True, verbose_name="Notas de aprobación")
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Solicitud de Cambio de Turno"
+        verbose_name_plural = "Solicitudes de Cambio de Turno"
+        db_table = 'payroll_shift_change_request'
+        indexes = [
+            models.Index(fields=['employee', 'status'], name='payroll_shift_req_emp_stat_idx'),
+            models.Index(fields=['request_type'], name='payroll_shift_req_type_idx'),
+            models.Index(fields=['start_date', 'end_date'], name='payroll_shift_req_dates_idx'),
+        ]
+    
+    def __str__(self):
+        return f"{self.employee.get_full_name()} - {self.get_request_type_display()}"
+
+
+# ============================================================================
+# MODELOS PARA FEEDBACK DE PAYROLL (EXTENSIÓN DEL SISTEMA EXISTENTE)
+# ============================================================================
+
+class PayrollFeedback(models.Model):
+    """
+    Feedback específico para el sistema de nómina
+    Extiende el sistema de feedback existente
+    """
+    FEEDBACK_TYPES = [
+        ('schedule', 'Horarios y Turnos'),
+        ('supervisor', 'Supervisor'),
+        ('hr', 'Recursos Humanos'),
+        ('payroll', 'Nómina'),
+        ('benefits', 'Beneficios'),
+        ('workplace', 'Ambiente Laboral'),
+        ('general', 'General'),
+    ]
+    
+    PRIORITY_LEVELS = [
+        ('low', 'Baja'),
+        ('medium', 'Media'),
+        ('high', 'Alta'),
+        ('urgent', 'Urgente'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    employee = models.ForeignKey(PayrollEmployee, on_delete=models.CASCADE, related_name='payroll_feedback', verbose_name="Empleado")
+    
+    # Tipo y prioridad
+    feedback_type = models.CharField(max_length=20, choices=FEEDBACK_TYPES, verbose_name="Tipo de feedback")
+    priority = models.CharField(max_length=20, choices=PRIORITY_LEVELS, default='medium', verbose_name="Prioridad")
+    
+    # Contenido
+    subject = models.CharField(max_length=200, verbose_name="Asunto")
+    message = models.TextField(verbose_name="Mensaje")
+    
+    # Destinatarios
+    send_to_supervisor = models.BooleanField(default=True, verbose_name="Enviar a supervisor")
+    send_to_hr = models.BooleanField(default=False, verbose_name="Enviar a RRHH")
+    
+    # Estado
+    is_anonymous = models.BooleanField(default=False, verbose_name="Anónimo")
+    is_resolved = models.BooleanField(default=False, verbose_name="Resuelto")
+    resolution_notes = models.TextField(blank=True, verbose_name="Notas de resolución")
+    
+    # Respuesta
+    response_message = models.TextField(blank=True, verbose_name="Respuesta")
+    responded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Respondido por")
+    response_date = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de respuesta")
+    
+    # Metadatos
+    created_via = models.CharField(max_length=20, default='whatsapp', verbose_name="Creado vía")
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Feedback de Nómina"
+        verbose_name_plural = "Feedback de Nómina"
+        db_table = 'payroll_feedback'
+        indexes = [
+            models.Index(fields=['employee', 'feedback_type'], name='payroll_feedback_emp_type_idx'),
+            models.Index(fields=['priority'], name='payroll_feedback_priority_idx'),
+            models.Index(fields=['is_resolved'], name='payroll_feedback_resolved_idx'),
+        ]
+    
+    def __str__(self):
+        return f"{self.employee.get_full_name()} - {self.subject}"
+
+
+class PerformanceEvaluation(models.Model):
+    """
+    Evaluaciones de desempeño periódicas
+    """
+    EVALUATION_TYPES = [
+        ('quarterly', 'Trimestral'),
+        ('semi_annual', 'Semestral'),
+        ('annual', 'Anual'),
+        ('probation', 'Período de prueba'),
+        ('special', 'Especial'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('draft', 'Borrador'),
+        ('in_progress', 'En progreso'),
+        ('completed', 'Completada'),
+        ('reviewed', 'Revisada'),
+        ('approved', 'Aprobada'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    employee = models.ForeignKey(PayrollEmployee, on_delete=models.CASCADE, related_name='performance_evaluations', verbose_name="Empleado")
+    evaluator = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name="Evaluador")
+    
+    # Información de la evaluación
+    evaluation_type = models.CharField(max_length=20, choices=EVALUATION_TYPES, verbose_name="Tipo de evaluación")
+    evaluation_period_start = models.DateField(verbose_name="Inicio del período")
+    evaluation_period_end = models.DateField(verbose_name="Fin del período")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft', verbose_name="Estado")
+    
+    # Calificaciones (1-5)
+    job_knowledge = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)], verbose_name="Conocimiento del trabajo")
+    quality_of_work = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)], verbose_name="Calidad del trabajo")
+    quantity_of_work = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)], verbose_name="Cantidad de trabajo")
+    reliability = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)], verbose_name="Confiabilidad")
+    teamwork = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)], verbose_name="Trabajo en equipo")
+    communication = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)], verbose_name="Comunicación")
+    initiative = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)], verbose_name="Iniciativa")
+    leadership = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)], verbose_name="Liderazgo")
+    attendance = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)], verbose_name="Asistencia")
+    overall_rating = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)], verbose_name="Calificación general")
+    
+    # Comentarios
+    strengths = models.TextField(blank=True, verbose_name="Fortalezas")
+    areas_for_improvement = models.TextField(blank=True, verbose_name="Áreas de mejora")
+    goals = models.TextField(blank=True, verbose_name="Objetivos")
+    comments = models.TextField(blank=True, verbose_name="Comentarios adicionales")
+    
+    # Aprobación
+    employee_signature = models.BooleanField(default=False, verbose_name="Firma del empleado")
+    employee_signature_date = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de firma empleado")
+    supervisor_signature = models.BooleanField(default=False, verbose_name="Firma del supervisor")
+    supervisor_signature_date = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de firma supervisor")
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Evaluación de Desempeño"
+        verbose_name_plural = "Evaluaciones de Desempeño"
+        db_table = 'payroll_performance_evaluation'
+        indexes = [
+            models.Index(fields=['employee', 'evaluation_type'], name='payroll_perf_eval_emp_type_idx'),
+            models.Index(fields=['status'], name='payroll_perf_eval_status_idx'),
+            models.Index(fields=['overall_rating'], name='payroll_perf_eval_rating_idx'),
+        ]
+    
+    def __str__(self):
+        return f"{self.employee.get_full_name()} - {self.get_evaluation_type_display()} ({self.evaluation_period_start})"
+    
+    def calculate_overall_rating(self):
+        """Calcula la calificación general promedio"""
+        ratings = [
+            self.job_knowledge, self.quality_of_work, self.quantity_of_work,
+            self.reliability, self.teamwork, self.communication,
+            self.initiative, self.leadership, self.attendance
+        ]
+        return sum(ratings) / len(ratings)
+
+
+# ============================================================================
+# MODELO PARA MATRIZ 9 BOXES
+# ============================================================================
+
+class NineBoxMatrix(models.Model):
+    """
+    Matriz 9 Boxes para gestión de talento
+    """
+    PERFORMANCE_LEVELS = [
+        ('low', 'Bajo'),
+        ('medium', 'Medio'),
+        ('high', 'Alto'),
+    ]
+    
+    POTENTIAL_LEVELS = [
+        ('low', 'Bajo'),
+        ('medium', 'Medio'),
+        ('high', 'Alto'),
+    ]
+    
+    BOX_CATEGORIES = [
+        ('1', 'Estrella Emergente'),
+        ('2', 'Alto Potencial'),
+        ('3', 'Líder Estratégico'),
+        ('4', 'Profesional Confiable'),
+        ('5', 'Profesional Estable'),
+        ('6', 'Profesional en Desarrollo'),
+        ('7', 'Profesional Especializado'),
+        ('8', 'Profesional Eficiente'),
+        ('9', 'Profesional Básico'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    employee = models.ForeignKey(PayrollEmployee, on_delete=models.CASCADE, related_name='nine_box_evaluations', verbose_name="Empleado")
+    evaluator = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name="Evaluador")
+    
+    # Evaluación
+    performance_level = models.CharField(max_length=10, choices=PERFORMANCE_LEVELS, verbose_name="Nivel de Desempeño")
+    potential_level = models.CharField(max_length=10, choices=POTENTIAL_LEVELS, verbose_name="Nivel de Potencial")
+    box_category = models.CharField(max_length=2, choices=BOX_CATEGORIES, verbose_name="Categoría 9 Boxes")
+    
+    # Métricas de evaluación
+    performance_score = models.DecimalField(max_digits=5, decimal_places=2, validators=[MinValueValidator(0), MaxValueValidator(100)], verbose_name="Score de Desempeño")
+    potential_score = models.DecimalField(max_digits=5, decimal_places=2, validators=[MinValueValidator(0), MaxValueValidator(100)], verbose_name="Score de Potencial")
+    
+    # Análisis detallado
+    performance_factors = models.JSONField(default=dict, verbose_name="Factores de Desempeño")
+    potential_factors = models.JSONField(default=dict, verbose_name="Factores de Potencial")
+    
+    # Recomendaciones
+    development_plan = models.TextField(blank=True, verbose_name="Plan de Desarrollo")
+    career_path = models.TextField(blank=True, verbose_name="Ruta de Carrera")
+    retention_risk = models.CharField(max_length=20, choices=[
+        ('low', 'Bajo'),
+        ('medium', 'Medio'),
+        ('high', 'Alto'),
+        ('critical', 'Crítico'),
+    ], verbose_name="Riesgo de Retención")
+    
+    # Acciones
+    recommended_actions = models.JSONField(default=list, verbose_name="Acciones Recomendadas")
+    timeline = models.CharField(max_length=50, blank=True, verbose_name="Timeline")
+    
+    # Seguimiento
+    next_review_date = models.DateField(null=True, blank=True, verbose_name="Próxima Revisión")
+    progress_notes = models.TextField(blank=True, verbose_name="Notas de Progreso")
+    
+    # Estado
+    is_active = models.BooleanField(default=True, verbose_name="Activo")
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Matriz 9 Boxes"
+        verbose_name_plural = "Matrices 9 Boxes"
+        db_table = 'payroll_nine_box_matrix'
+        indexes = [
+            models.Index(fields=['employee', 'box_category'], name='payroll_nine_box_emp_cat_idx'),
+            models.Index(fields=['performance_level', 'potential_level'], name='payroll_nine_box_perf_pot_idx'),
+            models.Index(fields=['retention_risk'], name='payroll_nine_box_retention_idx'),
+        ]
+    
+    def __str__(self):
+        return f"{self.employee.get_full_name()} - Box {self.box_category}"
+    
+    def get_box_description(self):
+        """Obtiene la descripción de la categoría del box"""
+        box_descriptions = {
+            '1': 'Alto desempeño, alto potencial. Futuros líderes estratégicos.',
+            '2': 'Alto desempeño, potencial medio. Líderes funcionales.',
+            '3': 'Alto desempeño, bajo potencial. Especialistas técnicos.',
+            '4': 'Desempeño medio, alto potencial. En desarrollo para liderazgo.',
+            '5': 'Desempeño medio, potencial medio. Profesionales estables.',
+            '6': 'Desempeño medio, bajo potencial. Necesita desarrollo.',
+            '7': 'Bajo desempeño, alto potencial. Requiere coaching.',
+            '8': 'Bajo desempeño, potencial medio. Necesita supervisión.',
+            '9': 'Bajo desempeño, bajo potencial. Requiere acción inmediata.',
+        }
+        return box_descriptions.get(self.box_category, 'Categoría no definida')
+    
+    def calculate_box_category(self):
+        """Calcula automáticamente la categoría del box basado en scores"""
+        if self.performance_score >= 80 and self.potential_score >= 80:
+            return '1'
+        elif self.performance_score >= 80 and 60 <= self.potential_score < 80:
+            return '2'
+        elif self.performance_score >= 80 and self.potential_score < 60:
+            return '3'
+        elif 60 <= self.performance_score < 80 and self.potential_score >= 80:
+            return '4'
+        elif 60 <= self.performance_score < 80 and 60 <= self.potential_score < 80:
+            return '5'
+        elif 60 <= self.performance_score < 80 and self.potential_score < 60:
+            return '6'
+        elif self.performance_score < 60 and self.potential_score >= 80:
+            return '7'
+        elif self.performance_score < 60 and 60 <= self.potential_score < 80:
+            return '8'
+        else:
+            return '9' 
+
+# ============================================================================
+# MODELO PARA PERMISOS ESPECIALES
+# ============================================================================
+
+class PermisoEspecial(models.Model):
+    """
+    Modelo para gestión de permisos especiales avanzados
+    """
+    PERMISO_TYPES = [
+        ('maternity', 'Maternidad'),
+        ('paternity', 'Paternidad'),
+        ('illness', 'Enfermedad Prolongada'),
+        ('home_office', 'Home Office'),
+        ('license', 'Licencia'),
+        ('promotion', 'Promoción'),
+        ('recognition', 'Reconocimiento'),
+        ('special_project', 'Proyecto Especial'),
+        ('training', 'Capacitación'),
+        ('other', 'Otro'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('draft', 'Borrador'),
+        ('pending', 'Pendiente'),
+        ('approved', 'Aprobado'),
+        ('rejected', 'Rechazado'),
+        ('cancelled', 'Cancelado'),
+        ('completed', 'Completado'),
+    ]
+    
+    PRIORITY_LEVELS = [
+        ('low', 'Baja'),
+        ('medium', 'Media'),
+        ('high', 'Alta'),
+        ('urgent', 'Urgente'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    employee = models.ForeignKey(PayrollEmployee, on_delete=models.CASCADE, related_name='permisos_especiales', verbose_name="Empleado")
+    
+    # Información del permiso
+    permiso_type = models.CharField(max_length=20, choices=PERMISO_TYPES, verbose_name="Tipo de Permiso")
+    title = models.CharField(max_length=200, verbose_name="Título del Permiso")
+    description = models.TextField(verbose_name="Descripción")
+    
+    # Fechas
+    start_date = models.DateField(verbose_name="Fecha de Inicio")
+    end_date = models.DateField(verbose_name="Fecha de Fin")
+    days_requested = models.IntegerField(verbose_name="Días Solicitados")
+    
+    # Estado y prioridad
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft', verbose_name="Estado")
+    priority = models.CharField(max_length=20, choices=PRIORITY_LEVELS, default='medium', verbose_name="Prioridad")
+    
+    # Detalles específicos por tipo
+    details = models.JSONField(default=dict, verbose_name="Detalles Específicos")
+    
+    # Documentación
+    supporting_documents = models.JSONField(default=list, verbose_name="Documentos de Apoyo")
+    medical_certificate = models.BooleanField(default=False, verbose_name="Certificado Médico")
+    legal_documentation = models.BooleanField(default=False, verbose_name="Documentación Legal")
+    
+    # Aprobación workflow
+    supervisor_approval = models.BooleanField(default=False, verbose_name="Aprobación Supervisor")
+    hr_approval = models.BooleanField(default=False, verbose_name="Aprobación RRHH")
+    management_approval = models.BooleanField(default=False, verbose_name="Aprobación Gerencia")
+    
+    # Usuarios que aprobaron
+    approved_by_supervisor = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='permisos_aprobados_supervisor',
+        verbose_name="Aprobado por Supervisor"
+    )
+    approved_by_hr = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='permisos_aprobados_hr',
+        verbose_name="Aprobado por RRHH"
+    )
+    approved_by_management = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='permisos_aprobados_management',
+        verbose_name="Aprobado por Gerencia"
+    )
+    
+    # Fechas de aprobación
+    supervisor_approval_date = models.DateTimeField(null=True, blank=True, verbose_name="Fecha Aprobación Supervisor")
+    hr_approval_date = models.DateTimeField(null=True, blank=True, verbose_name="Fecha Aprobación RRHH")
+    management_approval_date = models.DateTimeField(null=True, blank=True, verbose_name="Fecha Aprobación Gerencia")
+    
+    # Notas y comentarios
+    supervisor_notes = models.TextField(blank=True, verbose_name="Notas del Supervisor")
+    hr_notes = models.TextField(blank=True, verbose_name="Notas de RRHH")
+    management_notes = models.TextField(blank=True, verbose_name="Notas de Gerencia")
+    
+    # Impacto en nómina
+    salary_impact = models.JSONField(default=dict, verbose_name="Impacto en Salario")
+    benefits_impact = models.JSONField(default=dict, verbose_name="Impacto en Beneficios")
+    
+    # Notificaciones
+    notifications_sent = models.JSONField(default=list, verbose_name="Notificaciones Enviadas")
+    
+    # Metadatos
+    created_via = models.CharField(max_length=20, default='admin', verbose_name="Creado vía")
+    is_urgent = models.BooleanField(default=False, verbose_name="Urgente")
+    requires_immediate_attention = models.BooleanField(default=False, verbose_name="Requiere Atención Inmediata")
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Permiso Especial"
+        verbose_name_plural = "Permisos Especiales"
+        db_table = 'payroll_permiso_especial'
+        indexes = [
+            models.Index(fields=['employee', 'permiso_type'], name='payroll_permiso_emp_type_idx'),
+            models.Index(fields=['status'], name='payroll_permiso_status_idx'),
+            models.Index(fields=['priority'], name='payroll_permiso_priority_idx'),
+            models.Index(fields=['start_date', 'end_date'], name='payroll_permiso_dates_idx'),
+            models.Index(fields=['is_urgent'], name='payroll_permiso_urgent_idx'),
+        ]
+    
+    def __str__(self):
+        return f"{self.employee.get_full_name()} - {self.get_permiso_type_display()} ({self.start_date})"
+    
+    def get_approval_status(self):
+        """Obtiene el estado de aprobación completo"""
+        if self.status == 'draft':
+            return 'Borrador'
+        elif self.status == 'pending':
+            if not self.supervisor_approval:
+                return 'Pendiente Supervisor'
+            elif not self.hr_approval:
+                return 'Pendiente RRHH'
+            elif not self.management_approval:
+                return 'Pendiente Gerencia'
+            else:
+                return 'Pendiente Final'
+        elif self.status == 'approved':
+            return 'Aprobado'
+        elif self.status == 'rejected':
+            return 'Rechazado'
+        elif self.status == 'cancelled':
+            return 'Cancelado'
+        elif self.status == 'completed':
+            return 'Completado'
+        return 'Desconocido'
+    
+    def can_approve(self, user):
+        """Verifica si un usuario puede aprobar este permiso"""
+        if not self.supervisor_approval and user == self.employee.supervisor:
+            return True
+        elif self.supervisor_approval and not self.hr_approval and user.has_perm('payroll.can_approve_hr'):
+            return True
+        elif self.hr_approval and not self.management_approval and user.has_perm('payroll.can_approve_management'):
+            return True
+        return False
+    
+    def approve(self, user):
+        """Aprueba el permiso por el usuario especificado"""
+        if user == self.employee.supervisor and not self.supervisor_approval:
+            self.supervisor_approval = True
+            self.approved_by_supervisor = user
+            self.supervisor_approval_date = timezone.now()
+        elif user.has_perm('payroll.can_approve_hr') and not self.hr_approval:
+            self.hr_approval = True
+            self.approved_by_hr = user
+            self.hr_approval_date = timezone.now()
+        elif user.has_perm('payroll.can_approve_management') and not self.management_approval:
+            self.management_approval = True
+            self.approved_by_management = user
+            self.management_approval_date = timezone.now()
+        
+        # Si todas las aprobaciones están completas, cambiar estado
+        if self.supervisor_approval and self.hr_approval and self.management_approval:
+            self.status = 'approved'
+        
+        self.save()
+    
+    def reject(self, user, reason=""):
+        """Rechaza el permiso"""
+        self.status = 'rejected'
+        if user == self.employee.supervisor:
+            self.supervisor_notes = reason
+        elif user.has_perm('payroll.can_approve_hr'):
+            self.hr_notes = reason
+        elif user.has_perm('payroll.can_approve_management'):
+            self.management_notes = reason
+        self.save()
+    
+    def get_days_remaining(self):
+        """Calcula los días restantes del permiso"""
+        today = timezone.now().date()
+        if today > self.end_date:
+            return 0
+        return (self.end_date - today).days
+    
+    def is_active(self):
+        """Verifica si el permiso está activo"""
+        today = timezone.now().date()
+        return self.start_date <= today <= self.end_date and self.status == 'approved'
+    
+    def get_impact_summary(self):
+        """Obtiene un resumen del impacto del permiso"""
+        return {
+            'salary_impact': self.salary_impact,
+            'benefits_impact': self.benefits_impact,
+            'days_remaining': self.get_days_remaining(),
+            'is_active': self.is_active(),
+            'approval_status': self.get_approval_status()
+        }

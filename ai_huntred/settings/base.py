@@ -67,6 +67,7 @@ INSTALLED_APPS = [
     'app.apps.AppConfig',  # Incluye todos los modelos incluyendo sexsi
     'app.ats.pricing.apps.PricingConfig',  # Módulo de precios y propuestas
     'app.ats.publish.apps.PublishConfig',  # Módulo de publicación estratégica
+    'app.payroll.apps.PayrollConfig',  # Sistema de nómina huntRED®
     
     # Celery apps (deben ir al final)
     'django_celery_results',

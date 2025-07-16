@@ -17,10 +17,15 @@ from .models import (
     AttendanceRecord, EmployeeRequest, MLAttendanceModel, TaxTable, UMARegistry,
     TaxUpdateLog, TaxValidationLog,
     OverheadCategory, EmployeeOverheadCalculation, TeamOverheadAnalysis,
-    OverheadMLModel, OverheadBenchmark
+    OverheadMLModel, OverheadBenchmark, EmployeeShift, ShiftChangeRequest,
+    PayrollFeedback, PerformanceEvaluation, NineBoxMatrix
 )
 from .services.ml_attendance_service import MLAttendanceService
 from .services.payroll_engine import PayrollEngine
+from app.payroll.models import PermisoEspecial
+from app.payroll.admin_permissions import PermisoEspecialAdmin
+from app.payroll.admin_shift_dashboard import ShiftDashboardAdmin
+from app.payroll.models import EmployeeShift
 
 logger = logging.getLogger(__name__)
 
@@ -1293,3 +1298,326 @@ class Media:
         'all': ('admin/css/payroll_admin.css',)
     }
     js = ('admin/js/payroll_admin.js',) 
+
+# ============================================================================
+# ADMIN PARA GESTIÓN DE TURNOS Y HORARIOS
+# ============================================================================
+
+# @admin.register(EmployeeShift)  # Comentado para evitar registro duplicado
+# class EmployeeShiftAdmin(admin.ModelAdmin):
+#     """Admin para gestión de turnos de empleados"""
+#     
+#     list_display = [
+#         'employee_name', 'shift_name', 'shift_type', 'schedule_display', 
+#         'location_display', 'status', 'effective_date'
+#     ]
+#     list_filter = [
+#         'shift_type', 'status', 'effective_date', 'employee__department',
+#         'is_location_variable'
+#     ]
+#     search_fields = [
+#         'employee__first_name', 'employee__last_name', 'employee__employee_number',
+#         'shift_name'
+#     ]
+#     readonly_fields = [
+#         'id', 'created_at', 'updated_at', 'approval_date'
+#     ]
+#     
+#     fieldsets = (
+#         ('Información del Empleado', {
+#             'fields': ('employee',)
+#         }),
+#         ('Configuración del Turno', {
+#             'fields': (
+#                 'shift_name', 'shift_type', 'status',
+#                 'start_time', 'end_time', 'break_start', 'break_end'
+#             )
+#         }),
+#         ('Días y Horas', {
+#             'fields': ('work_days', 'hours_per_day', 'overtime_threshold')
+#         }),
+#         ('Ubicación', {
+#             'fields': ('location', 'is_location_variable')
+#         }),
+#         ('Fechas', {
+#             'fields': ('effective_date', 'end_date')
+#         }),
+#         ('Aprobación', {
+#             'fields': ('approved_by', 'approval_date', 'notes'),
+#             'classes': ('collapse',)
+#         }),
+#         ('Metadatos', {
+#             'fields': ('created_at', 'updated_at'),
+#             'classes': ('collapse',)
+#         })
+#     )
+#     
+#     def employee_name(self, obj):
+#         return obj.employee.get_full_name()
+#     employee_name.short_description = "Empleado"
+#     
+#     def schedule_display(self, obj):
+#         return f"{obj.start_time.strftime('%H:%M')} - {obj.end_time.strftime('%H:%M')}"
+#     schedule_display.short_description = "Horario"
+#     
+#     def location_display(self, obj):
+#         if obj.location and obj.location.get('name'):
+#             return obj.location['name']
+#         return "No especificada"
+#     location_display.short_description = "Ubicación"
+
+
+@admin.register(ShiftChangeRequest)
+class ShiftChangeRequestAdmin(admin.ModelAdmin):
+    """Admin para solicitudes de cambio de turno"""
+    
+    list_display = [
+        'employee_name', 'request_type', 'period_display', 
+        'requested_shift', 'status', 'created_at'
+    ]
+    list_filter = [
+        'request_type', 'status', 'created_at', 'employee__department'
+    ]
+    search_fields = [
+        'employee__first_name', 'employee__last_name', 'employee__employee_number',
+        'reason'
+    ]
+    readonly_fields = [
+        'id', 'created_at', 'updated_at'
+    ]
+    
+    fieldsets = (
+        ('Información de la Solicitud', {
+            'fields': (
+                'employee', 'request_type', 'status',
+                'start_date', 'end_date', 'requested_shift'
+            )
+        }),
+        ('Detalles', {
+            'fields': ('reason', 'emergency_details')
+        }),
+        ('Aprobación', {
+            'fields': ('approved_by', 'approval_date', 'approval_notes')
+        }),
+        ('Metadatos', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        })
+    )
+    
+    def employee_name(self, obj):
+        return obj.employee.get_full_name()
+    employee_name.short_description = "Empleado"
+    
+    def period_display(self, obj):
+        return f"{obj.start_date.strftime('%d/%m/%Y')} - {obj.end_date.strftime('%d/%m/%Y')}"
+    period_display.short_description = "Período"
+
+
+# ============================================================================
+# ADMIN PARA FEEDBACK DE PAYROLL
+# ============================================================================
+
+@admin.register(PayrollFeedback)
+class PayrollFeedbackAdmin(admin.ModelAdmin):
+    """Admin para feedback de nómina"""
+    
+    list_display = [
+        'employee_name', 'feedback_type', 'subject', 'priority', 
+        'is_resolved', 'created_at', 'response_status'
+    ]
+    list_filter = [
+        'feedback_type', 'priority', 'is_resolved', 'created_at',
+        'employee__department', 'send_to_supervisor', 'send_to_hr'
+    ]
+    search_fields = [
+        'employee__first_name', 'employee__last_name', 'subject', 'message'
+    ]
+    readonly_fields = [
+        'id', 'created_at', 'updated_at', 'response_date'
+    ]
+    
+    fieldsets = (
+        ('Información del Empleado', {
+            'fields': ('employee',)
+        }),
+        ('Feedback', {
+            'fields': (
+                'feedback_type', 'priority', 'subject', 'message',
+                'is_anonymous'
+            )
+        }),
+        ('Destinatarios', {
+            'fields': ('send_to_supervisor', 'send_to_hr')
+        }),
+        ('Estado', {
+            'fields': ('is_resolved', 'resolution_notes')
+        }),
+        ('Respuesta', {
+            'fields': (
+                'response_message', 'responded_by', 'response_date'
+            )
+        }),
+        ('Metadatos', {
+            'fields': ('created_via', 'created_at', 'updated_at'),
+            'classes': ('collapse',)
+        })
+    )
+    
+    def employee_name(self, obj):
+        return obj.employee.get_full_name()
+    employee_name.short_description = "Empleado"
+    
+    def response_status(self, obj):
+        if obj.is_resolved:
+            return "✅ Resuelto"
+        elif obj.response_message:
+            return "🔄 En proceso"
+        else:
+            return "⏳ Pendiente"
+    response_status.short_description = "Estado"
+
+
+@admin.register(PerformanceEvaluation)
+class PerformanceEvaluationAdmin(admin.ModelAdmin):
+    """Admin para evaluaciones de desempeño"""
+    
+    list_display = [
+        'employee_name', 'evaluation_type', 'period_display', 
+        'overall_rating', 'status', 'evaluator_name'
+    ]
+    list_filter = [
+        'evaluation_type', 'status', 'evaluation_period_start',
+        'employee__department', 'overall_rating'
+    ]
+    search_fields = [
+        'employee__first_name', 'employee__last_name', 'evaluator__username'
+    ]
+    readonly_fields = [
+        'id', 'created_at', 'updated_at'
+    ]
+    
+    fieldsets = (
+        ('Información General', {
+            'fields': (
+                'employee', 'evaluator', 'evaluation_type',
+                'evaluation_period_start', 'evaluation_period_end', 'status'
+            )
+        }),
+        ('Calificaciones', {
+            'fields': (
+                'job_knowledge', 'quality_of_work', 'quantity_of_work',
+                'reliability', 'teamwork', 'communication',
+                'initiative', 'leadership', 'attendance', 'overall_rating'
+            )
+        }),
+        ('Comentarios', {
+            'fields': (
+                'strengths', 'areas_for_improvement', 'goals', 'comments'
+            )
+        }),
+        ('Aprobación', {
+            'fields': (
+                'employee_signature', 'employee_signature_date',
+                'supervisor_signature', 'supervisor_signature_date'
+            )
+        }),
+        ('Metadatos', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        })
+    )
+    
+    def employee_name(self, obj):
+        return obj.employee.get_full_name()
+    employee_name.short_description = "Empleado"
+    
+    def period_display(self, obj):
+        return f"{obj.evaluation_period_start.strftime('%d/%m/%Y')} - {obj.evaluation_period_end.strftime('%d/%m/%Y')}"
+    period_display.short_description = "Período"
+    
+    def evaluator_name(self, obj):
+        return obj.evaluator.get_full_name()
+    evaluator_name.short_description = "Evaluador"
+
+
+# ============================================================================
+# ADMIN PARA MATRIZ 9 BOXES
+# ============================================================================
+
+@admin.register(NineBoxMatrix)
+class NineBoxMatrixAdmin(admin.ModelAdmin):
+    """Admin para matriz 9 boxes"""
+    
+    list_display = [
+        'employee_name', 'box_category', 'box_description_display',
+        'performance_score', 'potential_score', 'retention_risk',
+        'evaluator_name', 'is_active'
+    ]
+    list_filter = [
+        'box_category', 'performance_level', 'potential_level',
+        'retention_risk', 'is_active', 'created_at'
+    ]
+    search_fields = [
+        'employee__first_name', 'employee__last_name', 'evaluator__username'
+    ]
+    readonly_fields = [
+        'id', 'created_at', 'updated_at'
+    ]
+    
+    fieldsets = (
+        ('Información General', {
+            'fields': (
+                'employee', 'evaluator', 'is_active'
+            )
+        }),
+        ('Evaluación', {
+            'fields': (
+                'performance_level', 'potential_level', 'box_category',
+                'performance_score', 'potential_score'
+            )
+        }),
+        ('Análisis Detallado', {
+            'fields': (
+                'performance_factors', 'potential_factors'
+            ),
+            'classes': ('collapse',)
+        }),
+        ('Recomendaciones', {
+            'fields': (
+                'development_plan', 'career_path', 'retention_risk',
+                'recommended_actions', 'timeline'
+            )
+        }),
+        ('Seguimiento', {
+            'fields': (
+                'next_review_date', 'progress_notes'
+            )
+        }),
+        ('Metadatos', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        })
+    )
+    
+    def employee_name(self, obj):
+        return obj.employee.get_full_name()
+    employee_name.short_description = "Empleado"
+    
+    def box_description_display(self, obj):
+        return obj.get_box_description()
+    box_description_display.short_description = "Descripción del Box"
+    
+    def evaluator_name(self, obj):
+        return obj.evaluator.get_full_name()
+    evaluator_name.short_description = "Evaluador"
+    
+    def get_queryset(self, request):
+        """Optimizar consultas"""
+        return super().get_queryset(request).select_related(
+            'employee', 'evaluator'
+        ) 
+
+# admin.site.register(PermisoEspecial, PermisoEspecialAdmin)  # Comentado para evitar registro duplicado
+# admin.site.unregister(EmployeeShift)  # Comentado para evitar registro duplicado
+# admin.site.register(EmployeeShift, ShiftDashboardAdmin)  # Comentado para evitar registro duplicado 

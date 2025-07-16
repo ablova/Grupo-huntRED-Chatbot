@@ -3,14 +3,14 @@ Motor de Cálculo de Nómina huntRED®
 Cálculos precisos con compliance México 2024
 """
 from decimal import Decimal, ROUND_HALF_UP
-from typing import Dict, List, Optional, Any, TYPE_CHECKING, Union
+from typing import Dict, List, Optional, Any, TYPE_CHECKING, Union, Tuple
 import logging
 
 from django.utils import timezone
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
 
-from ..services.tax_provider import TaxProviderFactory
+from .tax_providers.base import TaxProviderFactory
 
 logger = logging.getLogger(__name__)
 
