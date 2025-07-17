@@ -1,21 +1,38 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import React, { Suspense, lazy } from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
+
+// Providers
+import { AuthProvider } from '@/features/auth/hooks/useAuth';
+
+// Componentes de UI
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 // Layouts
-import MainLayout from '../layouts/MainLayout';
+import { MainLayout } from '@/layouts/MainLayout';
 
-// Páginas Principales
-import HomePage from '../pages/HomePage';
-import RecruitmentPage from '../pages/recruitment/RecruitmentPage';
+// Páginas públicas
+import Index from '../pages/Index';
 import AIServicesPage from '../pages/ai/AIServicesPage';
-import PayrollPage from '../pages/payroll/PayrollPage';
-import AssessmentsPage from '../pages/assessments/AssessmentsPage';
+import GenIAPage from '../pages/ai/GenIAPage';
+import AURAPage from '../pages/ai/AURAPage';
+import PlataformaPage from '../pages/PlataformaPage';
+import LaboratorioPage from '../pages/LaboratorioPage';
+import CalculadoraPage from '../pages/CalculadoraPage';
 
-// Sub-páginas de Reclutamiento (servicios más rentables)
-import ExecutivePage from '../pages/recruitment/ExecutivePage';
-import HuntredPage from '../pages/recruitment/HuntredPage';
-import HuntUPage from '../pages/recruitment/HuntUPage';
-import AmigroPage from '../pages/recruitment/AmigroPage';
+// Páginas de autenticación
+const LoginPage = lazy(() => import('@/features/auth/pages/LoginPage'));
+const ForgotPasswordPage = lazy(() => import('@/features/auth/pages/ForgotPasswordPage'));
+const ResetPasswordPage = lazy(() => import('@/features/auth/pages/ResetPasswordPage'));
+
+// Panel de administración (carga perezosa)
+const AdminRoutes = lazy(() => import('@/admin/routes'));
+
+// Componente de carga
+const Loading = () => (
+  <div className="flex items-center justify-center min-h-screen">
+    <LoadingSpinner className="w-12 h-12 text-blue-600" />
+  </div>
+);
 
 /**
  * Componente principal de rutas de la aplicación
@@ -23,37 +40,69 @@ import AmigroPage from '../pages/recruitment/AmigroPage';
  */
 const AppRoutes: React.FC = () => {
   return (
-    <Router>
+    <AuthProvider>
       <Routes>
-        {/* Home */}
-        <Route path="/" element={<MainLayout><HomePage /></MainLayout>} />
+        {/* Rutas públicas */}
+        <Route path="/" element={<MainLayout />}>
+          <Route index element={<Index />} />
+          <Route path="ai-services" element={<AIServicesPage />} />
+          <Route path="ai-services/genia" element={<GenIAPage />} />
+          <Route path="ai-services/aura" element={<AURAPage />} />
+          <Route path="plataforma" element={<PlataformaPage />} />
+          <Route path="laboratorio" element={<LaboratorioPage />} />
+          <Route path="calculadora" element={<CalculadoraPage />} />
+          
+          {/* Rutas de autenticación */}
+          <Route path="login" element={
+            <Suspense fallback={<Loading />}>
+              <LoginPage />
+            </Suspense>
+          } />
+          
+          <Route path="forgot-password" element={
+            <Suspense fallback={<Loading />}>
+              <ForgotPasswordPage />
+            </Suspense>
+          } />
+          
+          <Route path="reset-password/:uid/:token" element={
+            <Suspense fallback={<Loading />}>
+              <ResetPasswordPage />
+            </Suspense>
+          } />
+        </Route>
         
-        {/* Reclutamiento (Servicio más rentable) */}
-        <Route path="/recruitment" element={<MainLayout><RecruitmentPage /></MainLayout>} />
-        <Route path="/recruitment/executive" element={<MainLayout><ExecutivePage /></MainLayout>} />
-        <Route path="/recruitment/huntred" element={<MainLayout><HuntredPage /></MainLayout>} />
-        <Route path="/recruitment/huntu" element={<MainLayout><HuntUPage /></MainLayout>} />
-        <Route path="/recruitment/amigro" element={<MainLayout><AmigroPage /></MainLayout>} />
+        {/* Rutas protegidas */}
+        <Route path="/admin/*" element={
+          <Suspense fallback={<Loading />}>
+            <ProtectedRoute>
+              <AdminRoutes />
+            </ProtectedRoute>
+          </Suspense>
+        } />
         
-        {/* Servicios de IA - Ecosistema Completo */}
-        <Route path="/ai-services" element={<MainLayout><AIServicesPage /></MainLayout>} />
-        <Route path="/ai-services/genia" element={<MainLayout><GenIAPage /></MainLayout>} />
-        <Route path="/ai-services/aura" element={<MainLayout><AURAPage /></MainLayout>} />
-        <Route path="/ai-services/talent-matching" element={<MainLayout><TalentMatchingPage /></MainLayout>} />
-        <Route path="/ai-services/skill-mapping" element={<MainLayout><SkillMappingPage /></MainLayout>} />
-        <Route path="/ai-services/career-path" element={<MainLayout><CareerPathPage /></MainLayout>} />
-        
-        {/* Administración de Nómina con IA */}
-        <Route path="/payroll" element={<MainLayout><PayrollPage /></MainLayout>} />
-        
-        {/* Assessments */}
-        <Route path="/assessments" element={<MainLayout><AssessmentsPage /></MainLayout>} />
-        
-        {/* Redirección de rutas no encontradas */}
+        {/* Ruta para páginas no encontradas */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </Router>
+    </AuthProvider>
   );
 };
+
+// Componente para proteger rutas
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isLoading } = useAuth();
+  const location = useLocation();
+
+  if (isLoading) {
+    return <Loading />;
+  }
+
+  if (!isAuthenticated) {
+    // Redirigir al login, guardando la ubicación actual
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  return <>{children}</>;
+}
 
 export default AppRoutes;

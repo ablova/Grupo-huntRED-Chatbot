@@ -16,7 +16,7 @@ const HeroSection = () => {
       cta: "Ver Metodología Integral",
       image: "https://images.unsplash.com/photo-1552664730-d307ca884978?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80",
       icon: Layers,
-      color: "from-huntred-primary via-tech-purple to-tech-blue",
+      color: "bg-gradient-to-r from-blue-600 to-blue-400",
       particles: true,
       type: "default"
     },
@@ -27,7 +27,7 @@ const HeroSection = () => {
       cta: "Ver Dashboard",
       image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80",
       icon: BarChart3,
-      color: "from-tech-blue via-tech-cyan to-tech-purple",
+      color: "bg-gradient-blue-dark-light",
       particles: true,
       type: "dashboard"
     },
@@ -38,7 +38,7 @@ const HeroSection = () => {
       cta: "Ver Plataforma Completa",
       image: "https://images.unsplash.com/photo-1557804506-669a67965ba0?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80",
       icon: Target,
-      color: "from-huntred-primary via-tech-purple to-tech-blue",
+      color: "bg-gradient-cyan-blue",
       particles: true,
       type: "cards"
     },

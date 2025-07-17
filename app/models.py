@@ -4670,7 +4670,7 @@ class Application(models.Model):
     notas = models.TextField(blank=True)
     
     # Campos necesarios para el formulario (agregados)
-    user = models.ForeignKey('accounts.CustomUser', on_delete=models.CASCADE, null=True, blank=True, related_name='applications')
+    user = models.ForeignKey('ats_accounts.CustomUser', on_delete=models.CASCADE, null=True, blank=True, related_name='applications')
     vacancy = models.ForeignKey('Vacante', on_delete=models.CASCADE, null=True, blank=True, related_name='applications')
     status = models.CharField(max_length=20, null=True, blank=True)
     notes = models.TextField(blank=True, null=True)
@@ -4689,25 +4689,7 @@ class Application(models.Model):
     def __str__(self):
         return f"Aplicación de {self.candidato} a {self.oportunidad}"
 
-class PaymentMilestone(models.Model):
-    """Modelo para gestionar hitos de pago."""
-    contrato = models.ForeignKey(Contrato, on_delete=models.CASCADE)
-    descripcion = models.CharField(max_length=200)
-    monto = models.DecimalField(max_digits=10, decimal_places=2)
-    fecha_vencimiento = models.DateField()
-    trigger_event = models.CharField(max_length=50, choices=TRIGGER_EVENT_CHOICES)
-    status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='PENDING')
-    fecha_pago = models.DateField(null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        verbose_name = "Hito de Pago"
-        verbose_name_plural = "Hitos de Pago"
-        ordering = ['fecha_vencimiento']
-
-    def __str__(self):
-        return f"Hito de pago: {self.descripcion} - {self.contrato}"
+# PaymentMilestone duplicado eliminado - ya existe en línea 3574
 
 class WeightingModel(models.Model):
     """Modelo para gestionar modelos de ponderación de candidatos."""
@@ -7552,45 +7534,7 @@ class INCODEVerification(models.Model):
 # MODELOS DE FEEDBACK COMPLETO
 # ============================================================================
 
-class Interview(models.Model):
-    """Entrevista de candidato."""
-    INTERVIEW_TYPES = [
-        ('phone_screen', 'Preselección telefónica'),
-        ('technical', 'Entrevista técnica'),
-        ('behavioral', 'Entrevista conductual'),
-        ('cultural', 'Entrevista cultural'),
-        ('final', 'Entrevista final'),
-        ('panel', 'Entrevista panel'),
-        ('case_study', 'Estudio de caso'),
-        ('coding', 'Prueba de programación'),
-        ('presentation', 'Presentación'),
-    ]
-    
-    STATUS_CHOICES = [
-        ('scheduled', 'Programada'),
-        ('in_progress', 'En progreso'),
-        ('completed', 'Completada'),
-        ('cancelled', 'Cancelada'),
-        ('no_show', 'No se presentó'),
-    ]
-    
-    candidate = models.ForeignKey('Person', on_delete=models.CASCADE, related_name='interviews')
-    job = models.ForeignKey('Vacante', on_delete=models.CASCADE, related_name='interviews')
-    interviewer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='interviews_conducted')
-    interview_type = models.CharField(max_length=20, choices=INTERVIEW_TYPES)
-    scheduled_date = models.DateTimeField()
-    duration = models.IntegerField(help_text='Duración en minutos')
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='scheduled')
-    location = models.CharField(max_length=200, blank=True)
-    notes = models.TextField(blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    class Meta:
-        ordering = ['-scheduled_date']
-    
-    def __str__(self):
-        return f"Entrevista {self.candidate.nombre} - {self.job.titulo}"
+# Interview duplicado eliminado - ya existe en línea 4848
 
 class InterviewFeedback(models.Model):
     """Feedback detallado de una entrevista."""

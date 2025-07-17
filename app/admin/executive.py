@@ -3,10 +3,11 @@ Admin para huntRED® Executive.
 """
 
 from django.contrib import admin
-from app.models import *
+from app.models import BusinessUnit, Vacante
 
-@admin.register(ExecutiveProfile)
-class ExecutiveProfileAdmin(admin.ModelAdmin):
-    list_display = ['name', 'position', 'company', 'experience_years']
-    list_filter = ['experience_years', 'created_at']
-    search_fields = ['name', 'position', 'company']
+@admin.register(BusinessUnit)
+class ExecutiveBusinessUnitAdmin(admin.ModelAdmin):
+    list_display = ['name', 'code', 'active', 'created_at']
+    list_filter = ['active', 'created_at']
+    search_fields = ['name', 'code']
+    readonly_fields = ['created_at', 'updated_at']

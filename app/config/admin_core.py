@@ -93,15 +93,13 @@ class ApplicationAdmin(BaseModelAdmin):
 class VacanteAdmin(BaseModelAdmin):
     """Admin para gestión de vacantes"""
     list_display = (
-        'title', 'business_unit', 'status', 'salary_range',
-        'applications_count', 'created_at', 'last_updated'
+        'titulo', 'empresa', 'ubicacion', 'modalidad', 'activa', 'business_unit', 'fecha_publicacion', 'url_original'
     )
     list_filter = (
-        'status', 'business_unit', 'salary_range',
-        'created_at', 'last_updated'
+        'activa', 'modalidad', 'business_unit', 'fecha_publicacion'
     )
-    search_fields = ('title', 'description')
-    readonly_fields = ('created_at', 'last_updated')
+    search_fields = ('titulo', 'empresa__name', 'ubicacion', 'descripcion')
+    readonly_fields = ('fecha_scraping',)
     
     def applications_count(self, obj):
         """Contando número de aplicaciones para esta vacante"""

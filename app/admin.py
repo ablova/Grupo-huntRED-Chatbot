@@ -252,7 +252,8 @@ class VacanteAdmin(admin.ModelAdmin):
     list_display = ('titulo', 'empresa', 'ubicacion', 'modalidad', 'activa', 'business_unit', 'fecha_publicacion', 'url_original')
     search_fields = ('titulo', 'empresa', 'ubicacion')
     list_filter = ('activa', 'modalidad', 'dominio_origen', 'business_unit')
-    actions = ['toggle_activa_status', 'change_business_unit', 'enrich_with_gpt']
+    readonly_fields = ('fecha_scraping',)
+    autocomplete_fields = ['business_unit', 'empresa']
 
     fieldsets = (
         (None, {
@@ -1132,7 +1133,8 @@ class BusinessUnitAdmin(admin.ModelAdmin):
         }
         js = ('admin/js/business_unit_admin.js',)
 
-admin.site.register(BusinessUnit, BusinessUnitAdmin)
+# Comentado para evitar conflicto con app/admin/business_unit.py
+# admin.site.register(BusinessUnit, BusinessUnitAdmin)
 
 class MessageLogAdmin(admin.ModelAdmin):
     list_display = ('id', 'business_unit', 'channel', 'template_name', 'message_type', 'status', 'meta_cost', 'sent_at')

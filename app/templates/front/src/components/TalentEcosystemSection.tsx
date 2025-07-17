@@ -11,7 +11,7 @@ const TalentEcosystemSection = () => {
       id: 'identify',
       title: 'Identifica',
       icon: Search,
-      color: 'from-tech-blue to-tech-cyan',
+      color: 'bg-gradient-blue-dark-light',
       description: 'Descubre talento oculto y potencial no explorado',
       details: 'Utiliza IA avanzada para identificar candidatos perfectos basándose en skills, potencial y fit cultural.',
       assistant: 'GenIA',
@@ -21,7 +21,7 @@ const TalentEcosystemSection = () => {
       id: 'know',
       title: 'Conoce',
       icon: Brain,
-      color: 'from-tech-cyan to-tech-purple',
+      color: 'bg-gradient-cyan-blue',
       description: 'Comprende profundamente a cada persona',
       details: 'Análisis 360° de competencias, motivaciones, aspiraciones y estilo de trabajo único.',
       assistant: 'AURA',
@@ -31,7 +31,7 @@ const TalentEcosystemSection = () => {
       id: 'motivate',
       title: 'Motiva',
       icon: Heart,
-      color: 'from-tech-purple to-tech-red',
+      color: 'bg-gradient-blue-red',
       description: 'Impulsa el engagement y la pasión',
       details: 'Estrategias personalizadas de motivación basadas en perfiles psicológicos y objetivos individuales.',
       assistant: 'GenIA + AURA',
@@ -41,7 +41,7 @@ const TalentEcosystemSection = () => {
       id: 'train',
       title: 'Capacita',
       icon: GraduationCap,
-      color: 'from-tech-red to-huntred-primary',
+      color: 'bg-gradient-red-green',
       description: 'Desarrolla habilidades específicas',
       details: 'Rutas de aprendizaje personalizadas con contenido adaptativo y evaluación continua.',
       assistant: 'AURA',
@@ -51,7 +51,7 @@ const TalentEcosystemSection = () => {
       id: 'recruit',
       title: 'Recluta',
       icon: Users,
-      color: 'from-huntred-primary to-tech-blue',
+      color: 'bg-gradient-blue-green',
       description: 'Conecta talento con oportunidades',
       details: 'Matchmaking inteligente que considera skills, cultura, potencial de crecimiento y aspiraciones.',
       assistant: 'GenIA',
@@ -61,7 +61,7 @@ const TalentEcosystemSection = () => {
       id: 'grow',
       title: 'Desarrolla',
       icon: TrendingUp,
-      color: 'from-tech-blue to-tech-cyan',
+      color: 'bg-gradient-blue-dark-light',
       description: 'Acelera el crecimiento profesional',
       details: 'Planes de carrera dinámicos con mentoría IA y oportunidades de crecimiento personalizadas.',
       assistant: 'AURA',
@@ -114,7 +114,7 @@ const TalentEcosystemSection = () => {
           </div>
           
           <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6">
-            <span className="bg-gradient-to-r from-huntred-primary to-tech-blue bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent">
               Ciclo Virtuoso
             </span>
             <br />
@@ -140,7 +140,7 @@ const TalentEcosystemSection = () => {
         <div className="relative max-w-6xl mx-auto">
           {/* Central Hub */}
           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20">
-            <div className="w-32 h-32 rounded-full bg-gradient-to-r from-huntred-primary to-tech-blue glass border-4 border-white/20 flex items-center justify-center animate-pulse-slow">
+            <div className="w-32 h-32 rounded-full bg-gradient-to-r from-blue-600 to-blue-400 glass border-4 border-white/20 flex items-center justify-center animate-pulse-slow">
               <div className="text-center">
                 <Brain className="h-8 w-8 text-white mx-auto mb-1" />
                 <span className="text-xs font-bold text-white">huntRED®</span>
@@ -258,7 +258,7 @@ const TalentEcosystemSection = () => {
 
         {/* Call to Action */}
         <div className="text-center mt-16">
-          <Button size="lg" className="bg-gradient-to-r from-huntred-primary to-tech-blue hover:opacity-90 text-white px-8 py-4">
+          <Button size="lg" className="bg-gradient-to-r from-blue-600 to-blue-400 hover:opacity-90 text-white px-8 py-4">
             <Brain className="mr-2 h-5 w-5" />
             Comenzar Transformación
           </Button>

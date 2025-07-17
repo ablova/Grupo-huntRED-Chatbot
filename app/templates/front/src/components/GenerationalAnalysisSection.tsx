@@ -46,7 +46,7 @@ const GenerationalAnalysisSection = () => {
       id: 'gen-x',
       name: 'Gen X',
       range: '1965-1980',
-      color: 'from-huntred-primary to-tech-blue',
+      color: 'from-tech-cyan to-tech-purple',
       icon: Target,
       population: '24%',
       traits: ['Independent', 'Pragmatic', 'Balanced', 'Results-Focused']
@@ -55,7 +55,7 @@ const GenerationalAnalysisSection = () => {
       id: 'boomer',
       name: 'Baby Boomer',
       range: '1946-1964',
-      color: 'from-tech-red to-huntred-primary',
+      color: 'from-tech-purple to-tech-blue',
       icon: Award,
       population: '6%',
       traits: ['Experienced', 'Loyal', 'Hierarchical', 'Stable']
@@ -68,7 +68,7 @@ const GenerationalAnalysisSection = () => {
         { name: 'Crecimiento Profesional', value: 92, color: 'tech-blue' },
         { name: 'Propósito y Significado', value: 88, color: 'tech-purple' },
         { name: 'Work-Life Balance', value: 85, color: 'tech-cyan' },
-        { name: 'Flexibilidad', value: 81, color: 'huntred-primary' }
+        { name: 'Flexibilidad', value: 81, color: 'tech-blue' }
       ],
       interests: [
         { name: 'Tecnología', percentage: 76 },
@@ -94,7 +94,7 @@ const GenerationalAnalysisSection = () => {
         { name: 'Impacto Social', value: 94, color: 'tech-purple' },
         { name: 'Flexibilidad Total', value: 91, color: 'tech-cyan' },
         { name: 'Aprendizaje Continuo', value: 87, color: 'tech-blue' },
-        { name: 'Autenticidad', value: 84, color: 'huntred-primary' }
+        { name: 'Autenticidad', value: 84, color: 'tech-purple' }
       ],
       interests: [
         { name: 'Emprendimiento', percentage: 82 },

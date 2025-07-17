@@ -112,4 +112,5 @@ class BusinessUnitAdmin(admin.ModelAdmin):
             pass
         return response
 
-admin.site.register(BusinessUnit, BusinessUnitAdmin)
+# Comentado para evitar conflicto con app/admin/business_unit.py
+# admin.site.register(BusinessUnit, BusinessUnitAdmin)

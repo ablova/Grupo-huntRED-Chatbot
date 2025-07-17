@@ -6,19 +6,36 @@ from django.utils.translation import gettext_lazy as _
 from django.urls import reverse
 from django.http import HttpResponseRedirect
 from django.contrib import messages
-from app.models import (
-    BusinessUnit, 
-    ConfiguracionBU, 
-    WhatsAppAPIInline, 
-    MessengerAPIInline, 
-    TelegramAPIInline, 
-    InstagramAPIInline, 
-    DominioScrapingInline, 
-    ConfiguracionBUInline
-)
+from app.models import BusinessUnit, ConfiguracionBU
+# Los inlines se definen localmente con model=None para evitar errores
 from .mixins import AdminMixin, AuditMixin, ValidationMixin
 
 from django import forms
+
+# Definir los inlines localmente para evitar importación circular
+class WhatsAppAPIInline(admin.TabularInline):
+    model = None  # Se definirá cuando se resuelva la importación circular
+    extra = 1
+
+class MessengerAPIInline(admin.TabularInline):
+    model = None
+    extra = 1
+
+class TelegramAPIInline(admin.TabularInline):
+    model = None
+    extra = 1
+
+class InstagramAPIInline(admin.TabularInline):
+    model = None
+    extra = 1
+
+class DominioScrapingInline(admin.TabularInline):
+    model = None
+    extra = 1
+
+class ConfiguracionBUInline(admin.TabularInline):
+    model = None
+    extra = 1
 
 class MessageBirdConfigForm(forms.Form):
     """Formulario para configurar MessageBird"""
@@ -164,7 +181,7 @@ class BusinessUnitAdmin(AdminMixin, AuditMixin, ValidationMixin, admin.ModelAdmi
     def get_business_unit_metrics(self, business_unit):
         """Obtiene métricas y estadísticas de la Business Unit"""
         return {
-            'total_candidates': business_unit.candidate_set.count(),
+            'total_candidates': business_unit.person_set.count(),
             'active_jobs': business_unit.job_set.filter(status='active').count(),
             'total_interviews': business_unit.interview_set.count(),
             'channel_stats': self.get_channel_statistics(business_unit)
@@ -263,5 +280,4 @@ class BusinessUnitAdmin(AdminMixin, AuditMixin, ValidationMixin, admin.ModelAdmi
         
     configure_messagebird.short_description = "Configurar MessageBird para SMS"
 
-# Registrar el administrador
-admin.site.register(BusinessUnit, BusinessUnitAdmin)
+# El registro se hace en app/admin/__init__.py para evitar duplicados

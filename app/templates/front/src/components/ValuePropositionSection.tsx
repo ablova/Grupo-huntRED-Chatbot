@@ -39,8 +39,8 @@ const ValuePropositionSection: React.FC = () => {
         "Administración de nómina adaptada",
         "Equipo local de soporte"
       ],
-      color: "text-blue-600",
-      gradient: "from-blue-500 to-blue-600"
+      color: "text-tech-blue",
+      gradient: "from-tech-blue to-tech-cyan"
     },
     {
       icon: <Brain className="w-8 h-8" />,
@@ -53,8 +53,8 @@ const ValuePropositionSection: React.FC = () => {
         "Predicción de retención",
         "Evaluación de soft skills"
       ],
-      color: "text-purple-600",
-      gradient: "from-purple-500 to-purple-600"
+      color: "text-tech-purple",
+      gradient: "from-tech-purple to-tech-blue"
     },
     {
       icon: <Shield className="w-8 h-8" />,
@@ -67,8 +67,8 @@ const ValuePropositionSection: React.FC = () => {
         "Prevención de conflictos",
         "Reportes de compliance"
       ],
-      color: "text-green-600",
-      gradient: "from-green-500 to-green-600"
+      color: "text-tech-green",
+      gradient: "from-tech-green to-tech-cyan"
     },
     {
       icon: <Zap className="w-8 h-8" />,
@@ -81,8 +81,8 @@ const ValuePropositionSection: React.FC = () => {
         "ROI predecible",
         "Mejor valor del mercado"
       ],
-      color: "text-orange-600",
-      gradient: "from-orange-500 to-orange-600"
+      color: "text-tech-cyan",
+      gradient: "from-tech-cyan to-tech-blue"
     }
   ];
 
@@ -105,20 +105,20 @@ const ValuePropositionSection: React.FC = () => {
   ];
 
   return (
-    <section className="py-24 bg-gradient-to-br from-white via-gray-50 to-red-50">
+    <section className="py-24 bg-gradient-to-br from-white via-gray-50 to-blue-50" aria-label="Propuesta de Valor">
       <div className="container mx-auto px-4">
         {/* Header */}
         <div className="text-center mb-16">
-          <Badge variant="secondary" className="mb-4 bg-red-100 text-red-700 hover:bg-red-200">
+          <Badge variant="secondary" className="mb-4 bg-blue-100 text-blue-700 hover:bg-blue-200">
             <Star className="w-4 h-4 mr-2" />
             Propuesta de Valor Única
           </Badge>
           <h2 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6">
-            ¿Por qué la Plataforma de Talento de Grupo hunt<span className="bg-gradient-to-r from-red-600 to-red-800 bg-clip-text text-transparent">
+            ¿Por qué la Plataforma de Talento de Grupo hunt<span className="bg-gradient-to-r from-tech-blue to-tech-purple bg-clip-text text-transparent">
               {' '}RED® es superior?
             </span>
           </h2>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+          <p className="text-xl text-gray-700 max-w-3xl mx-auto">
             Módulos exclusivos y tecnología propietaria que posicionan nuestra plataforma como la mejor opción para empresas latinoamericanas.
             diseñada específicamente para transformar el talento en Latinoamérica, con procesos personalizados y tecnología de vanguardia.
           </p>
@@ -129,7 +129,8 @@ const ValuePropositionSection: React.FC = () => {
           {valuePropositions.map((proposition, index) => (
             <Card 
               key={index}
-              className="group hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 border-0 bg-white/80 backdrop-blur-sm"
+              className="group hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 border-0 bg-white/90 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-tech-blue focus:ring-offset-2 rounded-xl"
+              tabIndex={0}
             >
               <CardHeader className="pb-4">
                 <div className="flex items-center space-x-4">
@@ -149,7 +150,7 @@ const ValuePropositionSection: React.FC = () => {
               </CardHeader>
               
               <CardContent>
-                <p className="text-gray-600 mb-6 leading-relaxed">
+                <p className="text-gray-700 mb-6 leading-relaxed">
                   {proposition.description}
                 </p>
                 
@@ -159,7 +160,7 @@ const ValuePropositionSection: React.FC = () => {
                       <div className={`w-6 h-6 rounded-full bg-gradient-to-br ${proposition.gradient} flex items-center justify-center`}>
                         <CheckCircle className="w-4 h-4 text-white" />
                       </div>
-                      <span className="text-gray-700 font-medium">{benefit}</span>
+                      <span className="text-gray-800 font-medium">{benefit}</span>
                     </div>
                   ))}
                 </div>
@@ -175,15 +176,19 @@ const ValuePropositionSection: React.FC = () => {
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {competitiveAdvantages.map((advantage, index) => (
-              <Card key={index} className="text-center hover:shadow-lg transition-shadow duration-300">
+              <Card 
+                key={index} 
+                className="text-center hover:shadow-lg transition-shadow duration-300 focus:outline-none focus:ring-2 focus:ring-tech-blue focus:ring-offset-2 rounded-lg"
+                tabIndex={0}
+              >
                 <CardContent className="p-6">
-                  <div className="w-12 h-12 mx-auto mb-4 rounded-xl bg-red-100 flex items-center justify-center text-red-600">
+                  <div className="w-12 h-12 mx-auto mb-4 rounded-xl bg-blue-100 flex items-center justify-center text-tech-blue">
                     {advantage.icon}
                   </div>
                   <h4 className="text-lg font-semibold text-gray-900 mb-2">
                     {advantage.title}
                   </h4>
-                  <p className="text-red-600 font-medium">
+                  <p className="text-tech-blue font-medium">
                     {advantage.advantage}
                   </p>
                 </CardContent>
@@ -193,7 +198,7 @@ const ValuePropositionSection: React.FC = () => {
         </div>
 
         {/* Market Position */}
-        <div className="bg-gradient-to-r from-red-600 to-red-700 rounded-2xl p-8 text-white mb-16">
+        <div className="bg-gradient-to-r from-tech-blue to-tech-purple rounded-2xl p-8 text-white mb-16">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-center">
             <div>
               <h3 className="text-2xl font-bold mb-4">
@@ -206,12 +211,12 @@ const ValuePropositionSection: React.FC = () => {
             
             <div className="text-center">
               <div className="text-4xl font-bold mb-2">700+</div>
-              <div className="text-red-100">Empresas Confían</div>
+              <div className="text-white font-medium">Empresas Confían</div>
             </div>
             
             <div className="text-center">
               <div className="text-4xl font-bold mb-2">15</div>
-              <div className="text-red-100">Países Cubiertos</div>
+              <div className="text-white font-medium">Países Cubiertos</div>
             </div>
           </div>
         </div>
@@ -231,7 +236,7 @@ const ValuePropositionSection: React.FC = () => {
                     ))}
                   </div>
                 </div>
-                <p className="text-gray-600 mb-4 italic">
+                <p className="text-gray-700 mb-4 italic">
                   "huntRED® transformó completamente nuestro proceso de reclutamiento. 
                   La IA personalizada y el soporte local hicieron toda la diferencia."
                 </p>
@@ -256,7 +261,7 @@ const ValuePropositionSection: React.FC = () => {
                     ))}
                   </div>
                 </div>
-                <p className="text-gray-600 mb-4 italic">
+                <p className="text-gray-700 mb-4 italic">
                   "El precio dinámico y la integración nativa con nuestros sistemas 
                   HR y nómina nos permitieron ahorrar 40% en costos operativos."
                 </p>
@@ -284,11 +289,18 @@ const ValuePropositionSection: React.FC = () => {
               Descubra por qué más de 350 empresas confían en nuestra plataforma completa de soluciones de talento y administración de nómina
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button className="bg-red-600 hover:bg-red-700 px-8 py-3 text-lg font-semibold">
+              <Button 
+                className="bg-tech-blue hover:bg-blue-700 px-8 py-3 text-lg font-semibold focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                aria-label="Solicitar una demostración personalizada"
+              >
                 <MessageSquare className="w-5 h-5 mr-2" />
                 Solicitar Demo Personalizada
               </Button>
-              <Button variant="outline" className="border-red-600 text-red-600 hover:bg-red-600 hover:text-white px-8 py-3 text-lg font-semibold">
+              <Button 
+                variant="outline" 
+                className="border-tech-blue text-tech-blue hover:bg-tech-blue hover:text-white px-8 py-3 text-lg font-semibold focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                aria-label="Hablar con un experto en soluciones de talento"
+              >
                 <Users className="w-5 h-5 mr-2" />
                 Hablar con Experto
               </Button>

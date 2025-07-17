@@ -451,39 +451,4 @@ class CompanyAdmin(admin.ModelAdmin):
             'fields': ('created_at', 'updated_at'),
             'classes': ('collapse',)
         }),
-    )
-
-
-# ============================================================================
-# ADMIN DE PERSON
-# ============================================================================
-
-@admin.register(Person)
-class PersonAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'apellido_paterno', 'email', 'phone', 'fecha_creacion')
-    search_fields = ('nombre', 'apellido_paterno', 'apellido_materno', 'email', 'phone')
-    list_filter = ('sexo', 'job_search_status', 'fecha_creacion')
-    readonly_fields = ('fecha_creacion', 'points')
-    
-    fieldsets = (
-        ('Información Personal', {
-            'fields': ('nombre', 'apellido_paterno', 'apellido_materno', 'nacionalidad', 'fecha_nacimiento', 'sexo')
-        }),
-        ('Información de Contacto', {
-            'fields': ('email', 'company_email', 'phone', 'linkedin_url')
-        }),
-        ('Información Profesional', {
-            'fields': ('skills', 'experience_years', 'desired_job_types', 'job_search_status')
-        }),
-        ('Documentos', {
-            'fields': ('cv_file', 'cv_parsed', 'cv_analysis')
-        }),
-        ('Datos Adicionales', {
-            'fields': ('salary_data', 'personality_data', 'experience_data', 'metadata'),
-            'classes': ('collapse',)
-        }),
-        ('Sistema', {
-            'fields': ('fecha_creacion', 'points', 'tos_accepted'),
-            'classes': ('collapse',)
-        }),
     ) 

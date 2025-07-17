@@ -292,40 +292,30 @@ class VacanteAdminForm(forms.ModelForm):
         }
 
 class VacanteAdmin(admin.ModelAdmin):
-    form = VacanteAdminForm
     list_display = (
         'id',
         'titulo',
         'business_unit',
-        'location',
-        'salary_range',
-        'status',
-        'applications_count',
-        'success_rate',
-        'last_application',
-        'priority',
-        'skills_summary',
+        'ubicacion',
+        'modalidad',
+        'activa',
+        'fecha_publicacion',
+        'url_original',
     )
     list_filter = (
-        BusinessUnitFilter,
-        'status',
-        'location',
-        'created_at',
+        'business_unit',
+        'modalidad',
+        'activa',
+        'fecha_publicacion',
     )
     search_fields = (
         'titulo',
-        'business_unit__name',
-        'location',
-        'required_skills',
+        'empresa__name',
+        'ubicacion',
+        'descripcion',
     )
     readonly_fields = (
-        'created_at',
-        'updated_at',
-        'applications_count',
-        'success_rate',
-        'last_application',
-        'priority',
-        'skills_summary',
+        'fecha_scraping',
     )
     ordering = ('-priority', 'titulo')
 

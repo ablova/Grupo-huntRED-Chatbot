@@ -45,7 +45,7 @@ class PayrollCompanyAdmin(admin.ModelAdmin):
     search_fields = ['name', 'whatsapp_business_name']
     readonly_fields = [
         'id', 'created_at', 'updated_at', 'employee_count', 
-        'monthly_revenue', 'ml_accuracy_display'
+        'ml_accuracy_display'
     ]
     
     fieldsets = (

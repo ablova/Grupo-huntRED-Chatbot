@@ -82,6 +82,9 @@ class PermissionMiddleware(MiddlewareMixin):
         }
 
         # Obtener el nombre de la vista actual
+        if not hasattr(request, 'resolver_match') or request.resolver_match is None:
+            return None
+            
         view_name = request.resolver_match.view_name
 
         # Verificar si la vista requiere permisos específicos
@@ -125,6 +128,9 @@ class RoleMiddleware(MiddlewareMixin):
         }
 
         # Obtener el nombre de la vista actual
+        if not hasattr(request, 'resolver_match') or request.resolver_match is None:
+            return None
+            
         view_name = request.resolver_match.view_name
 
         # Verificar si la vista requiere un rol específico
@@ -160,6 +166,9 @@ class BusinessUnitMiddleware(MiddlewareMixin):
             return None
 
         # Obtener el nombre de la vista actual
+        if not hasattr(request, 'resolver_match') or request.resolver_match is None:
+            return None
+            
         view_name = request.resolver_match.view_name
 
         # Verificar acceso a unidades de negocio específicas
@@ -196,6 +205,9 @@ class DivisionMiddleware(MiddlewareMixin):
             return None
 
         # Obtener el nombre de la vista actual
+        if not hasattr(request, 'resolver_match') or request.resolver_match is None:
+            return None
+            
         view_name = request.resolver_match.view_name
 
         # Verificar acceso a divisiones específicas
